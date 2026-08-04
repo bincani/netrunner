@@ -21,6 +21,8 @@
 - All quantity inputs are validated as non-negative integers (Add additionally requires a positive integer).
 - Some packs (e.g. the `draft` pack) have no declared `size` in the source data — these are excluded from set-completion percentage reporting, since a percentage against an unknown denominator is meaningless, but their cards still import normally and remain browsable.
 - Deckbuilding / "what can I build with this" is explicitly out of scope for this plan.
+- Interactive client-component logic (search-as-you-type, add, inline quantity edit) gets automated component tests via React Testing Library + jsdom. Server Component pages (data fetching, composition, layout) are verified manually against the running dev server per Task 12 — RTL cannot render async Server Components, and Playwright-based E2E was deliberately not introduced to avoid a browser-binary dependency in an unattended multi-task pipeline.
+- Server Actions are split into a thin `'use server'` wrapper (`src/actions/collectionActions.ts`) and a plain, unit-tested mutation module (`src/actions/collectionMutations.ts`), so the increment-vs-overwrite wiring has automated regression coverage without breaking the client-callable action signature (a `'use server'` export must take only serializable arguments, which rules out injecting a test `PrismaClient` directly into the exported action).
 
 ---
 
@@ -1436,15 +1438,92 @@ git commit -m "Add card search logic, image URL helper, and search API route"
 ### Task 8: Collection server actions
 
 **Files:**
-- Create: `src/actions/collectionActions.ts`
+- Create: `src/actions/collectionMutations.ts`, `src/actions/collectionMutations.test.ts`, `src/actions/collectionActions.ts`
 
 **Interfaces:**
 - Consumes: `incrementOwned`, `setOwned` (from `src/lib/collection.ts`), `prisma` (from `src/lib/db.ts`).
-- Produces: `addToCollection(cardCode: string, amount: number): Promise<number>`, `updateCollectionQuantity(cardCode: string, quantity: number): Promise<number>` — consumed directly by Task 9's and Task 11's client components.
+- Produces: `addToCollectionMutation(prisma, cardCode, amount): Promise<number>`, `updateCollectionQuantityMutation(prisma, cardCode, quantity): Promise<number>` (internal, consumed only by `collectionActions.ts`). `addToCollection(cardCode: string, amount: number): Promise<number>`, `updateCollectionQuantity(cardCode: string, quantity: number): Promise<number>` (the public server actions, consumed directly by Task 9's and Task 11's client components — same names and signatures either way).
 
-This is a thin wiring layer over already-tested logic (Task 5), so it has no dedicated unit test — Next.js Server Actions must take serializable arguments to be callable from client components, which rules out injecting a test `PrismaClient` the way earlier tasks do. Its correctness is verified by the type-check in Step 2 and the manual UI walkthroughs in Tasks 9, 11, and 12.
+The mutation logic is split from the `'use server'` boundary specifically so the wiring — "Add calls `incrementOwned`, Edit calls `setOwned`, never the reverse" — has its own regression test, distinct from the increment/overwrite *behavior* already covered in Task 5. The test mocks `src/lib/collection.ts` so it asserts which function was called, not the arithmetic (already proven).
 
-- [ ] **Step 1: Write the server actions**
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// src/actions/collectionMutations.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { addToCollectionMutation, updateCollectionQuantityMutation } from './collectionMutations'
+import * as collectionLib from '@/lib/collection'
+import type { PrismaClient } from '@prisma/client'
+
+vi.mock('@/lib/collection', () => ({
+  incrementOwned: vi.fn(),
+  setOwned: vi.fn(),
+}))
+
+describe('collection action wiring', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('addToCollectionMutation delegates to incrementOwned, not setOwned', async () => {
+    vi.mocked(collectionLib.incrementOwned).mockResolvedValue(5)
+    const prisma = {} as PrismaClient
+
+    const result = await addToCollectionMutation(prisma, '01007', 2)
+
+    expect(collectionLib.incrementOwned).toHaveBeenCalledWith(prisma, '01007', 2)
+    expect(collectionLib.setOwned).not.toHaveBeenCalled()
+    expect(result).toBe(5)
+  })
+
+  it('updateCollectionQuantityMutation delegates to setOwned, not incrementOwned', async () => {
+    vi.mocked(collectionLib.setOwned).mockResolvedValue(1)
+    const prisma = {} as PrismaClient
+
+    const result = await updateCollectionQuantityMutation(prisma, '01007', 1)
+
+    expect(collectionLib.setOwned).toHaveBeenCalledWith(prisma, '01007', 1)
+    expect(collectionLib.incrementOwned).not.toHaveBeenCalled()
+    expect(result).toBe(1)
+  })
+})
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npm test -- collectionMutations`
+Expected: FAIL — `Cannot find module './collectionMutations'`.
+
+- [ ] **Step 3: Write the mutation module**
+
+```ts
+// src/actions/collectionMutations.ts
+import type { PrismaClient } from '@prisma/client'
+import { incrementOwned, setOwned } from '@/lib/collection'
+
+export async function addToCollectionMutation(
+  prisma: PrismaClient,
+  cardCode: string,
+  amount: number
+): Promise<number> {
+  return incrementOwned(prisma, cardCode, amount)
+}
+
+export async function updateCollectionQuantityMutation(
+  prisma: PrismaClient,
+  cardCode: string,
+  quantity: number
+): Promise<number> {
+  return setOwned(prisma, cardCode, quantity)
+}
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `npm test -- collectionMutations`
+Expected: PASS — both wiring tests green.
+
+- [ ] **Step 5: Write the thin server-action wrapper**
 
 ```ts
 // src/actions/collectionActions.ts
@@ -1452,33 +1531,33 @@ This is a thin wiring layer over already-tested logic (Task 5), so it has no ded
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { incrementOwned, setOwned } from '@/lib/collection'
+import { addToCollectionMutation, updateCollectionQuantityMutation } from './collectionMutations'
 
 export async function addToCollection(cardCode: string, amount: number): Promise<number> {
-  const quantity = await incrementOwned(prisma, cardCode, amount)
+  const quantity = await addToCollectionMutation(prisma, cardCode, amount)
   revalidatePath('/')
   revalidatePath('/sets/[packCode]', 'page')
   return quantity
 }
 
 export async function updateCollectionQuantity(cardCode: string, quantity: number): Promise<number> {
-  const updated = await setOwned(prisma, cardCode, quantity)
+  const updated = await updateCollectionQuantityMutation(prisma, cardCode, quantity)
   revalidatePath('/')
   revalidatePath('/sets/[packCode]', 'page')
   return updated
 }
 ```
 
-- [ ] **Step 2: Verify it compiles under Next.js's server-action constraints**
+- [ ] **Step 6: Run the full suite and verify it compiles under Next.js's server-action constraints**
 
-Run: `npm run build`
-Expected: build succeeds with no errors about non-serializable arguments or invalid `'use server'` exports.
+Run: `npm test && npm run build`
+Expected: all tests pass; build succeeds with no errors about non-serializable arguments or invalid `'use server'` exports.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/actions/collectionActions.ts
-git commit -m "Add server actions wiring collection mutations to the UI"
+git add src/actions/collectionMutations.ts src/actions/collectionMutations.test.ts src/actions/collectionActions.ts
+git commit -m "Add server actions with unit-tested increment-vs-overwrite wiring"
 ```
 
 ---
@@ -1486,12 +1565,12 @@ git commit -m "Add server actions wiring collection mutations to the UI"
 ### Task 9: Collection builder page
 
 **Files:**
-- Create: `src/app/builder/page.tsx`, `src/app/builder/CardBuilderForm.tsx`
-- Modify: `src/app/layout.tsx`
+- Create: `src/app/builder/page.tsx`, `src/app/builder/CardBuilderForm.tsx`, `src/app/builder/CardBuilderForm.test.tsx`, `vitest.setup.ts`
+- Modify: `src/app/layout.tsx`, `vitest.config.ts`
 
 **Interfaces:**
 - Consumes: `CardSearchResult` (from `src/lib/cards.ts`), `cardImageUrl` (from `src/lib/cardImage.ts`), `addToCollection` (from `src/actions/collectionActions.ts`), `GET /api/cards/search`.
-- Produces: the `/builder` route and a shared nav bar in the root layout, used by Task 10 and Task 11's pages too.
+- Produces: the `/builder` route and a shared nav bar in the root layout, used by Task 10 and Task 11's pages too. Also produces the project's React Testing Library + jsdom test setup (`vitest.setup.ts`, the `@vitest-environment jsdom` per-file convention, and the `.tsx` test glob in `vitest.config.ts`), reused as-is by Task 11's `SetCardGrid.test.tsx`.
 
 - [ ] **Step 1: Add navigation to the root layout**
 
@@ -1523,7 +1602,129 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-- [ ] **Step 2: Write the builder form client component**
+- [ ] **Step 2: Install the component-testing toolchain**
+
+```bash
+npm install -D @testing-library/react@latest @testing-library/jest-dom@latest @testing-library/user-event@latest jsdom@latest @vitejs/plugin-react@latest
+```
+
+- [ ] **Step 3: Wire up jsdom, React, and jest-dom matchers in Vitest**
+
+The lib tests (Tasks 2–7) run fine under Vitest's default `node` environment; component tests need `jsdom` instead. Rather than switch the whole suite to `jsdom` (slower, unnecessary for pure logic tests), each component test file opts in individually via a `@vitest-environment jsdom` docblock. The existing `include` glob only matches `.test.ts`, so it must be widened to also pick up `.test.tsx`.
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import path from 'node:path'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['./vitest.setup.ts'],
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+})
+```
+
+```ts
+// vitest.setup.ts
+import '@testing-library/jest-dom/vitest'
+```
+
+- [ ] **Step 4: Write the failing component test**
+
+`next/image` performs browser-only work that jsdom doesn't fully implement, so it's mocked to a plain `<img>` in every component test that renders one.
+
+```tsx
+// src/app/builder/CardBuilderForm.test.tsx
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { CardBuilderForm } from './CardBuilderForm'
+import { addToCollection } from '@/actions/collectionActions'
+
+vi.mock('@/actions/collectionActions', () => ({
+  addToCollection: vi.fn(),
+}))
+
+vi.mock('next/image', () => ({
+  default: (props: React.ComponentProps<'img'>) => <img {...props} />,
+}))
+
+const mockResults = [
+  {
+    code: '01007',
+    title: 'Corroder',
+    factionCode: 'anarch',
+    typeCode: 'program',
+    packCode: 'core',
+    packName: 'Core Set',
+    sideCode: 'runner',
+    ownedQuantity: 0,
+  },
+]
+
+describe('CardBuilderForm', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    global.fetch = vi.fn(async () => ({
+      json: async () => mockResults,
+    })) as unknown as typeof fetch
+  })
+
+  it('searches as the user types and shows results', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+
+    await waitFor(() => expect(screen.getByText('Corroder')).toBeInTheDocument())
+    expect(global.fetch).toHaveBeenCalledWith('/api/cards/search?q=corro')
+  })
+
+  it('selecting a result reveals the quantity picker and Add button', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByText('Corroder'))
+
+    expect(screen.getByText('Adding Corroder')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+  })
+
+  it('clicking Add calls addToCollection with the selected card and quantity', async () => {
+    vi.mocked(addToCollection).mockResolvedValue(2)
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByText('Corroder'))
+    await user.selectOptions(screen.getByRole('combobox'), '2')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(addToCollection).toHaveBeenCalledWith('01007', 2))
+    await waitFor(() => expect(screen.getByText('Corroder: now own 2')).toBeInTheDocument())
+  })
+})
+```
+
+- [ ] **Step 5: Run the test to verify it fails**
+
+Run: `npm test -- CardBuilderForm`
+Expected: FAIL — `Cannot find module './CardBuilderForm'` (it doesn't exist yet).
+
+- [ ] **Step 6: Write the builder form client component**
 
 ```tsx
 // src/app/builder/CardBuilderForm.tsx
@@ -1630,7 +1831,12 @@ export function CardBuilderForm() {
 }
 ```
 
-- [ ] **Step 3: Write the page**
+- [ ] **Step 7: Run the test to verify it passes**
+
+Run: `npm test -- CardBuilderForm`
+Expected: PASS — all 3 `CardBuilderForm` tests green.
+
+- [ ] **Step 8: Write the page**
 
 ```tsx
 // src/app/builder/page.tsx
@@ -1646,12 +1852,12 @@ export default function BuilderPage() {
 }
 ```
 
-- [ ] **Step 4: Run the full suite and build**
+- [ ] **Step 9: Run the full suite and build**
 
 Run: `npm test && npm run build`
 Expected: all tests pass; build succeeds.
 
-- [ ] **Step 5: Manually verify in the browser**
+- [ ] **Step 10: Manually verify in the browser**
 
 Run: `npm run dev`, open `http://localhost:3000/builder`.
 - Type "corroder" into the search box — expect one result with its image, faction, and set.
@@ -1659,10 +1865,10 @@ Run: `npm run dev`, open `http://localhost:3000/builder`.
 - Search "corroder" again — expect the result's "owned: 2" to reflect the update.
 Stop the dev server afterward.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add src/app/layout.tsx src/app/builder/
+git add src/app/layout.tsx src/app/builder/ vitest.config.ts vitest.setup.ts package.json package-lock.json
 git commit -m "Add collection builder page with search, quantity picker, and add"
 ```
 
@@ -1671,19 +1877,68 @@ git commit -m "Add collection builder page with search, quantity picker, and add
 ### Task 10: Dashboard / reports page
 
 **Files:**
-- Modify: `src/app/page.tsx`
+- Modify: `src/lib/reports.ts`, `src/lib/reports.test.ts`, `src/app/page.tsx`
 
 **Interfaces:**
 - Consumes: `computeAllSetsCompletion`, `computeCollectionTotals` (from `src/lib/reports.ts`), `prisma` (from `src/lib/db.ts`).
-- Produces: links to `/sets/[packCode]`, the route Task 11 implements.
+- Produces: `groupSetsByCycle(sets: SetCompletion[]): Map<string, SetCompletion[]>` (added to `src/lib/reports.ts`) — the one piece of real logic in this otherwise server-rendered page, so it's extracted and unit-tested rather than left inline and untestable. Also produces links to `/sets/[packCode]`, the route Task 11 implements.
 
-- [ ] **Step 1: Replace the placeholder home page with the dashboard**
+- [ ] **Step 1: Write the failing test for the grouping logic**
+
+Append to `src/lib/reports.test.ts` (a new `describe` block, sibling to the existing ones, sharing the file's imports):
+
+```ts
+import { groupSetsByCycle } from './reports'
+
+describe('groupSetsByCycle', () => {
+  it('groups sets by their cycle code, preserving input order within each group', () => {
+    const sets = [
+      { packCode: 'core', packName: 'Core Set', cycleCode: 'core', ownedCount: 1, totalCount: 2, percentOwned: 50 },
+      { packCode: 'asis', packName: 'A Study in Static', cycleCode: 'genesis', ownedCount: 0, totalCount: 20, percentOwned: 0 },
+      { packCode: 'cotc', packName: 'Cyber Exodus', cycleCode: 'genesis', ownedCount: 5, totalCount: 20, percentOwned: 25 },
+    ]
+
+    const grouped = groupSetsByCycle(sets)
+
+    expect([...grouped.keys()]).toEqual(['core', 'genesis'])
+    expect(grouped.get('genesis')?.map((s) => s.packCode)).toEqual(['asis', 'cotc'])
+  })
+})
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npm test -- reports`
+Expected: FAIL — `groupSetsByCycle` is not exported from `./reports`.
+
+- [ ] **Step 3: Add the implementation to `src/lib/reports.ts`**
+
+Append:
+
+```ts
+export function groupSetsByCycle(sets: SetCompletion[]): Map<string, SetCompletion[]> {
+  const grouped = new Map<string, SetCompletion[]>()
+  for (const set of sets) {
+    const existing = grouped.get(set.cycleCode) ?? []
+    existing.push(set)
+    grouped.set(set.cycleCode, existing)
+  }
+  return grouped
+}
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `npm test -- reports`
+Expected: PASS — including the new `groupSetsByCycle` test.
+
+- [ ] **Step 5: Replace the placeholder home page with the dashboard**
 
 ```tsx
 // src/app/page.tsx
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
-import { computeAllSetsCompletion, computeCollectionTotals, type SetCompletion } from '@/lib/reports'
+import { computeAllSetsCompletion, computeCollectionTotals, groupSetsByCycle } from '@/lib/reports'
 
 export default async function DashboardPage() {
   const [sets, totals] = await Promise.all([
@@ -1691,12 +1946,7 @@ export default async function DashboardPage() {
     computeCollectionTotals(prisma),
   ])
 
-  const setsByCycle = new Map<string, SetCompletion[]>()
-  for (const set of sets) {
-    const existing = setsByCycle.get(set.cycleCode) ?? []
-    existing.push(set)
-    setsByCycle.set(set.cycleCode, existing)
-  }
+  const setsByCycle = groupSetsByCycle(sets)
 
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-8">
@@ -1739,20 +1989,20 @@ export default async function DashboardPage() {
 }
 ```
 
-- [ ] **Step 2: Run the full suite and build**
+- [ ] **Step 6: Run the full suite and build**
 
 Run: `npm test && npm run build`
 Expected: all tests pass; build succeeds.
 
-- [ ] **Step 3: Manually verify in the browser**
+- [ ] **Step 7: Manually verify in the browser**
 
 Run: `npm run dev`, open `http://localhost:3000/`.
 Expected: the overall total line at the top reflects whatever was added in Task 9's walkthrough (e.g. `1 / <total> cards owned`); sets are grouped under cycle headings; the Core Set entry shows a non-zero percentage if Corroder was added there. Links to individual sets will 404 until Task 11 — that's expected at this point. Stop the dev server afterward.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/app/page.tsx
+git add src/lib/reports.ts src/lib/reports.test.ts src/app/page.tsx
 git commit -m "Add dashboard page with per-set completion and overall totals"
 ```
 
@@ -1762,10 +2012,10 @@ git commit -m "Add dashboard page with per-set completion and overall totals"
 
 **Files:**
 - Modify: `src/lib/cards.ts`, `src/lib/cards.test.ts`
-- Create: `src/app/sets/[packCode]/page.tsx`, `src/app/sets/[packCode]/SetCardGrid.tsx`
+- Create: `src/app/sets/[packCode]/page.tsx`, `src/app/sets/[packCode]/SetCardGrid.tsx`, `src/app/sets/[packCode]/SetCardGrid.test.tsx`
 
 **Interfaces:**
-- Consumes: `computeSetCompletion` (from `src/lib/reports.ts`), `updateCollectionQuantity` (from `src/actions/collectionActions.ts`), `cardImageUrl` (from `src/lib/cardImage.ts`), `prisma`.
+- Consumes: `computeSetCompletion` (from `src/lib/reports.ts`), `updateCollectionQuantity` (from `src/actions/collectionActions.ts`), `cardImageUrl` (from `src/lib/cardImage.ts`), `prisma`. Reuses the RTL + jsdom setup (`vitest.setup.ts`, `@vitest-environment jsdom`, `next/image` mocking pattern) Task 9 already installed — no new test tooling to add here.
 - Produces: `listCardsInPack(prisma, packCode): Promise<PackCardEntry[]>` where `PackCardEntry = { code, title, factionCode, typeCode, position, ownedQuantity }`. The `/sets/[packCode]` route linked from Task 10's dashboard.
 
 - [ ] **Step 1: Write the failing test for the new lib function**
@@ -1835,7 +2085,70 @@ export async function listCardsInPack(prisma: PrismaClient, packCode: string): P
 Run: `npm test -- cards`
 Expected: PASS — including the new `listCardsInPack` test.
 
-- [ ] **Step 5: Write the quantity-editing grid client component**
+- [ ] **Step 5: Write the failing component test**
+
+```tsx
+// src/app/sets/[packCode]/SetCardGrid.test.tsx
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { SetCardGrid } from './SetCardGrid'
+import { updateCollectionQuantity } from '@/actions/collectionActions'
+import type { PackCardEntry } from '@/lib/cards'
+
+vi.mock('@/actions/collectionActions', () => ({
+  updateCollectionQuantity: vi.fn(),
+}))
+
+vi.mock('next/image', () => ({
+  default: (props: React.ComponentProps<'img'>) => <img {...props} />,
+}))
+
+const cards: PackCardEntry[] = [
+  { code: '01001', title: 'Card A', factionCode: 'anarch', typeCode: 'program', position: 1, ownedQuantity: 2 },
+  { code: '01002', title: 'Card B', factionCode: 'anarch', typeCode: 'program', position: 2, ownedQuantity: 0 },
+]
+
+describe('SetCardGrid', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('renders each card with its current owned quantity', () => {
+    render(<SetCardGrid cards={cards} />)
+
+    expect(screen.getByDisplayValue('2')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('0')).toBeInTheDocument()
+  })
+
+  it('dims cards with 0 owned quantity', () => {
+    render(<SetCardGrid cards={cards} />)
+
+    const cardBItem = screen.getByText('Card B').closest('li')
+    expect(cardBItem?.className).toContain('opacity-50')
+  })
+
+  it('editing a quantity calls updateCollectionQuantity with the new value', async () => {
+    vi.mocked(updateCollectionQuantity).mockResolvedValue(3)
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    const input = screen.getByDisplayValue('0')
+    await user.clear(input)
+    await user.type(input, '3')
+
+    expect(updateCollectionQuantity).toHaveBeenCalledWith('01002', 3)
+  })
+})
+```
+
+- [ ] **Step 6: Run the test to verify it fails**
+
+Run: `npm test -- SetCardGrid`
+Expected: FAIL — `Cannot find module './SetCardGrid'` (it doesn't exist yet).
+
+- [ ] **Step 7: Write the quantity-editing grid client component**
 
 ```tsx
 // src/app/sets/[packCode]/SetCardGrid.tsx
@@ -1892,7 +2205,12 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
 }
 ```
 
-- [ ] **Step 6: Write the page**
+- [ ] **Step 8: Run the test to verify it passes**
+
+Run: `npm test -- SetCardGrid`
+Expected: PASS — all 3 `SetCardGrid` tests green.
+
+- [ ] **Step 9: Write the page**
 
 Next.js (current versions) resolve dynamic route `params` as a `Promise`, not a plain object — it must be awaited before use.
 
@@ -1933,17 +2251,17 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
 }
 ```
 
-- [ ] **Step 7: Run the full suite and build**
+- [ ] **Step 10: Run the full suite and build**
 
 Run: `npm test && npm run build`
 Expected: all tests pass; build succeeds.
 
-- [ ] **Step 8: Manually verify in the browser**
+- [ ] **Step 11: Manually verify in the browser**
 
 Run: `npm run dev`, open `http://localhost:3000/` and click into the Core Set.
 Expected: every Core Set card is listed in box order; Corroder (added in Task 9) shows quantity 2 and is not dimmed; other cards show 0 and are dimmed. Change Corroder's quantity to 3 via the number input, reload the page — expect it to still read 3. Go back to `/`, expect the Core Set percentage to have changed accordingly. Stop the dev server afterward.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
 git add src/lib/cards.ts src/lib/cards.test.ts src/app/sets/
@@ -1961,7 +2279,7 @@ git commit -m "Add set browser page with owned/missing view and inline quantity 
 - [ ] **Step 1: Run the full automated suite**
 
 Run: `npm test`
-Expected: every test across `sanity`, `db`, `importData`, `collection`, `reports`, `cardImage`, and `cards` passes.
+Expected: every test across `sanity`, `db`, `importData`, `collection`, `reports` (including `groupSetsByCycle`), `cardImage`, `cards` (including `listCardsInPack`), `collectionMutations`, `CardBuilderForm`, and `SetCardGrid` passes.
 
 - [ ] **Step 2: Run a production build**
 
