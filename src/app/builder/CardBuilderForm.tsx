@@ -12,32 +12,45 @@ export function CardBuilderForm() {
   const [selected, setSelected] = useState<CardSearchResult | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [status, setStatus] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   async function runSearch(value: string) {
     setQuery(value)
     setSelected(null)
     setStatus(null)
+    setError(null)
 
     if (value.trim().length === 0) {
       setResults([])
       return
     }
 
-    const response = await fetch(`/api/cards/search?q=${encodeURIComponent(value)}`)
-    const data: CardSearchResult[] = await response.json()
-    setResults(data)
+    try {
+      const response = await fetch(`/api/cards/search?q=${encodeURIComponent(value)}`)
+      const data: CardSearchResult[] = await response.json()
+      setResults(data)
+    } catch {
+      setResults([])
+      setError('Search failed — try again')
+    }
   }
 
   function handleAdd() {
     if (!selected) return
+    const cardToAdd = selected
 
     startTransition(async () => {
-      const newQuantity = await addToCollection(selected.code, quantity)
-      setStatus(`${selected.title}: now own ${newQuantity}`)
-      setResults((prev) =>
-        prev.map((card) => (card.code === selected.code ? { ...card, ownedQuantity: newQuantity } : card))
-      )
+      try {
+        const newQuantity = await addToCollection(cardToAdd.code, quantity)
+        setStatus(`${cardToAdd.title}: now own ${newQuantity}`)
+        setError(null)
+        setResults((prev) =>
+          prev.map((card) => (card.code === cardToAdd.code ? { ...card, ownedQuantity: newQuantity } : card))
+        )
+      } catch {
+        setError(`Failed to add ${cardToAdd.title} — try again`)
+      }
     })
   }
 
@@ -96,6 +109,11 @@ export function CardBuilderForm() {
       )}
 
       {status && <p className="text-green-400">{status}</p>}
+      {error && (
+        <p className="text-red-400" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

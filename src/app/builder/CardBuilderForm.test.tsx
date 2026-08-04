@@ -70,4 +70,30 @@ describe('CardBuilderForm', () => {
     await waitFor(() => expect(addToCollection).toHaveBeenCalledWith('01007', 2))
     await waitFor(() => expect(screen.getByText('Corroder: now own 2')).toBeInTheDocument())
   })
+
+  it('shows a visible error instead of an unhandled rejection when the search request fails', async () => {
+    global.fetch = vi.fn(async () => {
+      throw new Error('network down')
+    }) as unknown as typeof fetch
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/search failed/i)
+  })
+
+  it('shows a visible error and does not report success when addToCollection rejects', async () => {
+    vi.mocked(addToCollection).mockRejectedValue(new Error('db exploded'))
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to add corroder/i)
+    expect(screen.queryByText(/now own/)).not.toBeInTheDocument()
+  })
 })
