@@ -70,3 +70,13 @@ export async function computeCollectionTotals(prisma: PrismaClient): Promise<Col
     percentOwned: totalCards === 0 ? 0 : Math.round((ownedCards / totalCards) * 100),
   }
 }
+
+export function groupSetsByCycle(sets: SetCompletion[]): Map<string, SetCompletion[]> {
+  const grouped = new Map<string, SetCompletion[]>()
+  for (const set of sets) {
+    const existing = grouped.get(set.cycleCode) ?? []
+    existing.push(set)
+    grouped.set(set.cycleCode, existing)
+  }
+  return grouped
+}

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard } from './testFixtures'
 import { incrementOwned } from './collection'
-import { computeSetCompletion, computeAllSetsCompletion, computeCollectionTotals } from './reports'
+import { computeSetCompletion, computeAllSetsCompletion, computeCollectionTotals, groupSetsByCycle } from './reports'
 import type { PrismaClient } from '@prisma/client'
 
 describe('reports', () => {
@@ -64,5 +64,20 @@ describe('reports', () => {
     const totals = await computeCollectionTotals(prisma)
 
     expect(totals).toEqual({ ownedCards: 1, totalCards: 3, percentOwned: 33 })
+  })
+})
+
+describe('groupSetsByCycle', () => {
+  it('groups sets by their cycle code, preserving input order within each group', () => {
+    const sets = [
+      { packCode: 'core', packName: 'Core Set', cycleCode: 'core', ownedCount: 1, totalCount: 2, percentOwned: 50 },
+      { packCode: 'asis', packName: 'A Study in Static', cycleCode: 'genesis', ownedCount: 0, totalCount: 20, percentOwned: 0 },
+      { packCode: 'cotc', packName: 'Cyber Exodus', cycleCode: 'genesis', ownedCount: 5, totalCount: 20, percentOwned: 25 },
+    ]
+
+    const grouped = groupSetsByCycle(sets)
+
+    expect([...grouped.keys()]).toEqual(['core', 'genesis'])
+    expect(grouped.get('genesis')?.map((s) => s.packCode)).toEqual(['asis', 'cotc'])
   })
 })
