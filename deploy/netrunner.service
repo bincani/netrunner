@@ -1,0 +1,32 @@
+# Netrunner Collection Tracker — systemd service template
+#
+# 1. Edit the placeholders below:
+#    - User=: the Linux user that should run the app (not root)
+#    - WorkingDirectory=: where you cloned/deployed the repo
+#    - ExecStart=: confirm this path with `which npm` as that user — it
+#      varies depending on how Node was installed (nvm, system package, etc)
+#    - PORT (if you change it here, also update deploy/nginx.conf's
+#      proxy_pass to match)
+# 2. Build the app first: npm run build (from WorkingDirectory)
+# 3. sudo cp deploy/netrunner.service /etc/systemd/system/netrunner.service
+# 4. sudo systemctl daemon-reload
+# 5. sudo systemctl enable --now netrunner
+# 6. sudo systemctl status netrunner     # confirm it's running
+#    journalctl -u netrunner -f          # tail logs
+
+[Unit]
+Description=Netrunner Collection Tracker
+After=network.target
+
+[Service]
+Type=simple
+User=REPLACE_WITH_DEPLOY_USER
+WorkingDirectory=/var/www/netrunner
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

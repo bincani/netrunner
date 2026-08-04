@@ -17,8 +17,14 @@ for the full design; this file is the high-level orientation.
   owned quantities directly.
 
 **Out of scope for now:** deckbuilding / "what can I build with this"
-(phase 2+), multi-user accounts or auth (single user, no login), and any
-deployment beyond local dev.
+(phase 2+) and multi-user accounts or auth (single user, no login — this
+holds even when deployed behind nginx, see below).
+
+An nginx + systemd production deployment option was added after phase 1
+shipped — see `README.md`'s "Production deployment" section and the
+`deploy/` directory. This doesn't change the single-user/no-auth design;
+it's still a local-database app, just reachable over the network if you
+choose to expose it that way.
 
 ## Data source
 
@@ -27,9 +33,10 @@ deployment beyond local dev.
   build against it yet.
 - Bulk import from
   [`Null-Signal-Games/netrunner-cards-json`](https://github.com/Null-Signal-Games/netrunner-cards-json)
-  (`packs.json`, `cycles.json`, `v2/cards.json`, `factions.json`,
-  `types.json`, `sides.json`) rather than the live API — it's the same data
-  netrunnerdb.com itself runs on, and it's kept current with new releases.
+  (`packs.json`, `cycles.json`, `factions.json`, `types.json`, and one
+  `pack/<code>.json` per set — see `src/lib/importData.ts`) rather than the
+  live API — it's the same data netrunnerdb.com itself runs on, and it's
+  kept current with new releases.
 - Card images are hotlinked from NetrunnerDB's CDN by card code, never
   downloaded/stored locally. Confirm the current CDN URL pattern against
   the live site before wiring it up — it has changed before.

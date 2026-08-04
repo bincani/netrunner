@@ -1,0 +1,99 @@
+# Netrunner Collection Tracker
+
+A personal, local-first web app for tracking a physical *Android: Netrunner*
+card collection: import the full card catalog, record what you own, and see
+completion percentages per set.
+
+Phase 1 covers collection tracking and reporting. Deckbuilding ("what can I
+build with what I own") is a future phase.
+
+## Features
+
+- **Full card catalog** — every card from both the original FFG era
+  (2012–2018) and the ongoing Null Signal Games continuation, imported from
+  the community NetrunnerDB dataset (~2,500 cards across ~75 sets).
+- **Collection builder** — search for a card, pick a quantity, add it to
+  your collection (adds to what you already own).
+- **Set completion reports** — see what percentage of each set you own,
+  and an overall collection total.
+- **Set browser** — view every card in a set, see what's missing, and
+  correct owned quantities directly (overwrites the count).
+
+## Tech stack
+
+Next.js (App Router) + TypeScript, Prisma + SQLite, Tailwind CSS, Vitest.
+
+## Local development
+
+Requires Node.js 20+.
+
+```bash
+git clone <repo-url>
+cd netrunner
+npm install            # installs dependencies; generates the Prisma client
+npm run setup          # creates/migrates the SQLite database schema
+npm run import-cards   # populates the database from NetrunnerDB data
+npm run dev            # starts the app at http://localhost:3000
+```
+
+`npm run setup` must run before `npm run import-cards` or `npm run dev` —
+neither creates the SQLite schema itself.
+
+Other useful commands:
+
+- `npm test` — run the test suite.
+- `npm run build` — production build.
+- `npm start` — serve a production build (run `npm run build` first).
+
+## Production deployment (nginx + systemd)
+
+This app is a persistent Node.js server (`next start`), not a static site —
+it has API routes and Server Actions, so something needs to keep it running
+continuously, and nginx needs to reverse-proxy to it. Ready-to-adapt
+templates live in `deploy/`:
+
+- `deploy/netrunner.service` — a systemd unit that runs `npm start` as a
+  long-lived service, restarting automatically on crash or reboot.
+- `deploy/nginx.conf` — an nginx server block that reverse-proxies a
+  domain to the app.
+
+### Steps
+
+1. Clone the repo to its deployment location (e.g. `/var/www/netrunner`)
+   and run the local-development setup above (`npm install`, `npm run
+   setup`, `npm run import-cards`) on the server.
+2. Build for production: `npm run build`.
+3. Copy `deploy/netrunner.service` to `/etc/systemd/system/netrunner.service`,
+   edit the placeholders inside it (deployment path, running user), then:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now netrunner
+   sudo systemctl status netrunner
+   ```
+4. Copy `deploy/nginx.conf` into your nginx sites directory (e.g.
+   `/etc/nginx/sites-available/netrunner.conf`, then symlink it into
+   `sites-enabled/`), replace the placeholder domain
+   (`netrunner.example.com`) with your real one, then:
+   ```bash
+   sudo nginx -t
+   sudo systemctl reload nginx
+   ```
+5. (Optional but recommended) Add TLS with [Certbot](https://certbot.eff.org/)
+   once the domain resolves and nginx is serving it over plain HTTP:
+   `sudo certbot --nginx -d your-domain`.
+
+After a `git pull`, re-run `npm install && npm run build` and
+`sudo systemctl restart netrunner`. Re-run `npm run import-cards` whenever
+Null Signal Games releases a new set — it's idempotent and safe to run
+repeatedly.
+
+**Security note:** this is still a single-user, local-database app with no
+authentication — that was a deliberate phase-1 design choice. Deploying it
+behind nginx makes it reachable over the network, but does not add a login.
+Don't expose it to the public internet without adding authentication first
+(e.g. nginx `auth_basic`, or a VPN/private network).
+
+## Project structure
+
+See `CLAUDE.md` for the full architecture/data-model orientation, and
+`docs/superpowers/` for the original design spec and implementation plan.
