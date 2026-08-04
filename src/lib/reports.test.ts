@@ -58,10 +58,11 @@ describe('reports', () => {
   it('computes overall collection totals across all cards', async () => {
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 2, position: 1 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 2, position: 2 })
+    await seedCard(prisma, { code: 'd0001', title: 'Draft Card', packCode: 'draft', packSize: null, position: 1 })
     await incrementOwned(prisma, '01001', 1)
 
     const totals = await computeCollectionTotals(prisma)
 
-    expect(totals).toEqual({ ownedCards: 1, totalCards: 2, percentOwned: 50 })
+    expect(totals).toEqual({ ownedCards: 1, totalCards: 3, percentOwned: 33 })
   })
 })
