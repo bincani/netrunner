@@ -29,7 +29,8 @@ function makeFetch(overrides: Record<string, unknown> = {}) {
     ...overrides,
   }
 
-  return vi.fn(async (url: string) => {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input)
     const key = Object.keys(responses).find((k) => url.endsWith(k))
     if (!key) throw new Error(`Unexpected fetch: ${url}`)
     return {
