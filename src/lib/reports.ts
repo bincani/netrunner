@@ -71,6 +71,32 @@ export async function computeCollectionTotals(prisma: PrismaClient): Promise<Col
   }
 }
 
+export interface UnsizedPack {
+  packCode: string
+  packName: string
+  cycleCode: string
+}
+
+/**
+ * Packs with no declared `size` (e.g. `draft`) are excluded from
+ * computeAllSetsCompletion because a completion percentage against an
+ * unknown denominator is meaningless — but their cards still import and
+ * remain browsable, so the UI needs a way to link to them without a
+ * progress bar.
+ */
+export async function listUnsizedPacks(prisma: PrismaClient): Promise<UnsizedPack[]> {
+  const packs = await prisma.pack.findMany({
+    where: { size: null },
+    orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }],
+  })
+
+  return packs.map((pack) => ({
+    packCode: pack.code,
+    packName: pack.name,
+    cycleCode: pack.cycleCode,
+  }))
+}
+
 export function groupSetsByCycle(sets: SetCompletion[]): Map<string, SetCompletion[]> {
   const grouped = new Map<string, SetCompletion[]>()
   for (const set of sets) {

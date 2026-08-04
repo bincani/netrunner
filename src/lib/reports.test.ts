@@ -2,7 +2,13 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard } from './testFixtures'
 import { incrementOwned } from './collection'
-import { computeSetCompletion, computeAllSetsCompletion, computeCollectionTotals, groupSetsByCycle } from './reports'
+import {
+  computeSetCompletion,
+  computeAllSetsCompletion,
+  computeCollectionTotals,
+  groupSetsByCycle,
+  listUnsizedPacks,
+} from './reports'
 import type { PrismaClient } from '@prisma/client'
 
 describe('reports', () => {
@@ -53,6 +59,22 @@ describe('reports', () => {
     const all = await computeAllSetsCompletion(prisma)
 
     expect(all.map((c) => c.packCode)).toEqual(['core'])
+  })
+
+  it('lists packs with no declared size, excluding sized packs', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
+    await seedCard(prisma, {
+      code: 'd0001',
+      title: 'Draft Card',
+      packCode: 'draft',
+      packName: 'Draft',
+      packSize: null,
+      position: 1,
+    })
+
+    const unsized = await listUnsizedPacks(prisma)
+
+    expect(unsized).toEqual([{ packCode: 'draft', packName: 'Draft', cycleCode: 'core' }])
   })
 
   it('computes overall collection totals across all cards', async () => {
