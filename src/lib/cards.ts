@@ -47,3 +47,29 @@ export async function searchCards(
     ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
   }))
 }
+
+export interface PackCardEntry {
+  code: string
+  title: string
+  factionCode: string
+  typeCode: string
+  position: number
+  ownedQuantity: number
+}
+
+export async function listCardsInPack(prisma: PrismaClient, packCode: string): Promise<PackCardEntry[]> {
+  const cards = await prisma.card.findMany({
+    where: { packCode },
+    include: { collectionEntry: true },
+    orderBy: { position: 'asc' },
+  })
+
+  return cards.map((card) => ({
+    code: card.code,
+    title: card.title,
+    factionCode: card.factionCode,
+    typeCode: card.typeCode,
+    position: card.position,
+    ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
+  }))
+}
