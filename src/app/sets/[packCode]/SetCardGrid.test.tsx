@@ -19,6 +19,17 @@ const cards: PackCardEntry[] = [
   { code: '01002', title: 'Card B', factionCode: 'anarch', typeCode: 'program', position: 2, ownedQuantity: 0 },
 ]
 
+/** A promise plus its resolve/reject, for controlling exactly when a mocked mutation settles. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('SetCardGrid', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -38,15 +49,104 @@ describe('SetCardGrid', () => {
     expect(cardBItem?.className).toContain('opacity-50')
   })
 
-  it('editing a quantity calls updateCollectionQuantity with the new value', async () => {
+  it('editing a quantity and blurring calls updateCollectionQuantity with the new value', async () => {
     vi.mocked(updateCollectionQuantity).mockResolvedValue(3)
     const user = userEvent.setup()
     render(<SetCardGrid cards={cards} />)
 
-    const input = screen.getByDisplayValue('0')
+    const input = screen.getByLabelText('Card B owned quantity')
     await user.clear(input)
     await user.type(input, '3')
+    await user.tab()
 
     expect(updateCollectionQuantity).toHaveBeenCalledWith('01002', 3)
+    expect(updateCollectionQuantity).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call the mutation while the user is still typing, only on commit (blur)', async () => {
+    vi.mocked(updateCollectionQuantity).mockResolvedValue(3)
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    const input = screen.getByLabelText('Card B owned quantity')
+    await user.clear(input)
+    // While the field is empty (an intermediate state on the way to typing
+    // "3"), no write should have fired — in particular not a spurious
+    // setOwned(code, 0).
+    expect(updateCollectionQuantity).not.toHaveBeenCalled()
+
+    await user.type(input, '3')
+    expect(updateCollectionQuantity).not.toHaveBeenCalled()
+
+    await user.tab()
+    expect(updateCollectionQuantity).toHaveBeenCalledTimes(1)
+    expect(updateCollectionQuantity).not.toHaveBeenCalledWith('01002', 0)
+  })
+
+  it('editing one card does not disable or otherwise affect other cards while its save is pending', async () => {
+    const { promise, resolve } = deferred<number>()
+    vi.mocked(updateCollectionQuantity).mockReturnValue(promise)
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    const inputA = screen.getByLabelText('Card A owned quantity')
+    const inputB = screen.getByLabelText('Card B owned quantity')
+
+    await user.clear(inputB)
+    await user.type(inputB, '5')
+    await user.tab()
+
+    // The mutation for Card B is now in flight (unresolved). Card A's input
+    // must remain fully usable — not disabled — while that's happening.
+    expect(inputA).not.toBeDisabled()
+    await user.clear(inputA)
+    await user.type(inputA, '9')
+    expect(inputA).toHaveValue(9)
+
+    resolve(5)
+    await screen.findByDisplayValue('5')
+  })
+
+  it('rejects a negative quantity client-side without calling the mutation, and shows an error', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    const input = screen.getByLabelText('Card B owned quantity')
+    await user.clear(input)
+    await user.type(input, '-5')
+    await user.tab()
+
+    expect(updateCollectionQuantity).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/whole number/i)
+    // Rolled back to the last known-good value.
+    expect(input).toHaveValue(0)
+  })
+
+  it('rejects a non-integer quantity client-side without calling the mutation', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    const input = screen.getByLabelText('Card B owned quantity')
+    await user.clear(input)
+    await user.type(input, '1.5')
+    await user.tab()
+
+    expect(updateCollectionQuantity).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(input).toHaveValue(0)
+  })
+
+  it('shows a visible error and rolls back the displayed value when the mutation rejects', async () => {
+    vi.mocked(updateCollectionQuantity).mockRejectedValue(new Error('db exploded'))
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    const input = screen.getByLabelText('Card B owned quantity')
+    await user.clear(input)
+    await user.type(input, '3')
+    await user.tab()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to save/i)
+    expect(input).toHaveValue(0)
   })
 })
