@@ -59,5 +59,34 @@ be able to build directly on this codebase.
 
 ## Commands
 
-Not yet scaffolded. Will be filled in once the project is initialized
-(expected: `npm run dev`, `npm run import-cards`, `npm test`).
+First-time setup on a fresh clone (in order):
+
+```bash
+npm install           # installs deps; @prisma/client's postinstall generates the Prisma client
+npm run setup          # prisma migrate deploy — creates/migrates data/netrunner.db's schema
+npm run import-cards   # populates the (now schema-having) database from NetrunnerDB data
+npm run dev            # starts the app at http://localhost:3000
+```
+
+`npm run setup` must run before `npm run import-cards` or `npm run dev` —
+neither creates the SQLite schema itself, and both will fail against an
+empty/missing `data/netrunner.db`.
+
+Other commands:
+
+- `npm test` — run the Vitest suite.
+- `npm run build` — production build (`npm start` to serve it). Every page
+  that reads from the database is rendered dynamically (not prerendered),
+  so `next build` itself doesn't touch `data/netrunner.db` and will
+  succeed even without `npm run setup`/`npm run import-cards` having run —
+  but the app won't be useful at runtime until they have.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
