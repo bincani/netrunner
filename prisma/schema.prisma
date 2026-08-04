@@ -33,9 +33,9 @@ model Faction {
 }
 
 model CardType {
-  code     String @id
+  code     String  @id
   name     String
-  sideCode String
+  sideCode String?
   cards    Card[]
 }
 

@@ -34,7 +34,7 @@ interface RawFaction {
 interface RawType {
   code: string
   name: string
-  side_code: string
+  side_code: string | null
 }
 
 interface RawCard {
@@ -93,16 +93,16 @@ export async function importAllCardData(
       for (const faction of factions) {
         await tx.faction.upsert({
           where: { code: faction.code },
-          create: { code: faction.code, name: faction.name, sideCode: faction.side_code || '' },
-          update: { name: faction.name, sideCode: faction.side_code || '' },
+          create: { code: faction.code, name: faction.name, sideCode: faction.side_code },
+          update: { name: faction.name, sideCode: faction.side_code },
         })
       }
 
       for (const type of types) {
         await tx.cardType.upsert({
           where: { code: type.code },
-          create: { code: type.code, name: type.name, sideCode: type.side_code || '' },
-          update: { name: type.name, sideCode: type.side_code || '' },
+          create: { code: type.code, name: type.name, sideCode: type.side_code },
+          update: { name: type.name, sideCode: type.side_code },
         })
       }
 
