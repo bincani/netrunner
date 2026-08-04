@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Cycle {
+  code     String @id
+  name     String
+  position Int
+  packs    Pack[]
+}
+
+model Pack {
+  code        String  @id
+  name        String
+  cycleCode   String
+  cycle       Cycle   @relation(fields: [cycleCode], references: [code])
+  position    Int
+  size        Int?
+  dateRelease String?
+  cards       Card[]
+}
+
+model Faction {
+  code     String @id
+  name     String
+  sideCode String
+  cards    Card[]
+}
+
+model CardType {
+  code     String @id
+  name     String
+  sideCode String
+  cards    Card[]
+}
+
+model Card {
+  code            String           @id
+  title           String
+  typeCode        String
+  type            CardType         @relation(fields: [typeCode], references: [code])
+  factionCode     String
+  faction         Faction          @relation(fields: [factionCode], references: [code])
+  packCode        String
+  pack            Pack             @relation(fields: [packCode], references: [code])
+  sideCode        String
+  cost            Int?
+  factionCost     Int?
+  text            String?
+  deckLimit       Int?
+  keywords        String?
+  strength        Int?
+  uniqueness      Boolean          @default(false)
+  position        Int
+  collectionEntry CollectionEntry?
+}
+
+model CollectionEntry {
+  cardCode      String @id
+  card          Card   @relation(fields: [cardCode], references: [code])
+  quantityOwned Int    @default(0)
+}
