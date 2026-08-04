@@ -1,1 +1,5 @@
 .superpowers/
+node_modules/
+.next/
+data/*.db
+data/*.db-journal
