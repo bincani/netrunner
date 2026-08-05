@@ -69,6 +69,14 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   baw: 'png', // Blood and Water
   fm: 'png', // Free Mars
   cd: 'png', // Crimson Dust
+  tdc: 'jpg', // Terminal Directive Campaign
+  core2: 'jpg', // Revised Core Set
+  ss: 'png', // Sovereign Sight
+  dtwn: 'png', // Down the White Nile
+  cotc: 'png', // Council of the Crest
+  tdatd: 'png', // The Devil and the Dragon
+  win: 'png', // Whispers in Nalubaale
+  ka: 'png', // Kampala Ascendent
 }
 
 export function setImagePath(packCode: string): string | null {

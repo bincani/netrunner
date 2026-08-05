@@ -18,10 +18,10 @@ describe('SetThumbnail', () => {
   })
 
   it('falls back to an initial badge for a set with no downloaded image', () => {
-    const { container } = render(<SetThumbnail packCode="core2" packName="Revised Core Set" />)
+    const { container } = render(<SetThumbnail packCode="mo" packName="Magnum Opus" />)
 
     expect(container.querySelector('img')).toBeNull()
-    expect(screen.getByText('R')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Revised Core Set (no cover image)' })).toBeInTheDocument()
+    expect(screen.getByText('M')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Magnum Opus (no cover image)' })).toBeInTheDocument()
   })
 })
