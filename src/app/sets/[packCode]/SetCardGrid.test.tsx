@@ -14,9 +14,29 @@ vi.mock('next/image', () => ({
   default: (props: React.ComponentProps<'img'>) => <img {...props} />,
 }))
 
+function makeCard(overrides: Partial<PackCardEntry> & Pick<PackCardEntry, 'code' | 'title'>): PackCardEntry {
+  return {
+    factionCode: 'anarch',
+    factionName: 'Anarch',
+    typeCode: 'program',
+    typeName: 'Program',
+    sideCode: 'runner',
+    cost: null,
+    factionCost: null,
+    strength: null,
+    deckLimit: null,
+    keywords: null,
+    text: null,
+    uniqueness: false,
+    position: 1,
+    ownedQuantity: 0,
+    ...overrides,
+  }
+}
+
 const cards: PackCardEntry[] = [
-  { code: '01001', title: 'Card A', factionCode: 'anarch', typeCode: 'program', position: 1, ownedQuantity: 2 },
-  { code: '01002', title: 'Card B', factionCode: 'anarch', typeCode: 'program', position: 2, ownedQuantity: 0 },
+  makeCard({ code: '01001', title: 'Card A', position: 1, ownedQuantity: 2 }),
+  makeCard({ code: '01002', title: 'Card B', position: 2, ownedQuantity: 0 }),
 ]
 
 /** A promise plus its resolve/reject, for controlling exactly when a mocked mutation settles. */

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { updateCollectionQuantity } from '@/actions/collectionActions'
-import { CardThumbnail } from '@/components/CardThumbnail'
+import { CardDetailPopup } from '@/components/CardDetailPopup'
 import type { PackCardEntry } from '@/lib/cards'
 
 function parseQuantity(raw: string): number | null {
@@ -112,10 +112,10 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
                 owned > 0 ? 'border-neutral-700' : 'border-neutral-800 opacity-50'
               }`}
             >
-              <CardThumbnail code={card.code} title={card.title} />
+              <CardDetailPopup card={card} />
               <div className="flex-1">
                 <div className="font-medium">{card.title}</div>
-                <div className="text-sm text-neutral-400">{card.factionCode}</div>
+                <div className="text-sm text-neutral-400">{card.factionName}</div>
                 {error && (
                   <div className="text-xs text-red-400" role="alert">
                     {error}

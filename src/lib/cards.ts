@@ -52,7 +52,17 @@ export interface PackCardEntry {
   code: string
   title: string
   factionCode: string
+  factionName: string
   typeCode: string
+  typeName: string
+  sideCode: string
+  cost: number | null
+  factionCost: number | null
+  strength: number | null
+  deckLimit: number | null
+  keywords: string | null
+  text: string | null
+  uniqueness: boolean
   position: number
   ownedQuantity: number
 }
@@ -60,7 +70,7 @@ export interface PackCardEntry {
 export async function listCardsInPack(prisma: PrismaClient, packCode: string): Promise<PackCardEntry[]> {
   const cards = await prisma.card.findMany({
     where: { packCode },
-    include: { collectionEntry: true },
+    include: { collectionEntry: true, faction: true, type: true },
     orderBy: { position: 'asc' },
   })
 
@@ -68,7 +78,17 @@ export async function listCardsInPack(prisma: PrismaClient, packCode: string): P
     code: card.code,
     title: card.title,
     factionCode: card.factionCode,
+    factionName: card.faction.name,
     typeCode: card.typeCode,
+    typeName: card.type.name,
+    sideCode: card.sideCode,
+    cost: card.cost,
+    factionCost: card.factionCost,
+    strength: card.strength,
+    deckLimit: card.deckLimit,
+    keywords: card.keywords,
+    text: card.text,
+    uniqueness: card.uniqueness,
     position: card.position,
     ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
   }))

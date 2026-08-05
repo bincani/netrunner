@@ -71,4 +71,30 @@ describe('listCardsInPack', () => {
     expect(cards[0].ownedQuantity).toBe(3)
     expect(cards[1].ownedQuantity).toBe(0)
   })
+
+  it('includes card-detail fields, joining faction and type names', async () => {
+    await seedCard(prisma, {
+      code: '01001',
+      title: 'Card A',
+      packCode: 'core',
+      position: 1,
+      factionCode: 'anarch',
+      typeCode: 'program',
+    })
+
+    const [card] = await listCardsInPack(prisma, 'core')
+
+    expect(card.factionName).toBe('anarch')
+    expect(card.typeName).toBe('program')
+    expect(card.sideCode).toBe('runner')
+    expect(card.uniqueness).toBe(false)
+    // seedCard doesn't set these — confirms they pass through as null
+    // rather than throwing or defaulting to something misleading.
+    expect(card.cost).toBeNull()
+    expect(card.factionCost).toBeNull()
+    expect(card.strength).toBeNull()
+    expect(card.deckLimit).toBeNull()
+    expect(card.keywords).toBeNull()
+    expect(card.text).toBeNull()
+  })
 })
