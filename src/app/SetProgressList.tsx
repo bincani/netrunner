@@ -5,13 +5,21 @@ import Link from 'next/link'
 import { groupSetsByCycle, releaseYear, type SetCompletion } from '@/lib/reports'
 import { SetThumbnail } from '@/components/SetThumbnail'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
+import { SET_TYPES } from '@/lib/setTypes'
 
 export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all')
+  const [typeFilter, setTypeFilter] = useState<string | 'all'>('all')
+
+  // Only offer a button for a type that's actually present in this data,
+  // in the same order SET_TYPES declares them (not the order sets happen
+  // to appear in).
+  const presentTypes = Object.keys(SET_TYPES).filter((type) => sets.some((set) => set.setType === type))
 
   const visibleSets = sets.filter((set) => {
-    if (filter === 'owned') return set.ownedCount > 0
-    if (filter === 'missing') return set.ownedCount === 0
+    if (filter === 'owned' && set.ownedCount === 0) return false
+    if (filter === 'missing' && set.ownedCount > 0) return false
+    if (typeFilter !== 'all' && set.setType !== typeFilter) return false
     return true
   })
 
@@ -36,7 +44,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
       </nav>
 
       <div className="min-w-0 flex-1 space-y-6">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(['all', 'owned', 'missing'] as const).map((option) => (
             <button
               key={option}
@@ -50,6 +58,25 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
               {option === 'all' ? 'All' : option === 'owned' ? 'Owned' : 'Missing'}
             </button>
           ))}
+
+          <span className="mx-1 h-5 w-px bg-neutral-800" aria-hidden="true" />
+
+          <label className="flex items-center gap-1.5 text-sm">
+            {typeFilter !== 'all' && <SetTypeBadge setType={typeFilter} />}
+            <span className="sr-only">Filter by set type</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="cursor-pointer rounded border border-neutral-700 bg-neutral-900 px-3 py-1 text-sm hover:bg-neutral-800"
+            >
+              <option value="all">All types</option>
+              {presentTypes.map((type) => (
+                <option key={type} value={type}>
+                  {SET_TYPES[type].label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {cycles.map(([cycleCode, cycleSets]) => (
