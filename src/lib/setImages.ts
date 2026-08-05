@@ -39,6 +39,15 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   tc: 'jpg', // True Colors
   fal: 'jpg', // Fear and Loathing
   dt: 'jpg', // Double Time
+  up: 'jpg', // Upstalk
+  tsb: 'jpg', // The Spaces Between
+  fc: 'jpg', // First Contact
+  uao: 'jpg', // Up and Over
+  atr: 'jpg', // All That Remains
+  ts: 'jpg', // The Source
+  oac: 'jpg', // Order and Chaos
+  val: 'jpg', // The Valley
+  bb: 'jpg', // Breaker Bay
 }
 
 export function setImagePath(packCode: string): string | null {
