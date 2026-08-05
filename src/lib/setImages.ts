@@ -28,6 +28,17 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   hap: 'jpg', // Honor and Profit
   fp: 'jpg', // Future Proof
   ce: 'jpg', // Cyber Exodus
+  core: 'jpg', // Core Set (2012)
+  wla: 'jpg', // What Lies Ahead
+  ta: 'jpg', // Trace Amount
+  asis: 'jpg', // A Study in Static
+  hs: 'jpg', // Humanity's Shadow
+  om: 'jpg', // Opening Moves
+  st: 'jpg', // Second Thoughts
+  mt: 'jpg', // Mala Tempora
+  tc: 'jpg', // True Colors
+  fal: 'jpg', // Fear and Loathing
+  dt: 'jpg', // Double Time
 }
 
 export function setImagePath(packCode: string): string | null {
