@@ -52,6 +52,13 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   uw: 'jpg', // The Underway
   oh: 'jpg', // Old Hollywood
   uot: 'png', // The Universe of Tomorrow
+  kg: 'png', // Kala Ghoda
+  bf: 'jpg', // Business First
+  dag: 'jpg', // Democracy and Dogma
+  si: 'jpg', // Salsette Island
+  tlm: 'jpg', // The Liberated Mind
+  ftm: 'png', // Fear the Masses
+  '23s': 'png', // 23 Seconds
 }
 
 export function setImagePath(packCode: string): string | null {
