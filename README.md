@@ -45,6 +45,18 @@ Other useful commands:
 - `npm run build` — production build.
 - `npm start` — serve a production build (run `npm run build` first).
 
+## Local dev through nginx (optional)
+
+To test the app through a proxy and a local hostname instead of hitting
+`localhost:3000` directly — e.g. to reproduce proxy/HMR-related issues —
+`deploy/nginx.dev.conf` sets up `http://netrunner.test` pointing at the
+`npm run dev` server on this machine. No TLS, no systemd — just a local
+hostname (via `/etc/hosts`) and a plain HTTP reverse proxy with WebSocket
+support for hot reload. Setup steps are in the comment header of that file.
+
+This is separate from the production setup below, which builds the app
+and serves it via `next start` + systemd instead of the dev server.
+
 ## Production deployment (nginx + systemd)
 
 This app is a persistent Node.js server (`next start`), not a static site —
