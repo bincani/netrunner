@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { groupSetsByCycle, type SetCompletion } from '@/lib/reports'
+import { SetThumbnail } from '@/components/SetThumbnail'
 
 export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all')
@@ -41,16 +42,19 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
               <li key={set.packCode}>
                 <Link
                   href={`/sets/${set.packCode}`}
-                  className="block rounded border border-neutral-800 p-3 hover:border-neutral-600"
+                  className="flex items-center gap-3 rounded border border-neutral-800 p-3 hover:border-neutral-600"
                 >
-                  <div className="flex justify-between">
-                    <span>{set.packName}</span>
-                    <span>
-                      {set.ownedCount}/{set.totalCount} ({set.percentOwned}%)
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 rounded bg-neutral-800">
-                    <div className="h-2 rounded bg-blue-600" style={{ width: `${set.percentOwned}%` }} />
+                  <SetThumbnail packCode={set.packCode} packName={set.packName} />
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <span>{set.packName}</span>
+                      <span>
+                        {set.ownedCount}/{set.totalCount} ({set.percentOwned}%)
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 rounded bg-neutral-800">
+                      <div className="h-2 rounded bg-blue-600" style={{ width: `${set.percentOwned}%` }} />
+                    </div>
                   </div>
                 </Link>
               </li>

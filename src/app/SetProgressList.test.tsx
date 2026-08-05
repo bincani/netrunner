@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SetProgressList } from './SetProgressList'
 import type { SetCompletion } from '@/lib/reports'
+
+vi.mock('next/image', () => ({
+  default: (props: React.ComponentProps<'img'>) => <img {...props} />,
+}))
 
 const sets: SetCompletion[] = [
   { packCode: 'core', packName: 'Core Set', cycleCode: 'core', ownedCount: 5, totalCount: 10, percentOwned: 50 },
