@@ -11,6 +11,7 @@ function makeFetch(overrides: Record<string, unknown> = {}) {
     'packs.json': [
       { code: 'core', name: 'Core Set', cycle_code: 'core', position: 1, size: 1, date_release: '2012-09-06' },
     ],
+    'v2/card_sets.json': [{ legacy_code: 'core', card_set_type_id: 'core' }],
     'pack/core.json': [
       {
         code: '01007',
@@ -62,6 +63,25 @@ describe('importAllCardData', () => {
     const card = await prisma.card.findUniqueOrThrow({ where: { code: '01007' } })
     expect(card.title).toBe('Corroder')
     expect(card.quantity).toBe(2)
+
+    const pack = await prisma.pack.findUniqueOrThrow({ where: { code: 'core' } })
+    expect(pack.setType).toBe('core')
+  })
+
+  it('leaves setType null when a pack has no matching entry in the v2 card_sets data', async () => {
+    await importAllCardData(
+      prisma,
+      makeFetch({
+        'packs.json': [
+          { code: 'newpack', name: 'New Pack', cycle_code: 'core', position: 2, size: 1, date_release: null },
+        ],
+        'pack/newpack.json': [],
+        'v2/card_sets.json': [], // doesn't mention 'newpack' yet
+      })
+    )
+
+    const pack = await prisma.pack.findUniqueOrThrow({ where: { code: 'newpack' } })
+    expect(pack.setType).toBeNull()
   })
 
   it('is idempotent and picks up field updates on re-import', async () => {

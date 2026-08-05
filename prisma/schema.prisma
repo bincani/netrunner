@@ -22,6 +22,8 @@ model Pack {
   position    Int
   size        Int?
   dateRelease String?
+  /// e.g. "core", "data_pack", "deluxe", "expansion", "booster_pack", "campaign", "draft", "promo" — see src/lib/setTypes.ts
+  setType     String?
   cards       Card[]
 }
 

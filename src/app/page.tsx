@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
+import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetProgressList } from './SetProgressList'
 
 // This page's entire content is "how much of my current collection do I
@@ -36,7 +37,8 @@ export default async function DashboardPage() {
           </p>
           <ul className="space-y-1">
             {unsizedPacks.map((pack) => (
-              <li key={pack.packCode}>
+              <li key={pack.packCode} className="flex items-center gap-2">
+                <SetTypeBadge setType={pack.setType} />
                 <Link href={`/sets/${pack.packCode}`} className="text-blue-400 hover:underline">
                   {pack.packName}
                 </Link>

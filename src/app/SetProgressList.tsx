@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { groupSetsByCycle, releaseYear, type SetCompletion } from '@/lib/reports'
 import { SetThumbnail } from '@/components/SetThumbnail'
+import { SetTypeBadge } from '@/components/SetTypeBadge'
 
 export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all')
@@ -66,7 +67,8 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
                       <SetThumbnail packCode={set.packCode} packName={set.packName} />
                       <div className="flex-1">
                         <div className="flex justify-between">
-                          <span>
+                          <span className="flex items-center gap-2">
+                            <SetTypeBadge setType={set.setType} />
                             {set.packName}
                             {year && <span className="text-neutral-500"> ({year})</span>}
                           </span>

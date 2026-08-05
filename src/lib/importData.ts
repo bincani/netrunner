@@ -25,6 +25,11 @@ interface RawPack {
   date_release: string | null
 }
 
+interface RawCardSet {
+  legacy_code: string
+  card_set_type_id: string
+}
+
 interface RawFaction {
   code: string
   name: string
@@ -67,12 +72,18 @@ export async function importAllCardData(
   prisma: PrismaClient,
   fetchImpl: typeof fetch = fetch
 ): Promise<ImportSummary> {
-  const [cycles, factions, types, packs] = await Promise.all([
+  const [cycles, factions, types, packs, cardSets] = await Promise.all([
     fetchJson<RawCycle[]>(fetchImpl, `${BASE_URL}/cycles.json`),
     fetchJson<RawFaction[]>(fetchImpl, `${BASE_URL}/factions.json`),
     fetchJson<RawType[]>(fetchImpl, `${BASE_URL}/types.json`),
     fetchJson<RawPack[]>(fetchImpl, `${BASE_URL}/packs.json`),
+    // The set "type" (core/data_pack/deluxe/expansion/booster_pack/campaign/
+    // draft/promo) only exists in the newer v2 data model, keyed by
+    // legacy_code — which is the same code packs.json (v1) calls `code`.
+    fetchJson<RawCardSet[]>(fetchImpl, `${BASE_URL}/v2/card_sets.json`),
   ])
+
+  const setTypeByPackCode = new Map(cardSets.map((set) => [set.legacy_code, set.card_set_type_id]))
 
   const cardsByPack: Record<string, RawCard[]> = {}
   for (const pack of packs) {
@@ -108,23 +119,19 @@ export async function importAllCardData(
       }
 
       for (const pack of packs) {
+        const packData = {
+          name: pack.name,
+          cycleCode: pack.cycle_code,
+          position: pack.position,
+          size: pack.size,
+          dateRelease: pack.date_release,
+          setType: setTypeByPackCode.get(pack.code) ?? null,
+        }
+
         await tx.pack.upsert({
           where: { code: pack.code },
-          create: {
-            code: pack.code,
-            name: pack.name,
-            cycleCode: pack.cycle_code,
-            position: pack.position,
-            size: pack.size,
-            dateRelease: pack.date_release,
-          },
-          update: {
-            name: pack.name,
-            cycleCode: pack.cycle_code,
-            position: pack.position,
-            size: pack.size,
-            dateRelease: pack.date_release,
-          },
+          create: { code: pack.code, ...packData },
+          update: packData,
         })
       }
 

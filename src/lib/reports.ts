@@ -7,6 +7,7 @@ export interface SetCompletion {
   cycleCode: string
   cycleName: string
   dateRelease: string | null
+  setType: string | null
   /** Physical cards owned, weighted by each card's printed quantity — owning 2 of a 3-of counts as 2, not 1. */
   ownedCount: number
   /** Total physical cards the set contains (sum of every card's printed quantity), not the distinct card count. */
@@ -65,6 +66,7 @@ export async function computeSetCompletion(
     cycleCode: pack.cycleCode,
     cycleName: pack.cycle.name,
     dateRelease: pack.dateRelease,
+    setType: pack.setType,
     ownedCount,
     totalCount,
     percentOwned: totalCount === 0 ? 0 : Math.round((ownedCount / totalCount) * 100),
@@ -110,6 +112,7 @@ export interface UnsizedPack {
   packCode: string
   packName: string
   cycleCode: string
+  setType: string | null
 }
 
 /**
@@ -129,6 +132,7 @@ export async function listUnsizedPacks(prisma: PrismaClient): Promise<UnsizedPac
     packCode: pack.code,
     packName: pack.name,
     cycleCode: pack.cycleCode,
+    setType: pack.setType,
   }))
 }
 

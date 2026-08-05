@@ -6,6 +6,7 @@ interface SeedCardOptions {
   packCode: string
   packName?: string
   packSize?: number | null
+  packSetType?: string | null
   cycleCode?: string
   factionCode?: string
   typeCode?: string
@@ -32,6 +33,7 @@ export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): 
       cycleCode,
       position: 1,
       size: options.packSize === undefined ? 1 : options.packSize,
+      setType: options.packSetType === undefined ? null : options.packSetType,
     },
     update: {},
   })

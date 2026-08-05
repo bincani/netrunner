@@ -16,6 +16,7 @@ const sets: SetCompletion[] = [
     cycleCode: 'core',
     cycleName: 'Core Set',
     dateRelease: '2012-09-06',
+    setType: 'core',
     ownedCount: 5,
     totalCount: 10,
     percentOwned: 50,
@@ -26,6 +27,7 @@ const sets: SetCompletion[] = [
     cycleCode: 'genesis',
     cycleName: 'Genesis',
     dateRelease: '2013-03-21',
+    setType: 'data_pack',
     ownedCount: 0,
     totalCount: 20,
     percentOwned: 0,
@@ -45,6 +47,13 @@ describe('SetProgressList', () => {
 
     expect(screen.getByText('(2012)')).toBeInTheDocument()
     expect(screen.getByText('(2013)')).toBeInTheDocument()
+  })
+
+  it("shows each set's type badge next to its name", () => {
+    render(<SetProgressList sets={sets} />)
+
+    expect(screen.getByRole('img', { name: 'Core' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Data Pack' })).toBeInTheDocument()
   })
 
   it('omits the year when a set has no release date', () => {

@@ -45,10 +45,26 @@ describe('reports', () => {
       cycleCode: 'core',
       cycleName: 'core',
       dateRelease: null,
+      setType: null,
       ownedCount: 1,
       totalCount: 2,
       percentOwned: 50,
     })
+  })
+
+  it("includes the pack's official set type", async () => {
+    await seedCard(prisma, {
+      code: '01001',
+      title: 'Card A',
+      packCode: 'core',
+      packSize: 1,
+      position: 1,
+      packSetType: 'deluxe',
+    })
+
+    const completion = await computeSetCompletion(prisma, 'core')
+
+    expect(completion?.setType).toBe('deluxe')
   })
 
   it('counts partial ownership of a multi-copy card toward the percentage, not just whether you own any', async () => {
@@ -104,7 +120,7 @@ describe('reports', () => {
 
     const unsized = await listUnsizedPacks(prisma)
 
-    expect(unsized).toEqual([{ packCode: 'draft', packName: 'Draft', cycleCode: 'core' }])
+    expect(unsized).toEqual([{ packCode: 'draft', packName: 'Draft', cycleCode: 'core', setType: null }])
   })
 
   it('lists packs with no locally-downloaded cover image', async () => {
@@ -175,6 +191,7 @@ describe('groupSetsByCycle', () => {
         cycleCode: 'core',
         cycleName: 'Core Set',
         dateRelease: '2012-09-06',
+        setType: 'core',
         ownedCount: 1,
         totalCount: 2,
         percentOwned: 50,
@@ -185,6 +202,7 @@ describe('groupSetsByCycle', () => {
         cycleCode: 'genesis',
         cycleName: 'Genesis',
         dateRelease: '2013-03-21',
+        setType: 'data_pack',
         ownedCount: 0,
         totalCount: 20,
         percentOwned: 0,
@@ -195,6 +213,7 @@ describe('groupSetsByCycle', () => {
         cycleCode: 'genesis',
         cycleName: 'Genesis',
         dateRelease: '2013-05-16',
+        setType: 'data_pack',
         ownedCount: 5,
         totalCount: 20,
         percentOwned: 25,
