@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { setImagePath } from '@/lib/setImages'
 
@@ -43,30 +44,35 @@ export function SetCoverImage({ packCode, packName }: { packCode: string; packNa
         <Image src={src} alt={packName} width={96} height={96} className="h-24 w-24 rounded object-cover" />
       </button>
 
-      {isOpen && (
-        <div
-          role="presentation"
-          onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-        >
-          <button
-            type="button"
+      {isOpen &&
+        // Portalled to document.body so this popup can never get trapped
+        // inside a lower-opacity/transformed ancestor's stacking context
+        // (see CardDetailPopup for the concrete bug that pattern causes).
+        createPortal(
+          <div
+            role="presentation"
             onClick={() => setIsOpen(false)}
-            aria-label="Close"
-            className="absolute right-4 top-4 cursor-pointer rounded bg-neutral-900/80 px-3 py-1 text-white hover:bg-neutral-800"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           >
-            ✕
-          </button>
-          <Image
-            src={src}
-            alt={packName}
-            width={800}
-            height={800}
-            onClick={(event) => event.stopPropagation()}
-            className="max-h-[85vh] w-auto max-w-[90vw] rounded object-contain"
-          />
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close"
+              className="absolute right-4 top-4 cursor-pointer rounded bg-neutral-900/80 px-3 py-1 text-white hover:bg-neutral-800"
+            >
+              ✕
+            </button>
+            <Image
+              src={src}
+              alt={packName}
+              width={800}
+              height={800}
+              onClick={(event) => event.stopPropagation()}
+              className="max-h-[85vh] w-auto max-w-[90vw] rounded object-contain"
+            />
+          </div>,
+          document.body
+        )}
     </>
   )
 }
