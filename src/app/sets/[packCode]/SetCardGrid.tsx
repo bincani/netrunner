@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { updateCollectionQuantity } from '@/actions/collectionActions'
-import { cardImageUrl } from '@/lib/cardImage'
+import { CardThumbnail } from '@/components/CardThumbnail'
 import type { PackCardEntry } from '@/lib/cards'
 
 function parseQuantity(raw: string): number | null {
@@ -88,7 +87,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
               owned > 0 ? 'border-neutral-700' : 'border-neutral-800 opacity-50'
             }`}
           >
-            <Image src={cardImageUrl(card.code)} alt={card.title} width={44} height={62} className="rounded" />
+            <CardThumbnail code={card.code} title={card.title} />
             <div className="flex-1">
               <div className="font-medium">{card.title}</div>
               <div className="text-sm text-neutral-400">{card.factionCode}</div>

@@ -24,6 +24,16 @@ const mockResults = [
     sideCode: 'runner',
     ownedQuantity: 0,
   },
+  {
+    code: '01011',
+    title: 'Mimic',
+    factionCode: 'anarch',
+    typeCode: 'program',
+    packCode: 'core',
+    packName: 'Core Set',
+    sideCode: 'runner',
+    ownedQuantity: 0,
+  },
 ]
 
 describe('CardBuilderForm', () => {
@@ -44,31 +54,47 @@ describe('CardBuilderForm', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/cards/search?q=corro')
   })
 
-  it('selecting a result reveals the quantity picker and Add button', async () => {
+  it('shows four quantity buttons (1-4) for each result', async () => {
     const user = userEvent.setup()
     render(<CardBuilderForm />)
 
-    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'co')
     await waitFor(() => screen.getByText('Corroder'))
-    await user.click(screen.getByText('Corroder'))
 
-    expect(screen.getByText('Adding Corroder')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+    for (const title of ['Corroder', 'Mimic']) {
+      for (const n of [1, 2, 3, 4]) {
+        expect(screen.getByRole('button', { name: `Add ${n} ${title}` })).toBeInTheDocument()
+      }
+    }
   })
 
-  it('clicking Add calls addToCollection with the selected card and quantity', async () => {
-    vi.mocked(addToCollection).mockResolvedValue(2)
+  it('clicking a quantity button calls addToCollection with that card and quantity', async () => {
+    vi.mocked(addToCollection).mockResolvedValue(3)
     const user = userEvent.setup()
     render(<CardBuilderForm />)
 
-    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'co')
     await waitFor(() => screen.getByText('Corroder'))
-    await user.click(screen.getByText('Corroder'))
-    await user.selectOptions(screen.getByRole('combobox'), '2')
-    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
 
-    await waitFor(() => expect(addToCollection).toHaveBeenCalledWith('01007', 2))
-    await waitFor(() => expect(screen.getByText('Corroder: now own 2')).toBeInTheDocument())
+    await waitFor(() => expect(addToCollection).toHaveBeenCalledWith('01007', 3))
+    expect(addToCollection).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByText('Corroder: now own 3')).toBeInTheDocument())
+  })
+
+  it('adding one card does not affect another card\'s buttons or status', async () => {
+    vi.mocked(addToCollection).mockResolvedValue(1)
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'co')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    await user.click(screen.getByRole('button', { name: 'Add 1 Corroder' }))
+
+    await waitFor(() => expect(screen.getByText('Corroder: now own 1')).toBeInTheDocument())
+    expect(screen.queryByText(/Mimic: now own/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add 2 Mimic' })).not.toBeDisabled()
   })
 
   it('shows a visible error instead of an unhandled rejection when the search request fails', async () => {
@@ -88,10 +114,9 @@ describe('CardBuilderForm', () => {
     const user = userEvent.setup()
     render(<CardBuilderForm />)
 
-    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'co')
     await waitFor(() => screen.getByText('Corroder'))
-    await user.click(screen.getByText('Corroder'))
-    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: 'Add 2 Corroder' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/failed to add corroder/i)
     expect(screen.queryByText(/now own/)).not.toBeInTheDocument()
