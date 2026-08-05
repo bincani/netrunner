@@ -23,6 +23,11 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
 
   // BoardGameGeek (cf.geekdo-images.com)
   dc: 'png', // Daedalus Complex
+  dad: 'jpg', // Data and Destiny
+  cac: 'jpg', // Creation and Control
+  hap: 'jpg', // Honor and Profit
+  fp: 'jpg', // Future Proof
+  ce: 'jpg', // Cyber Exodus
 }
 
 export function setImagePath(packCode: string): string | null {
