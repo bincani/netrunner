@@ -59,6 +59,16 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   tlm: 'jpg', // The Liberated Mind
   ftm: 'png', // Fear the Masses
   '23s': 'png', // 23 Seconds
+  bm: 'png', // Blood Money
+  es: 'png', // Escalation
+  in: 'png', // Intervention
+  ml: 'png', // Martial Law
+  qu: 'png', // Quorum
+  so: 'png', // Station One
+  eas: 'png', // Earth's Scion
+  baw: 'png', // Blood and Water
+  fm: 'png', // Free Mars
+  cd: 'png', // Crimson Dust
 }
 
 export function setImagePath(packCode: string): string | null {
