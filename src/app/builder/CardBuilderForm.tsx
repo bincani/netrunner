@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { addToCollection } from '@/actions/collectionActions'
 import { CardThumbnail } from '@/components/CardThumbnail'
 import type { CardSearchResult } from '@/lib/cards'
@@ -82,7 +83,11 @@ export function CardBuilderForm() {
               <div className="flex-1">
                 <div className="font-medium">{card.title}</div>
                 <div className="text-sm text-neutral-400">
-                  {card.factionCode} · {card.packName} · owned: {card.ownedQuantity}
+                  {card.factionCode} ·{' '}
+                  <Link href={`/sets/${card.packCode}`} className="underline hover:text-neutral-200">
+                    {card.packName}
+                  </Link>{' '}
+                  · owned: {card.ownedQuantity}
                 </div>
                 {status && <div className="text-xs text-green-400">{card.title}: {status}</div>}
                 {error && (
@@ -98,7 +103,7 @@ export function CardBuilderForm() {
                     onClick={() => handleAdd(card, n)}
                     disabled={isPending}
                     aria-label={`Add ${n} ${card.title}`}
-                    className="h-8 w-8 rounded border border-neutral-700 bg-neutral-900 font-medium hover:bg-neutral-800 disabled:opacity-50"
+                    className="h-8 w-8 cursor-pointer rounded border border-neutral-700 bg-neutral-900 font-medium hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {n}
                   </button>

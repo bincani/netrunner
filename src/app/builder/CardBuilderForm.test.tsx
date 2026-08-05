@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CardBuilderForm } from './CardBuilderForm'
 import { addToCollection } from '@/actions/collectionActions'
@@ -52,6 +52,17 @@ describe('CardBuilderForm', () => {
 
     await waitFor(() => expect(screen.getByText('Corroder')).toBeInTheDocument())
     expect(global.fetch).toHaveBeenCalledWith('/api/cards/search?q=corro')
+  })
+
+  it('links the set name to that set\'s page', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    const row = within(screen.getByText('Corroder').closest('li')!)
+    expect(row.getByRole('link', { name: 'Core Set' })).toHaveAttribute('href', '/sets/core')
   })
 
   it('shows four quantity buttons (1-4) for each result', async () => {

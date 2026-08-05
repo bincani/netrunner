@@ -136,6 +136,62 @@ describe('SetCardGrid', () => {
     expect(input).toHaveValue(0)
   })
 
+  it('defaults to showing all cards', () => {
+    render(<SetCardGrid cards={cards} />)
+
+    expect(screen.getByText('Card A')).toBeInTheDocument()
+    expect(screen.getByText('Card B')).toBeInTheDocument()
+  })
+
+  it('the "Owned" filter hides cards with 0 owned quantity', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+
+    expect(screen.getByText('Card A')).toBeInTheDocument()
+    expect(screen.queryByText('Card B')).not.toBeInTheDocument()
+  })
+
+  it('the "Missing" filter hides cards with a positive owned quantity', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Missing' }))
+
+    expect(screen.queryByText('Card A')).not.toBeInTheDocument()
+    expect(screen.getByText('Card B')).toBeInTheDocument()
+  })
+
+  it('"All" restores both cards after filtering', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+    await user.click(screen.getByRole('button', { name: 'All' }))
+
+    expect(screen.getByText('Card A')).toBeInTheDocument()
+    expect(screen.getByText('Card B')).toBeInTheDocument()
+  })
+
+  it('the "Owned" filter follows live edits, not just the initial quantity', async () => {
+    vi.mocked(updateCollectionQuantity).mockResolvedValue(4)
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    // Card B starts at 0 (missing); bump it up so it should now count as owned.
+    const inputB = screen.getByLabelText('Card B owned quantity')
+    await user.clear(inputB)
+    await user.type(inputB, '4')
+    await user.tab()
+    await screen.findByDisplayValue('4')
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+
+    expect(screen.getByText('Card A')).toBeInTheDocument()
+    expect(screen.getByText('Card B')).toBeInTheDocument()
+  })
+
   it('shows a visible error and rolls back the displayed value when the mutation rejects', async () => {
     vi.mocked(updateCollectionQuantity).mockRejectedValue(new Error('db exploded'))
     const user = userEvent.setup()

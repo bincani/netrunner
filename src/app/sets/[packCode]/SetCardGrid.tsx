@@ -28,6 +28,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
   // so saving one card's quantity doesn't affect any other card's input.
   const [pendingCodes, setPendingCodes] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all')
 
   function handleChange(code: string, value: string) {
     setInputValues((prev) => ({ ...prev, [code]: value }))
@@ -74,49 +75,74 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
     }
   }
 
+  const visibleCards = cards.filter((card) => {
+    const owned = savedQuantities[card.code]
+    if (filter === 'owned') return owned > 0
+    if (filter === 'missing') return owned === 0
+    return true
+  })
+
   return (
-    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {cards.map((card) => {
-        const owned = savedQuantities[card.code]
-        const isSaving = pendingCodes[card.code] === true
-        const error = errors[card.code]
-        return (
-          <li
-            key={card.code}
-            className={`flex items-center gap-3 rounded border p-3 ${
-              owned > 0 ? 'border-neutral-700' : 'border-neutral-800 opacity-50'
+    <div>
+      <div className="mb-3 flex gap-2">
+        {(['all', 'owned', 'missing'] as const).map((option) => (
+          <button
+            key={option}
+            onClick={() => setFilter(option)}
+            className={`cursor-pointer rounded border px-3 py-1 text-sm ${
+              filter === option
+                ? 'border-blue-600 bg-blue-600/20 text-blue-400'
+                : 'border-neutral-700 hover:bg-neutral-800'
             }`}
           >
-            <CardThumbnail code={card.code} title={card.title} />
-            <div className="flex-1">
-              <div className="font-medium">{card.title}</div>
-              <div className="text-sm text-neutral-400">{card.factionCode}</div>
-              {error && (
-                <div className="text-xs text-red-400" role="alert">
-                  {error}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <input
-                type="number"
-                min={0}
-                aria-label={`${card.title} owned quantity`}
-                value={inputValues[card.code]}
-                onChange={(event) => handleChange(card.code, event.target.value)}
-                onBlur={() => commit(card.code)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.currentTarget.blur()
-                  }
-                }}
-                className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-center"
-              />
-              {isSaving && <span className="text-[10px] text-neutral-500">saving…</span>}
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+            {option === 'all' ? 'All' : option === 'owned' ? 'Owned' : 'Missing'}
+          </button>
+        ))}
+      </div>
+
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {visibleCards.map((card) => {
+          const owned = savedQuantities[card.code]
+          const isSaving = pendingCodes[card.code] === true
+          const error = errors[card.code]
+          return (
+            <li
+              key={card.code}
+              className={`flex items-center gap-3 rounded border p-3 ${
+                owned > 0 ? 'border-neutral-700' : 'border-neutral-800 opacity-50'
+              }`}
+            >
+              <CardThumbnail code={card.code} title={card.title} />
+              <div className="flex-1">
+                <div className="font-medium">{card.title}</div>
+                <div className="text-sm text-neutral-400">{card.factionCode}</div>
+                {error && (
+                  <div className="text-xs text-red-400" role="alert">
+                    {error}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  aria-label={`${card.title} owned quantity`}
+                  value={inputValues[card.code]}
+                  onChange={(event) => handleChange(card.code, event.target.value)}
+                  onBlur={() => commit(card.code)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.currentTarget.blur()
+                    }
+                  }}
+                  className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-center"
+                />
+                {isSaving && <span className="text-[10px] text-neutral-500">saving…</span>}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
