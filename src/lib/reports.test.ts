@@ -8,6 +8,7 @@ import {
   computeCollectionTotals,
   groupSetsByCycle,
   listUnsizedPacks,
+  listPacksMissingImage,
   releaseYear,
   cardContribution,
 } from './reports'
@@ -104,6 +105,23 @@ describe('reports', () => {
     const unsized = await listUnsizedPacks(prisma)
 
     expect(unsized).toEqual([{ packCode: 'draft', packName: 'Draft', cycleCode: 'core' }])
+  })
+
+  it('lists packs with no locally-downloaded cover image', async () => {
+    // 'sg' (System Gateway) has a real entry in setImages.ts; 'core' does not.
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
+    await seedCard(prisma, {
+      code: '02001',
+      title: 'Card B',
+      packCode: 'sg',
+      packName: 'System Gateway',
+      packSize: 1,
+      position: 1,
+    })
+
+    const missing = await listPacksMissingImage(prisma)
+
+    expect(missing.map((p) => p.packCode)).toEqual(['core'])
   })
 
   it('computes overall collection totals across all cards', async () => {

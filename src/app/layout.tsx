@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import './globals.css'
 import type { Metadata } from 'next'
+import { ReportsNavDropdown } from '@/components/ReportsNavDropdown'
 
 export const metadata: Metadata = {
   title: 'Netrunner Collection Tracker',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Dashboard
           </Link>
           <Link href="/builder">Builder</Link>
+          <ReportsNavDropdown />
         </nav>
         {children}
       </body>

@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
+import { setImagePath } from './setImages'
 
 export interface SetCompletion {
   packCode: string
@@ -129,6 +130,30 @@ export async function listUnsizedPacks(prisma: PrismaClient): Promise<UnsizedPac
     packName: pack.name,
     cycleCode: pack.cycleCode,
   }))
+}
+
+export interface PackMissingImage {
+  packCode: string
+  packName: string
+  cycleName: string
+  dateRelease: string | null
+}
+
+/** Every pack with no locally-downloaded cover image (see src/lib/setImages.ts), for the "Sets Missing Image" report. */
+export async function listPacksMissingImage(prisma: PrismaClient): Promise<PackMissingImage[]> {
+  const packs = await prisma.pack.findMany({
+    include: { cycle: true },
+    orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }],
+  })
+
+  return packs
+    .filter((pack) => setImagePath(pack.code) === null)
+    .map((pack) => ({
+      packCode: pack.code,
+      packName: pack.name,
+      cycleName: pack.cycle.name,
+      dateRelease: pack.dateRelease,
+    }))
 }
 
 export function groupSetsByCycle(sets: SetCompletion[]): Map<string, SetCompletion[]> {
