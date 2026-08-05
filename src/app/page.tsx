@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   ])
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-8">
+    <main className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Collection Overview</h1>
         <p className="text-neutral-400">

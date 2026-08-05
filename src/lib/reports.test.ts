@@ -8,6 +8,7 @@ import {
   computeCollectionTotals,
   groupSetsByCycle,
   listUnsizedPacks,
+  releaseYear,
 } from './reports'
 import type { PrismaClient } from '@prisma/client'
 
@@ -40,6 +41,8 @@ describe('reports', () => {
       packCode: 'core',
       packName: 'core',
       cycleCode: 'core',
+      cycleName: 'core',
+      dateRelease: null,
       ownedCount: 1,
       totalCount: 2,
       percentOwned: 50,
@@ -92,14 +95,55 @@ describe('reports', () => {
 describe('groupSetsByCycle', () => {
   it('groups sets by their cycle code, preserving input order within each group', () => {
     const sets = [
-      { packCode: 'core', packName: 'Core Set', cycleCode: 'core', ownedCount: 1, totalCount: 2, percentOwned: 50 },
-      { packCode: 'asis', packName: 'A Study in Static', cycleCode: 'genesis', ownedCount: 0, totalCount: 20, percentOwned: 0 },
-      { packCode: 'cotc', packName: 'Cyber Exodus', cycleCode: 'genesis', ownedCount: 5, totalCount: 20, percentOwned: 25 },
+      {
+        packCode: 'core',
+        packName: 'Core Set',
+        cycleCode: 'core',
+        cycleName: 'Core Set',
+        dateRelease: '2012-09-06',
+        ownedCount: 1,
+        totalCount: 2,
+        percentOwned: 50,
+      },
+      {
+        packCode: 'asis',
+        packName: 'A Study in Static',
+        cycleCode: 'genesis',
+        cycleName: 'Genesis',
+        dateRelease: '2013-03-21',
+        ownedCount: 0,
+        totalCount: 20,
+        percentOwned: 0,
+      },
+      {
+        packCode: 'cotc',
+        packName: 'Cyber Exodus',
+        cycleCode: 'genesis',
+        cycleName: 'Genesis',
+        dateRelease: '2013-05-16',
+        ownedCount: 5,
+        totalCount: 20,
+        percentOwned: 25,
+      },
     ]
 
     const grouped = groupSetsByCycle(sets)
 
     expect([...grouped.keys()]).toEqual(['core', 'genesis'])
     expect(grouped.get('genesis')?.map((s) => s.packCode)).toEqual(['asis', 'cotc'])
+  })
+})
+
+describe('releaseYear', () => {
+  it('extracts the year from an ISO release date', () => {
+    expect(releaseYear('2017-02-23')).toBe('2017')
+  })
+
+  it('returns null when there is no release date', () => {
+    expect(releaseYear(null)).toBeNull()
+  })
+
+  it('returns null for an unparseable date string', () => {
+    expect(releaseYear('not-a-date')).toBeNull()
   })
 })

@@ -1,14 +1,12 @@
-// Official box-art images, downloaded locally from nullsignal.games/products/
-// into public/set-images/ rather than hotlinked (unlike card images, this
-// isn't a stable CDN with a predictable per-item URL — it's a WordPress
-// media library, so we keep our own copy).
+// Official box-art images, downloaded locally rather than hotlinked (no
+// single stable CDN covers every set — sources vary per pack, see the
+// comments below) into public/set-images/.
 //
-// Coverage is partial: only sets published by Null Signal Games (2020+)
-// have official cover art available from that source. The ~60 older
-// FFG-era sets (Core Set through the pre-System Gateway cycles) have no
-// entry here and fall back to a placeholder in <SetThumbnail> — a better
-// source for those is still being tracked down.
+// Coverage is partial. Most FFG-era sets (Core Set through the
+// pre-System Gateway cycles) have no entry here yet and fall back to a
+// placeholder in <SetThumbnail> — more are added as sources are found.
 const SET_IMAGE_EXTENSIONS: Record<string, string> = {
+  // nullsignal.games/products/
   sg: 'png', // System Gateway
   elev: 'jpg', // Elevation
   vp: 'png', // Vantage Point
@@ -22,6 +20,9 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   mor: 'png', // Magnum Opus Reprint
   msbp: 'png', // Midnight Sun Booster Pack
   sc19: 'png', // System Core 2019
+
+  // BoardGameGeek (cf.geekdo-images.com)
+  dc: 'png', // Daedalus Complex
 }
 
 export function setImagePath(packCode: string): string | null {

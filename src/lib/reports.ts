@@ -4,9 +4,18 @@ export interface SetCompletion {
   packCode: string
   packName: string
   cycleCode: string
+  cycleName: string
+  dateRelease: string | null
   ownedCount: number
   totalCount: number
   percentOwned: number
+}
+
+/** Extracts the year from a pack's ISO-ish release date ("2017-02-23" -> "2017"), or null if unset/unparseable. */
+export function releaseYear(dateRelease: string | null): string | null {
+  if (!dateRelease) return null
+  const match = /^(\d{4})-/.exec(dateRelease)
+  return match ? match[1] : null
 }
 
 export interface CollectionTotals {
@@ -19,7 +28,7 @@ export async function computeSetCompletion(
   prisma: PrismaClient,
   packCode: string
 ): Promise<SetCompletion | null> {
-  const pack = await prisma.pack.findUnique({ where: { code: packCode } })
+  const pack = await prisma.pack.findUnique({ where: { code: packCode }, include: { cycle: true } })
   if (!pack || !pack.size) {
     return null
   }
@@ -35,6 +44,8 @@ export async function computeSetCompletion(
     packCode: pack.code,
     packName: pack.name,
     cycleCode: pack.cycleCode,
+    cycleName: pack.cycle.name,
+    dateRelease: pack.dateRelease,
     ownedCount,
     totalCount: pack.size,
     percentOwned: Math.round((ownedCount / pack.size) * 100),
