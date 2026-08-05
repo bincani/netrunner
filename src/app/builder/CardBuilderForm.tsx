@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { addToCollection } from '@/actions/collectionActions'
+import { addToCollection, updateCollectionQuantity } from '@/actions/collectionActions'
 import { CardThumbnail } from '@/components/CardThumbnail'
 import type { CardSearchResult } from '@/lib/cards'
 
@@ -10,7 +10,7 @@ export function CardBuilderForm() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<CardSearchResult[]>([])
   const [searchError, setSearchError] = useState<string | null>(null)
-  // All per-card state is keyed by card code, not shared, so adding one
+  // All per-card state is keyed by card code, not shared, so acting on one
   // card doesn't disable or overwrite the status of any other row.
   const [pendingCodes, setPendingCodes] = useState<Record<string, boolean>>({})
   const [statusByCode, setStatusByCode] = useState<Record<string, string>>({})
@@ -35,7 +35,7 @@ export function CardBuilderForm() {
     }
   }
 
-  async function handleAdd(card: CardSearchResult, amount: number) {
+  async function performUpdate(card: CardSearchResult, action: () => Promise<number>, failureVerb: string) {
     setPendingCodes((prev) => ({ ...prev, [card.code]: true }))
     setErrorByCode((prev) => {
       if (!(card.code in prev)) return prev
@@ -44,16 +44,27 @@ export function CardBuilderForm() {
     })
 
     try {
-      const newQuantity = await addToCollection(card.code, amount)
+      const newQuantity = await action()
       setStatusByCode((prev) => ({ ...prev, [card.code]: `now own ${newQuantity}` }))
       setResults((prev) =>
         prev.map((c) => (c.code === card.code ? { ...c, ownedQuantity: newQuantity } : c))
       )
     } catch {
-      setErrorByCode((prev) => ({ ...prev, [card.code]: `Failed to add ${card.title} — try again` }))
+      setErrorByCode((prev) => ({ ...prev, [card.code]: `Failed to ${failureVerb} ${card.title} — try again` }))
     } finally {
       setPendingCodes((prev) => ({ ...prev, [card.code]: false }))
     }
+  }
+
+  function handleAdd(card: CardSearchResult, amount: number) {
+    return performUpdate(card, () => addToCollection(card.code, amount), 'add')
+  }
+
+  // Zeroing out is a correction, not "adding zero copies" — it overwrites
+  // the owned count via updateCollectionQuantity, the same action the set
+  // browser's editor uses, rather than the incrementing addToCollection.
+  function handleZero(card: CardSearchResult) {
+    return performUpdate(card, () => updateCollectionQuantity(card.code, 0), 'reset')
   }
 
   return (
@@ -97,6 +108,14 @@ export function CardBuilderForm() {
                 )}
               </div>
               <div className="flex gap-1">
+                <button
+                  onClick={() => handleZero(card)}
+                  disabled={isPending}
+                  aria-label={`Reset ${card.title} to 0`}
+                  className="h-8 w-8 cursor-pointer rounded border border-red-800 bg-red-950/40 font-medium text-red-400 hover:bg-red-900/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  0
+                </button>
                 {[1, 2, 3, 4].map((n) => (
                   <button
                     key={n}

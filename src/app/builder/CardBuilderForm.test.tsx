@@ -3,10 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CardBuilderForm } from './CardBuilderForm'
-import { addToCollection } from '@/actions/collectionActions'
+import { addToCollection, updateCollectionQuantity } from '@/actions/collectionActions'
 
 vi.mock('@/actions/collectionActions', () => ({
   addToCollection: vi.fn(),
+  updateCollectionQuantity: vi.fn(),
 }))
 
 vi.mock('next/image', () => ({
@@ -106,6 +107,43 @@ describe('CardBuilderForm', () => {
     await waitFor(() => expect(screen.getByText('Corroder: now own 1')).toBeInTheDocument())
     expect(screen.queryByText(/Mimic: now own/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add 2 Mimic' })).not.toBeDisabled()
+  })
+
+  it('shows a "0" reset button to the left of the quantity buttons for each result', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    expect(screen.getByRole('button', { name: 'Reset Corroder to 0' })).toBeInTheDocument()
+  })
+
+  it('clicking the "0" button calls updateCollectionQuantity (overwrite), never addToCollection (increment)', async () => {
+    vi.mocked(updateCollectionQuantity).mockResolvedValue(0)
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Reset Corroder to 0' }))
+
+    await waitFor(() => expect(updateCollectionQuantity).toHaveBeenCalledWith('01007', 0))
+    expect(addToCollection).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByText('Corroder: now own 0')).toBeInTheDocument())
+  })
+
+  it('shows a visible error and does not report success when the "0" reset fails', async () => {
+    vi.mocked(updateCollectionQuantity).mockRejectedValue(new Error('db exploded'))
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'co')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Reset Corroder to 0' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to reset corroder/i)
+    expect(screen.queryByText(/now own/)).not.toBeInTheDocument()
   })
 
   it('shows a visible error instead of an unhandled rejection when the search request fails', async () => {
