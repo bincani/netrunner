@@ -48,6 +48,10 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   oac: 'jpg', // Order and Chaos
   val: 'jpg', // The Valley
   bb: 'jpg', // Breaker Bay
+  cc: 'png', // Chrome City
+  uw: 'jpg', // The Underway
+  oh: 'jpg', // Old Hollywood
+  uot: 'png', // The Universe of Tomorrow
 }
 
 export function setImagePath(packCode: string): string | null {
