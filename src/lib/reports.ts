@@ -6,7 +6,9 @@ export interface SetCompletion {
   cycleCode: string
   cycleName: string
   dateRelease: string | null
+  /** Physical cards owned, weighted by each card's printed quantity — owning 2 of a 3-of counts as 2, not 1. */
   ownedCount: number
+  /** Total physical cards the set contains (sum of every card's printed quantity), not the distinct card count. */
   totalCount: number
   percentOwned: number
 }
@@ -18,8 +20,20 @@ export function releaseYear(dateRelease: string | null): string | null {
   return match ? match[1] : null
 }
 
+/**
+ * How much a single card contributes toward "cards owned": capped at its
+ * printed quantity, so owning extras (e.g. from a second box) never counts
+ * for more than the set actually contains of that card. Falls back to
+ * treating the quantity as 1 if it's unknown.
+ */
+export function cardContribution(quantityOwned: number, printedQuantity: number | null): number {
+  return Math.min(quantityOwned, printedQuantity ?? 1)
+}
+
 export interface CollectionTotals {
+  /** Physical cards owned across the whole collection, weighted by printed quantity (see SetCompletion). */
   ownedCards: number
+  /** Total physical cards across every imported card's printed quantity. */
   totalCards: number
   percentOwned: number
 }
@@ -33,12 +47,16 @@ export async function computeSetCompletion(
     return null
   }
 
-  const ownedCount = await prisma.card.count({
-    where: {
-      packCode,
-      collectionEntry: { quantityOwned: { gt: 0 } },
-    },
+  const cards = await prisma.card.findMany({
+    where: { packCode },
+    select: { quantity: true, collectionEntry: { select: { quantityOwned: true } } },
   })
+
+  const totalCount = cards.reduce((sum, card) => sum + (card.quantity ?? 1), 0)
+  const ownedCount = cards.reduce(
+    (sum, card) => sum + cardContribution(card.collectionEntry?.quantityOwned ?? 0, card.quantity),
+    0
+  )
 
   return {
     packCode: pack.code,
@@ -47,8 +65,8 @@ export async function computeSetCompletion(
     cycleName: pack.cycle.name,
     dateRelease: pack.dateRelease,
     ownedCount,
-    totalCount: pack.size,
-    percentOwned: Math.round((ownedCount / pack.size) * 100),
+    totalCount,
+    percentOwned: totalCount === 0 ? 0 : Math.round((ownedCount / totalCount) * 100),
   }
 }
 
@@ -70,10 +88,15 @@ export async function computeAllSetsCompletion(prisma: PrismaClient): Promise<Se
 }
 
 export async function computeCollectionTotals(prisma: PrismaClient): Promise<CollectionTotals> {
-  const totalCards = await prisma.card.count()
-  const ownedCards = await prisma.card.count({
-    where: { collectionEntry: { quantityOwned: { gt: 0 } } },
+  const cards = await prisma.card.findMany({
+    select: { quantity: true, collectionEntry: { select: { quantityOwned: true } } },
   })
+
+  const totalCards = cards.reduce((sum, card) => sum + (card.quantity ?? 1), 0)
+  const ownedCards = cards.reduce(
+    (sum, card) => sum + cardContribution(card.collectionEntry?.quantityOwned ?? 0, card.quantity),
+    0
+  )
 
   return {
     ownedCards,

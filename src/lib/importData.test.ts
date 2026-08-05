@@ -22,6 +22,7 @@ function makeFetch(overrides: Record<string, unknown> = {}) {
         cost: 2,
         faction_cost: 2,
         deck_limit: 3,
+        quantity: 2,
         position: 7,
         uniqueness: false,
       },
@@ -60,6 +61,7 @@ describe('importAllCardData', () => {
 
     const card = await prisma.card.findUniqueOrThrow({ where: { code: '01007' } })
     expect(card.title).toBe('Corroder')
+    expect(card.quantity).toBe(2)
   })
 
   it('is idempotent and picks up field updates on re-import', async () => {

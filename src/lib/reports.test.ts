@@ -9,6 +9,7 @@ import {
   groupSetsByCycle,
   listUnsizedPacks,
   releaseYear,
+  cardContribution,
 } from './reports'
 import type { PrismaClient } from '@prisma/client'
 
@@ -47,6 +48,31 @@ describe('reports', () => {
       totalCount: 2,
       percentOwned: 50,
     })
+  })
+
+  it('counts partial ownership of a multi-copy card toward the percentage, not just whether you own any', async () => {
+    // The set contains 3 copies of Card A; owning only 2 should count as
+    // 2/3 toward the total, not "1 card owned" the way distinct-card
+    // counting would treat it.
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+    await incrementOwned(prisma, '01001', 2)
+
+    const completion = await computeSetCompletion(prisma, 'core')
+
+    expect(completion?.ownedCount).toBe(2)
+    expect(completion?.totalCount).toBe(3)
+    expect(completion?.percentOwned).toBe(67)
+  })
+
+  it("caps a card's contribution at its printed quantity, even if you own more than that", async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+    await incrementOwned(prisma, '01001', 5)
+
+    const completion = await computeSetCompletion(prisma, 'core')
+
+    expect(completion?.ownedCount).toBe(3)
+    expect(completion?.totalCount).toBe(3)
+    expect(completion?.percentOwned).toBe(100)
   })
 
   it('returns null for a pack with no declared size', async () => {
@@ -89,6 +115,36 @@ describe('reports', () => {
     const totals = await computeCollectionTotals(prisma)
 
     expect(totals).toEqual({ ownedCards: 1, totalCards: 3, percentOwned: 33 })
+  })
+
+  it('weights overall totals by printed quantity too, not just distinct cards owned', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 1, position: 2, quantity: 1 })
+    await incrementOwned(prisma, '01001', 2)
+
+    const totals = await computeCollectionTotals(prisma)
+
+    // 2 of 3 copies of Card A, 0 of 1 copy of Card B: 2 owned out of 4 total.
+    expect(totals).toEqual({ ownedCards: 2, totalCards: 4, percentOwned: 50 })
+  })
+})
+
+describe('cardContribution', () => {
+  it('counts partial ownership up to the printed quantity', () => {
+    expect(cardContribution(2, 3)).toBe(2)
+  })
+
+  it('caps at the printed quantity when more are owned', () => {
+    expect(cardContribution(5, 3)).toBe(3)
+  })
+
+  it('falls back to a quantity of 1 when the printed quantity is unknown', () => {
+    expect(cardContribution(1, null)).toBe(1)
+    expect(cardContribution(5, null)).toBe(1)
+  })
+
+  it('returns 0 for an unowned card', () => {
+    expect(cardContribution(0, 3)).toBe(0)
   })
 })
 

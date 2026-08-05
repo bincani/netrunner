@@ -56,6 +56,7 @@ model Card {
   keywords        String?
   strength        Int?
   uniqueness      Boolean          @default(false)
+  quantity        Int?
   position        Int
   collectionEntry CollectionEntry?
 }

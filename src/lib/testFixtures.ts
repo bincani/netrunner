@@ -10,6 +10,7 @@ interface SeedCardOptions {
   factionCode?: string
   typeCode?: string
   position?: number
+  quantity?: number | null
 }
 
 export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): Promise<Card> {
@@ -57,6 +58,7 @@ export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): 
       sideCode: 'runner',
       position: options.position ?? 1,
       uniqueness: false,
+      quantity: options.quantity === undefined ? 1 : options.quantity,
     },
   })
 }

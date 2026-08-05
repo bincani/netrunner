@@ -51,6 +51,7 @@ interface RawCard {
   keywords?: string
   strength?: number
   uniqueness?: boolean
+  quantity?: number
   position: number
 }
 
@@ -142,6 +143,7 @@ export async function importAllCardData(
             keywords: card.keywords ?? null,
             strength: card.strength ?? null,
             uniqueness: card.uniqueness ?? false,
+            quantity: card.quantity ?? null,
             position: card.position,
           }
 
