@@ -35,3 +35,25 @@ html {
      card list with a filter) doesn't shift horizontally each time. */
   scrollbar-gutter: stable;
 }
+
+/* Card-text icon glyphs (see src/lib/cardText.ts) — Unicode stand-ins
+   rather than an icon font, so nothing extra needs to load. Swap the
+   `content` values for real glyphs/an icon font later if desired. */
+.card-icon {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  vertical-align: -0.15em;
+}
+.card-icon-credit::before {
+  content: '◉';
+}
+.card-icon-click::before {
+  content: '◆';
+}
+.card-icon-trash::before {
+  content: '♻';
+}
+.card-icon-subroutine::before {
+  content: '↳';
+}

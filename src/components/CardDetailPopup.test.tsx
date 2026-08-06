@@ -187,4 +187,24 @@ describe('CardDetailPopup', () => {
 
     expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
   })
+
+  it("renders the card text's formatting tags and icon tokens instead of showing them as literal characters", async () => {
+    const demolitionRun: PackCardEntry = {
+      ...fullCard,
+      code: '01003',
+      title: 'Demolition Run',
+      text: 'Run HQ or R&D.\nAccess → <strong>0[credit]:</strong> Trash the card you are accessing.',
+    }
+    const user = userEvent.setup()
+    render(<CardDetailPopup card={demolitionRun} />)
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Demolition Run' }))
+
+    // The literal markup must not leak into the page as visible text.
+    expect(screen.queryByText(/<strong>/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\[credit\]/)).not.toBeInTheDocument()
+
+    expect(screen.getByText('0', { selector: 'strong', exact: false })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'credit' })).toBeInTheDocument()
+  })
 })

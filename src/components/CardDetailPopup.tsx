@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { cardImageUrl } from '@/lib/cardImage'
 import { CardThumbnail } from './CardThumbnail'
+import { CardText } from './CardText'
 import type { CardPrinting, PackCardEntry } from '@/lib/cards'
 
 // Wraps a card's small thumbnail so clicking it opens a popup with the
@@ -131,7 +132,11 @@ export function CardDetailPopup({ card }: { card: PackCardEntry }) {
 
                 {card.keywords && <div className="text-sm italic text-muted">{card.keywords}</div>}
 
-                {card.text && <p className="whitespace-pre-line text-sm text-primary">{card.text}</p>}
+                {card.text && (
+                  <p className="whitespace-pre-line text-sm text-primary">
+                    <CardText text={card.text} />
+                  </p>
+                )}
 
                 <div className="pt-2 text-sm text-muted">Owned: {card.ownedQuantity}</div>
 
