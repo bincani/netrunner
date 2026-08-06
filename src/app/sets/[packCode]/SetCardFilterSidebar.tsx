@@ -17,12 +17,6 @@ interface SetCardFilterSidebarProps {
   onAttributeFiltersChange: (value: AttributeFilters) => void
 }
 
-const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'owned', label: 'Owned' },
-  { value: 'missing', label: 'Missing' },
-]
-
 function toggleInSet<T>(set: Set<T>, value: T): Set<T> {
   const next = new Set(set)
   if (next.has(value)) {
@@ -99,26 +93,6 @@ export function SetCardFilterSidebar({
           </div>
         </fieldset>
       )}
-
-      <fieldset>
-        <legend className={legendClassName}>Ownership</legend>
-        <div className="flex flex-wrap gap-2">
-          {OWNERSHIP_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onOwnershipChange(option.value)}
-              className={`cursor-pointer rounded border px-3 py-1 text-sm ${
-                ownership === option.value
-                  ? 'border-blue-600 bg-blue-600/20 text-blue-400'
-                  : 'border-neutral-700 hover:bg-neutral-800'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </fieldset>
 
       {facets.factions.length > 1 && (
         <fieldset>

@@ -256,4 +256,32 @@ describe('SetCardGrid', () => {
     expect(screen.getByText('Card B')).toBeInTheDocument()
     expect(screen.queryByText('Card C')).not.toBeInTheDocument()
   })
+
+  it('shows a count of how many cards are currently included out of the set total', () => {
+    render(<SetCardGrid cards={cards} />)
+
+    expect(screen.getByText('2 of 2 cards')).toBeInTheDocument()
+  })
+
+  it('the card count updates as the ownership filter narrows the list', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+
+    expect(screen.getByText('1 of 2 cards')).toBeInTheDocument()
+  })
+
+  it('the card count updates as an attribute filter narrows the list', async () => {
+    const user = userEvent.setup()
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '01001', title: 'Card A', factionCode: 'anarch', factionName: 'Anarch' }),
+      makeCard({ code: '01002', title: 'Card B', factionCode: 'shaper', factionName: 'Shaper' }),
+    ]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    await user.click(screen.getByRole('checkbox', { name: 'Anarch (1)' }))
+
+    expect(screen.getByText('1 of 2 cards')).toBeInTheDocument()
+  })
 })

@@ -19,6 +19,12 @@ function parseQuantity(raw: string): number | null {
   return value
 }
 
+const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'owned', label: 'Owned' },
+  { value: 'missing', label: 'Missing' },
+]
+
 export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
   // What's currently typed in each input, kept as a string so an in-progress
   // edit (e.g. a cleared field, or "-" while typing "-5") can be displayed
@@ -101,6 +107,28 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
       />
 
       <div className="min-w-0 flex-1">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {OWNERSHIP_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setOwnership(option.value)}
+                className={`cursor-pointer rounded border px-3 py-1 text-sm ${
+                  ownership === option.value
+                    ? 'border-blue-600 bg-blue-600/20 text-blue-400'
+                    : 'border-neutral-700 hover:bg-neutral-800'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-neutral-400">
+            {visibleCards.length} of {cards.length} cards
+          </span>
+        </div>
+
         <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {visibleCards.map((card) => {
             const owned = savedQuantities[card.code]
