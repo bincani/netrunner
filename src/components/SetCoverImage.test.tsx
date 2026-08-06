@@ -16,9 +16,9 @@ describe('SetCoverImage', () => {
   })
 
   it('falls back to an initial badge with no click behavior when there is no image', () => {
-    render(<SetCoverImage packCode="mo" packName="Magnum Opus" />)
+    render(<SetCoverImage packCode="td" packName="Terminal Directive Cards" />)
 
-    expect(screen.getByText('M')).toBeInTheDocument()
+    expect(screen.getByText('T')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 

@@ -20,9 +20,17 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   mor: 'png', // Magnum Opus Reprint
   msbp: 'png', // Midnight Sun Booster Pack
   sc19: 'png', // System Core 2019
+  mo: 'png', // Magnum Opus
+  sm: 'png', // Salvaged Memories
+
+  // NetrunnerDB CDN — napd is a single-card promo pack with no distinct
+  // box art, so its own card image stands in for a set image.
+  napd: 'jpg', // NAPD Multiplayer
 
   // BoardGameGeek (cf.geekdo-images.com)
   dc: 'png', // Daedalus Complex
+  rar: 'jpg', // Reign and Reverie
+  urbp: 'png', // Uprising Booster Pack
   dad: 'jpg', // Data and Destiny
   cac: 'jpg', // Creation and Control
   hap: 'jpg', // Honor and Profit

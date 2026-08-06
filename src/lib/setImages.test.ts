@@ -12,6 +12,6 @@ describe('setImagePath', () => {
   })
 
   it('returns null for a set with no downloaded image', () => {
-    expect(setImagePath('mo')).toBeNull()
+    expect(setImagePath('td')).toBeNull()
   })
 })
