@@ -100,7 +100,7 @@ describe('computeCardFacets', () => {
       }),
     ]
 
-    const facets = computeCardFacets(cards)
+    const facets = computeCardFacets(cards, createEmptyAttributeFilters())
 
     expect(facets.factions).toEqual([
       { value: 'anarch', label: 'Anarch', count: 2 },
@@ -124,8 +124,81 @@ describe('computeCardFacets', () => {
       makeCard({ code: '3', title: 'C', cost: 0 }),
     ]
 
-    const facets = computeCardFacets(cards)
+    const facets = computeCardFacets(cards, createEmptyAttributeFilters())
 
     expect(facets.costs.map((option) => option.label)).toEqual(['0', '3', 'No cost'])
+  })
+
+  it("narrows other categories' counts to reflect an active filter, without hiding their available values", () => {
+    const cards: PackCardEntry[] = [
+      makeCard({ code: '1', title: 'A', factionCode: 'anarch', factionName: 'Anarch', sideCode: 'runner' }),
+      makeCard({ code: '2', title: 'B', factionCode: 'anarch', factionName: 'Anarch', sideCode: 'corp' }),
+      makeCard({ code: '3', title: 'C', factionCode: 'shaper', factionName: 'Shaper', sideCode: 'runner' }),
+    ]
+    const filters = createEmptyAttributeFilters()
+    filters.sideCodes.add('runner')
+
+    const facets = computeCardFacets(cards, filters)
+
+    // Anarch has 2 cards total, but only 1 of them is Runner-side.
+    expect(facets.factions).toEqual([
+      { value: 'anarch', label: 'Anarch', count: 1 },
+      { value: 'shaper', label: 'Shaper', count: 1 },
+    ])
+  })
+
+  it("does not let a category's own selection shrink its own other options' counts", () => {
+    const cards: PackCardEntry[] = [
+      makeCard({ code: '1', title: 'A', sideCode: 'runner' }),
+      makeCard({ code: '2', title: 'B', sideCode: 'corp' }),
+    ]
+    const filters = createEmptyAttributeFilters()
+    filters.sideCodes.add('runner')
+
+    const facets = computeCardFacets(cards, filters)
+
+    // Selecting Runner shouldn't zero out Corp's own count within the Side
+    // category itself — only OTHER categories should narrow because of it.
+    expect(facets.sides).toEqual([
+      { value: 'corp', label: 'Corp', count: 1 },
+      { value: 'runner', label: 'Runner', count: 1 },
+    ])
+  })
+
+  it('combines multiple active filter categories with AND when narrowing another category', () => {
+    const cards: PackCardEntry[] = [
+      makeCard({
+        code: '1',
+        title: 'A',
+        factionCode: 'anarch',
+        factionName: 'Anarch',
+        sideCode: 'runner',
+        cost: 1,
+      }),
+      makeCard({
+        code: '2',
+        title: 'B',
+        factionCode: 'anarch',
+        factionName: 'Anarch',
+        sideCode: 'runner',
+        cost: 2,
+      }),
+      makeCard({
+        code: '3',
+        title: 'C',
+        factionCode: 'anarch',
+        factionName: 'Anarch',
+        sideCode: 'corp',
+        cost: 1,
+      }),
+    ]
+    const filters = createEmptyAttributeFilters()
+    filters.sideCodes.add('runner')
+    filters.costs.add(1)
+
+    const facets = computeCardFacets(cards, filters)
+
+    // Only card 1 is both Runner-side and cost 1.
+    expect(facets.factions).toEqual([{ value: 'anarch', label: 'Anarch', count: 1 }])
   })
 })

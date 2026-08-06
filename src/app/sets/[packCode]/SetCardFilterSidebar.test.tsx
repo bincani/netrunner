@@ -112,7 +112,7 @@ describe('SetCardFilterSidebar', () => {
     expect(updated.factionCodes.has('anarch')).toBe(false)
   })
 
-  it('shows "Clear all" only once a filter is active, and resets everything when clicked', async () => {
+  it('disables "Clear all" until a filter is active, then enables it and resets everything when clicked', async () => {
     const user = userEvent.setup()
     const handleOwnershipChange = vi.fn()
     const handleFiltersChange = vi.fn()
@@ -128,7 +128,7 @@ describe('SetCardFilterSidebar', () => {
         onAttributeFiltersChange={handleFiltersChange}
       />
     )
-    expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Clear all' })).toBeDisabled()
 
     rerender(
       <SetCardFilterSidebar
@@ -139,6 +139,7 @@ describe('SetCardFilterSidebar', () => {
         onAttributeFiltersChange={handleFiltersChange}
       />
     )
+    expect(screen.getByRole('button', { name: 'Clear all' })).not.toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Clear all' }))
 
     expect(handleOwnershipChange).toHaveBeenCalledWith('all')

@@ -37,7 +37,7 @@ export function SetCardFilterSidebar({
   attributeFilters,
   onAttributeFiltersChange,
 }: SetCardFilterSidebarProps) {
-  const facets = computeCardFacets(cards)
+  const facets = computeCardFacets(cards, attributeFilters)
   const showClearAll = ownership !== 'all' || !isAttributeFiltersEmpty(attributeFilters)
 
   function toggleFaction(code: string) {
@@ -60,18 +60,19 @@ export function SetCardFilterSidebar({
     <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:w-80 lg:self-start lg:overflow-y-auto">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-300">Filters</h2>
-        {showClearAll && (
-          <button
-            type="button"
-            onClick={() => {
-              onOwnershipChange('all')
-              onAttributeFiltersChange(createEmptyAttributeFilters())
-            }}
-            className="cursor-pointer text-xs text-blue-400 hover:underline"
-          >
-            Clear all
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={!showClearAll}
+          onClick={() => {
+            onOwnershipChange('all')
+            onAttributeFiltersChange(createEmptyAttributeFilters())
+          }}
+          className={`text-xs ${
+            showClearAll ? 'cursor-pointer text-blue-400 hover:underline' : 'cursor-not-allowed text-neutral-600'
+          }`}
+        >
+          Clear all
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-4">
