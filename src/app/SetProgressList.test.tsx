@@ -129,4 +129,48 @@ describe('SetProgressList', () => {
 
     expect(screen.getByText('No sets match this filter.')).toBeInTheDocument()
   })
+
+  it('filters sets by name as text is typed, case-insensitively', async () => {
+    const user = userEvent.setup()
+    render(<SetProgressList sets={sets} />)
+
+    await user.type(screen.getByRole('textbox', { name: 'Filter sets by name' }), 'core')
+
+    expect(screen.getByText('Core Set', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText('A Study in Static')).not.toBeInTheDocument()
+  })
+
+  it('combines the name filter with the Owned/Missing filter using AND', async () => {
+    const user = userEvent.setup()
+    render(<SetProgressList sets={sets} />)
+
+    await user.click(screen.getByRole('button', { name: 'Missing' }))
+    await user.type(screen.getByRole('textbox', { name: 'Filter sets by name' }), 'core')
+
+    // "Core Set" matches the name filter but has owned cards, so Missing excludes it.
+    expect(screen.queryByText('Core Set', { selector: 'span' })).not.toBeInTheDocument()
+    expect(screen.queryByText('A Study in Static')).not.toBeInTheDocument()
+    expect(screen.getByText('No sets match this filter.')).toBeInTheDocument()
+  })
+
+  it('does not show a Clear button while the name filter is empty', () => {
+    render(<SetProgressList sets={sets} />)
+
+    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
+  })
+
+  it('the Clear button resets the name filter and restores the full list', async () => {
+    const user = userEvent.setup()
+    render(<SetProgressList sets={sets} />)
+
+    const input = screen.getByRole('textbox', { name: 'Filter sets by name' })
+    await user.type(input, 'core')
+    expect(screen.queryByText('A Study in Static')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+
+    expect(input).toHaveValue('')
+    expect(screen.getByText('Core Set', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText('A Study in Static')).toBeInTheDocument()
+  })
 })

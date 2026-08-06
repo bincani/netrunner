@@ -10,16 +10,20 @@ import { SET_TYPES } from '@/lib/setTypes'
 export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all')
   const [typeFilter, setTypeFilter] = useState<string | 'all'>('all')
+  const [nameQuery, setNameQuery] = useState('')
 
   // Only offer a button for a type that's actually present in this data,
   // in the same order SET_TYPES declares them (not the order sets happen
   // to appear in).
   const presentTypes = Object.keys(SET_TYPES).filter((type) => sets.some((set) => set.setType === type))
 
+  const trimmedQuery = nameQuery.trim().toLowerCase()
+
   const visibleSets = sets.filter((set) => {
     if (filter === 'owned' && set.ownedCount === 0) return false
     if (filter === 'missing' && set.ownedCount > 0) return false
     if (typeFilter !== 'all' && set.setType !== typeFilter) return false
+    if (trimmedQuery !== '' && !set.packName.toLowerCase().includes(trimmedQuery)) return false
     return true
   })
 
@@ -44,6 +48,26 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
       </nav>
 
       <div className="min-w-0 flex-1 space-y-6">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            aria-label="Filter sets by name"
+            placeholder="Filter sets by name…"
+            value={nameQuery}
+            onChange={(e) => setNameQuery(e.target.value)}
+            className="w-full max-w-xs rounded border border-neutral-700 bg-neutral-900 px-3 py-1 text-sm placeholder:text-neutral-500"
+          />
+          {nameQuery !== '' && (
+            <button
+              type="button"
+              onClick={() => setNameQuery('')}
+              className="cursor-pointer rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-800"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           {(['all', 'owned', 'missing'] as const).map((option) => (
             <button
