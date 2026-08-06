@@ -21,7 +21,7 @@ export default async function DashboardPage() {
     <main className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Collection Overview</h1>
-        <p className="text-neutral-400">
+        <p className="text-muted">
           {totals.ownedCards} / {totals.totalCards} cards owned ({totals.percentOwned}%)
         </p>
       </div>
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
       {unsizedPacks.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-2">Sets without a declared size</h2>
-          <p className="text-sm text-neutral-400 mb-2">
+          <p className="text-sm text-muted mb-2">
             These packs don&apos;t have a known card count, so there&apos;s no completion percentage to show — but
             their cards are imported and browsable.
           </p>

@@ -124,14 +124,14 @@ export function SetCardGrid({
                 className={`cursor-pointer rounded border px-3 py-1 text-sm ${
                   ownership === option.value
                     ? 'border-blue-600 bg-blue-600/20 text-blue-400'
-                    : 'border-neutral-700 hover:bg-neutral-800'
+                    : 'border-default hover:bg-surface-hover'
                 }`}
               >
                 {option.label}
               </button>
             ))}
           </div>
-          <span className="text-sm text-neutral-400">
+          <span className="text-sm text-muted">
             {visibleCards.length} of {expectedCount ?? cards.length} cards
           </span>
         </div>
@@ -145,13 +145,13 @@ export function SetCardGrid({
               <li
                 key={card.code}
                 className={`flex items-center gap-3 rounded border p-3 ${
-                  owned > 0 ? 'border-neutral-700' : 'border-neutral-800 opacity-50'
+                  owned > 0 ? 'border-default' : 'border-subtle opacity-50'
                 }`}
               >
                 <CardDetailPopup card={card} />
                 <div className="flex-1">
                   <div className="font-medium">{card.title}</div>
-                  <div className="text-sm text-neutral-400">{card.factionName}</div>
+                  <div className="text-sm text-muted">{card.factionName}</div>
                   {error && (
                     <div className="text-xs text-red-400" role="alert">
                       {error}
@@ -172,15 +172,15 @@ export function SetCardGrid({
                           event.currentTarget.blur()
                         }
                       }}
-                      className={`w-16 rounded border bg-neutral-900 px-2 py-1 text-center ${
+                      className={`w-16 rounded border bg-surface px-2 py-1 text-center ${
                         card.quantity !== null && owned < card.quantity
                           ? 'border-red-400 bg-red-500/10'
-                          : 'border-neutral-700'
+                          : 'border-default'
                       }`}
                     />
-                    {card.quantity !== null && <span className="text-xs text-neutral-500">of {card.quantity}</span>}
+                    {card.quantity !== null && <span className="text-xs text-faint">of {card.quantity}</span>}
                   </div>
-                  {isSaving && <span className="text-[10px] text-neutral-500">saving…</span>}
+                  {isSaving && <span className="text-[10px] text-faint">saving…</span>}
                 </div>
               </li>
             )

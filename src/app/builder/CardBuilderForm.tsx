@@ -74,7 +74,7 @@ export function CardBuilderForm() {
         value={query}
         onChange={(event) => runSearch(event.target.value)}
         placeholder="Search for a card by title..."
-        className="w-full rounded border border-neutral-700 bg-neutral-900 px-4 py-2"
+        className="w-full rounded border border-default bg-surface px-4 py-2"
       />
 
       {searchError && (
@@ -83,7 +83,7 @@ export function CardBuilderForm() {
         </p>
       )}
 
-      <ul className="divide-y divide-neutral-800">
+      <ul className="divide-y divide-subtle">
         {results.map((card) => {
           const isPending = pendingCodes[card.code] === true
           const status = statusByCode[card.code]
@@ -93,9 +93,9 @@ export function CardBuilderForm() {
               <CardThumbnail code={card.code} title={card.title} />
               <div className="flex-1">
                 <div className="font-medium">{card.title}</div>
-                <div className="text-sm text-neutral-400">
+                <div className="text-sm text-muted">
                   {card.factionCode} ·{' '}
-                  <Link href={`/sets/${card.packCode}`} className="underline hover:text-neutral-200">
+                  <Link href={`/sets/${card.packCode}`} className="underline hover:text-primary">
                     {card.packName}
                   </Link>{' '}
                   · owned: {card.ownedQuantity}
@@ -122,7 +122,7 @@ export function CardBuilderForm() {
                     onClick={() => handleAdd(card, n)}
                     disabled={isPending}
                     aria-label={`Add ${n} ${card.title}`}
-                    className="h-8 w-8 cursor-pointer rounded border border-neutral-700 bg-neutral-900 font-medium hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-8 w-8 cursor-pointer rounded border border-default bg-surface font-medium hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {n}
                   </button>

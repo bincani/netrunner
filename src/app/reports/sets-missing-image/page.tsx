@@ -13,7 +13,7 @@ export default async function SetsMissingImageReportPage() {
     <main className="mx-auto max-w-3xl space-y-6 p-8">
       <div>
         <h1 className="text-2xl font-bold">Sets Missing Image</h1>
-        <p className="text-neutral-400">
+        <p className="text-muted">
           {packs.length === 0
             ? 'Every set has a cover image.'
             : `${packs.length} set${packs.length === 1 ? '' : 's'} with no cover image yet — names below are selectable to copy/paste into a search.`}
@@ -27,13 +27,13 @@ export default async function SetsMissingImageReportPage() {
             return (
               <li
                 key={pack.packCode}
-                className="flex items-center justify-between gap-4 rounded border border-neutral-800 px-3 py-2"
+                className="flex items-center justify-between gap-4 rounded border border-subtle px-3 py-2"
               >
                 <span>
                   {pack.packName}
-                  {year && <span className="text-neutral-500"> ({year})</span>}
+                  {year && <span className="text-faint"> ({year})</span>}
                 </span>
-                <span className="shrink-0 text-neutral-600">{pack.cycleName}</span>
+                <span className="shrink-0 text-faint">{pack.cycleName}</span>
               </li>
             )
           })}

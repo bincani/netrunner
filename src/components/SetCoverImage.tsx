@@ -26,7 +26,7 @@ export function SetCoverImage({ packCode, packName }: { packCode: string; packNa
       <div
         role="img"
         aria-label={`${packName} (no cover image)`}
-        className="flex h-24 w-24 shrink-0 items-center justify-center rounded bg-neutral-800 text-2xl font-semibold text-neutral-500"
+        className="flex h-24 w-24 shrink-0 items-center justify-center rounded bg-surface-hover text-2xl font-semibold text-faint"
       >
         {packName.charAt(0)}
       </div>

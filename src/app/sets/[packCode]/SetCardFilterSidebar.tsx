@@ -27,9 +27,9 @@ function toggleInSet<T>(set: Set<T>, value: T): Set<T> {
   return next
 }
 
-const legendClassName = 'mb-1 text-xs font-semibold uppercase text-neutral-500'
+const legendClassName = 'mb-1 text-xs font-semibold uppercase text-faint'
 const checkboxLabelClassName = 'flex cursor-pointer items-center gap-2 text-sm'
-const zeroCountCheckboxLabelClassName = 'flex cursor-pointer items-center gap-2 text-sm text-neutral-600'
+const zeroCountCheckboxLabelClassName = 'flex cursor-pointer items-center gap-2 text-sm text-faint'
 
 function checkboxLabelClass(count: number): string {
   return count === 0 ? zeroCountCheckboxLabelClassName : checkboxLabelClassName
@@ -64,7 +64,7 @@ export function SetCardFilterSidebar({
   return (
     <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:w-80 lg:self-start lg:overflow-y-auto">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-300">Filters</h2>
+        <h2 className="text-sm font-semibold text-primary">Filters</h2>
         <button
           type="button"
           disabled={!showClearAll}
@@ -73,7 +73,7 @@ export function SetCardFilterSidebar({
             onAttributeFiltersChange(createEmptyAttributeFilters())
           }}
           className={`text-xs ${
-            showClearAll ? 'cursor-pointer text-blue-400 hover:underline' : 'cursor-not-allowed text-neutral-600'
+            showClearAll ? 'cursor-pointer text-blue-400 hover:underline' : 'cursor-not-allowed text-faint'
           }`}
         >
           Clear all

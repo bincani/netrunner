@@ -47,7 +47,7 @@ export function CardDetailPopup({ card }: { card: PackCardEntry }) {
           >
             <div
               onClick={(event) => event.stopPropagation()}
-              className="flex max-h-[90vh] w-full max-w-2xl gap-4 overflow-y-auto rounded-lg bg-neutral-900 p-4"
+              className="flex max-h-[90vh] w-full max-w-2xl gap-4 overflow-y-auto rounded-lg bg-surface p-4"
             >
               <Image
                 src={cardImageUrl(card.code)}
@@ -66,28 +66,28 @@ export function CardDetailPopup({ card }: { card: PackCardEntry }) {
                     type="button"
                     onClick={() => setIsOpen(false)}
                     aria-label="Close"
-                    className="shrink-0 cursor-pointer rounded bg-neutral-800 px-2 py-1 text-sm hover:bg-neutral-700"
+                    className="shrink-0 cursor-pointer rounded bg-surface-hover px-2 py-1 text-sm hover:bg-default"
                   >
                     ✕
                   </button>
                 </div>
 
-                <div className="text-sm text-neutral-400">
+                <div className="text-sm text-muted">
                   {card.factionName} · {card.typeName} · {card.sideCode}
                 </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-300">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
                   {card.cost !== null && <span>Cost: {card.cost}</span>}
                   {card.factionCost !== null && <span>Influence: {card.factionCost}</span>}
                   {card.strength !== null && <span>Strength: {card.strength}</span>}
                   {card.deckLimit !== null && <span>Deck limit: {card.deckLimit}</span>}
                 </div>
 
-                {card.keywords && <div className="text-sm italic text-neutral-400">{card.keywords}</div>}
+                {card.keywords && <div className="text-sm italic text-muted">{card.keywords}</div>}
 
-                {card.text && <p className="whitespace-pre-line text-sm text-neutral-200">{card.text}</p>}
+                {card.text && <p className="whitespace-pre-line text-sm text-primary">{card.text}</p>}
 
-                <div className="pt-2 text-sm text-neutral-400">Owned: {card.ownedQuantity}</div>
+                <div className="pt-2 text-sm text-muted">Owned: {card.ownedQuantity}</div>
               </div>
             </div>
           </div>,

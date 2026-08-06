@@ -38,7 +38,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
             <li key={cycleCode}>
               <a
                 href={`#cycle-${cycleCode}`}
-                className="block rounded px-2 py-1 text-sm text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+                className="block rounded px-2 py-1 text-sm text-muted hover:bg-surface-hover hover:text-primary"
               >
                 {cycleSets[0].cycleName} ({cycleSets.length})
               </a>
@@ -55,13 +55,13 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
             placeholder="Filter sets by name…"
             value={nameQuery}
             onChange={(e) => setNameQuery(e.target.value)}
-            className="w-full max-w-xs rounded border border-neutral-700 bg-neutral-900 px-3 py-1 text-sm placeholder:text-neutral-500"
+            className="w-full max-w-xs rounded border border-default bg-surface px-3 py-1 text-sm placeholder:text-faint"
           />
           {nameQuery !== '' && (
             <button
               type="button"
               onClick={() => setNameQuery('')}
-              className="cursor-pointer rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-800"
+              className="cursor-pointer rounded border border-default px-3 py-1 text-sm hover:bg-surface-hover"
             >
               Clear
             </button>
@@ -76,14 +76,14 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
               className={`cursor-pointer rounded border px-3 py-1 text-sm ${
                 filter === option
                   ? 'border-blue-600 bg-blue-600/20 text-blue-400'
-                  : 'border-neutral-700 hover:bg-neutral-800'
+                  : 'border-default hover:bg-surface-hover'
               }`}
             >
               {option === 'all' ? 'All' : option === 'owned' ? 'Owned' : 'Missing'}
             </button>
           ))}
 
-          <span className="mx-1 h-5 w-px bg-neutral-800" aria-hidden="true" />
+          <span className="mx-1 h-5 w-px bg-subtle" aria-hidden="true" />
 
           <label className="flex items-center gap-1.5 text-sm">
             {typeFilter !== 'all' && <SetTypeBadge setType={typeFilter} />}
@@ -91,7 +91,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="cursor-pointer rounded border border-neutral-700 bg-neutral-900 px-3 py-1 text-sm hover:bg-neutral-800"
+              className="cursor-pointer rounded border border-default bg-surface px-3 py-1 text-sm hover:bg-surface-hover"
             >
               <option value="all">All types</option>
               {presentTypes.map((type) => (
@@ -113,7 +113,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
                   <li key={set.packCode}>
                     <Link
                       href={`/sets/${set.packCode}`}
-                      className="flex items-center gap-3 rounded border border-neutral-800 p-3 hover:border-neutral-600"
+                      className="flex items-center gap-3 rounded border border-subtle p-3 hover:border-default"
                     >
                       <SetThumbnail packCode={set.packCode} packName={set.packName} />
                       <div className="flex-1">
@@ -121,13 +121,13 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
                           <span className="flex items-center gap-2">
                             <SetTypeBadge setType={set.setType} />
                             {set.packName}
-                            {year && <span className="text-neutral-500"> ({year})</span>}
+                            {year && <span className="text-faint"> ({year})</span>}
                           </span>
                           <span>
                             {set.ownedCount}/{set.totalCount} ({set.percentOwned}%)
                           </span>
                         </div>
-                        <div className="mt-2 h-2 rounded bg-neutral-800">
+                        <div className="mt-2 h-2 rounded bg-subtle">
                           <div className="h-2 rounded bg-blue-600" style={{ width: `${set.percentOwned}%` }} />
                         </div>
                       </div>
@@ -139,7 +139,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
           </div>
         ))}
 
-        {visibleSets.length === 0 && <p className="text-sm text-neutral-500">No sets match this filter.</p>}
+        {visibleSets.length === 0 && <p className="text-sm text-faint">No sets match this filter.</p>}
       </div>
     </div>
   )

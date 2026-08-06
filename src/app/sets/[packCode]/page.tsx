@@ -30,19 +30,19 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <SetTypeBadge setType={pack.setType} />
             <span>
-              <Link href={`/#cycle-${pack.cycleCode}`} className="text-neutral-400 hover:text-neutral-200 hover:underline">
+              <Link href={`/#cycle-${pack.cycleCode}`} className="text-muted hover:text-primary hover:underline">
                 {pack.cycle.name}
               </Link>
-              <span className="text-neutral-600"> {'>'} </span>
+              <span className="text-faint"> {'>'} </span>
               {pack.name}
-              {year && <span className="text-neutral-500"> ({year})</span>}
+              {year && <span className="text-faint"> ({year})</span>}
             </span>
             <a
               href={`https://netrunnerdb.com/en/set/${pack.code}`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`View ${pack.name} on NetrunnerDB`}
-              className="text-neutral-500 hover:text-neutral-300"
+              className="text-faint hover:text-primary"
             >
               <svg
                 width="16"
@@ -62,7 +62,7 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
             </a>
           </h1>
           {completion && (
-            <p className="text-neutral-400">
+            <p className="text-muted">
               {completion.ownedCount}/{completion.totalCount} owned ({completion.percentOwned}%)
             </p>
           )}

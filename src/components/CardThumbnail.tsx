@@ -15,7 +15,7 @@ export function CardThumbnail({ code, title }: { code: string; title: string }) 
       <div
         role="img"
         aria-label={`${title} (image unavailable)`}
-        className="flex h-[62px] w-[44px] shrink-0 items-center justify-center rounded bg-neutral-800 text-center text-[9px] leading-tight text-neutral-500"
+        className="flex h-[62px] w-[44px] shrink-0 items-center justify-center rounded bg-surface-hover text-center text-[9px] leading-tight text-faint"
       >
         No image
       </div>

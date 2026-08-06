@@ -35,7 +35,7 @@ export function ReportsNavDropdown() {
       {isOpen && (
         <div
           role="menu"
-          className="absolute left-0 top-full z-10 mt-2 min-w-48 rounded border border-neutral-700 bg-neutral-900 py-1 shadow-lg"
+          className="absolute left-0 top-full z-10 mt-2 min-w-48 rounded border border-default bg-surface py-1 shadow-lg"
         >
           {REPORTS.map((report) => (
             <Link
@@ -43,7 +43,7 @@ export function ReportsNavDropdown() {
               href={report.href}
               role="menuitem"
               onClick={() => setIsOpen(false)}
-              className="block px-3 py-2 text-sm hover:bg-neutral-800"
+              className="block px-3 py-2 text-sm hover:bg-surface-hover"
             >
               {report.label}
             </Link>

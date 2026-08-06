@@ -167,9 +167,9 @@ describe('SetCardFilterSidebar', () => {
 
     // Shaper has 0 Runner-side cards once Side: Runner is selected.
     const shaperOption = screen.getByRole('checkbox', { name: 'Shaper (0)' })
-    expect(shaperOption.closest('label')?.className).toContain('text-neutral-600')
+    expect(shaperOption.closest('label')?.className).toContain('text-faint')
 
     const anarchOption = screen.getByRole('checkbox', { name: 'Anarch (1)' })
-    expect(anarchOption.closest('label')?.className).not.toContain('text-neutral-600')
+    expect(anarchOption.closest('label')?.className).not.toContain('text-faint')
   })
 })
