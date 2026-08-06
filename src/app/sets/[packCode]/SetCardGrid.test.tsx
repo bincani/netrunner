@@ -225,4 +225,35 @@ describe('SetCardGrid', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/failed to save/i)
     expect(input).toHaveValue(0)
   })
+
+  it('filters cards by faction using the sidebar', async () => {
+    const user = userEvent.setup()
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '01001', title: 'Card A', factionCode: 'anarch', factionName: 'Anarch' }),
+      makeCard({ code: '01002', title: 'Card B', factionCode: 'shaper', factionName: 'Shaper' }),
+    ]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    await user.click(screen.getByRole('checkbox', { name: 'Anarch (1)' }))
+
+    expect(screen.getByText('Card A')).toBeInTheDocument()
+    expect(screen.queryByText('Card B')).not.toBeInTheDocument()
+  })
+
+  it('combines the ownership filter and an attribute filter with AND', async () => {
+    const user = userEvent.setup()
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '01001', title: 'Card A', factionCode: 'anarch', factionName: 'Anarch', ownedQuantity: 0 }),
+      makeCard({ code: '01002', title: 'Card B', factionCode: 'anarch', factionName: 'Anarch', ownedQuantity: 2 }),
+      makeCard({ code: '01003', title: 'Card C', factionCode: 'shaper', factionName: 'Shaper', ownedQuantity: 2 }),
+    ]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Anarch (2)' }))
+
+    expect(screen.queryByText('Card A')).not.toBeInTheDocument()
+    expect(screen.getByText('Card B')).toBeInTheDocument()
+    expect(screen.queryByText('Card C')).not.toBeInTheDocument()
+  })
 })
