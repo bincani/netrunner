@@ -68,7 +68,7 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
           )}
         </div>
       </div>
-      <SetCardGrid cards={cards} />
+      <SetCardGrid cards={cards} expectedCount={pack.size} />
     </main>
   )
 }

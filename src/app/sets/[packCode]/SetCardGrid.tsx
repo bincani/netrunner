@@ -25,7 +25,14 @@ const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string }[] = [
   { value: 'missing', label: 'Missing' },
 ]
 
-export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
+export function SetCardGrid({
+  cards,
+  expectedCount = null,
+}: {
+  cards: PackCardEntry[]
+  /** The set's officially declared card count, if known — shown as the total rather than however many happened to import. */
+  expectedCount?: number | null
+}) {
   // What's currently typed in each input, kept as a string so an in-progress
   // edit (e.g. a cleared field, or "-" while typing "-5") can be displayed
   // without being coerced into a number prematurely.
@@ -125,7 +132,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
             ))}
           </div>
           <span className="text-sm text-neutral-400">
-            {visibleCards.length} of {cards.length} cards
+            {visibleCards.length} of {expectedCount ?? cards.length} cards
           </span>
         </div>
 

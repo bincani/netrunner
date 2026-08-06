@@ -284,4 +284,16 @@ describe('SetCardGrid', () => {
 
     expect(screen.getByText('1 of 2 cards')).toBeInTheDocument()
   })
+
+  it('shows the declared expected card count as the total, not just how many imported', () => {
+    render(<SetCardGrid cards={cards} expectedCount={45} />)
+
+    expect(screen.getByText('2 of 45 cards')).toBeInTheDocument()
+  })
+
+  it('falls back to the actual imported count when no expected count is declared', () => {
+    render(<SetCardGrid cards={cards} expectedCount={null} />)
+
+    expect(screen.getByText('2 of 2 cards')).toBeInTheDocument()
+  })
 })
