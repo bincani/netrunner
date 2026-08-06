@@ -25,6 +25,7 @@ model Pack {
   /// e.g. "core", "data_pack", "deluxe", "expansion", "booster_pack", "campaign", "draft", "promo" — see src/lib/setTypes.ts
   setType     String?
   cards       Card[]
+  hiddenFromBuilder HiddenBuilderPack?
 }
 
 model Faction {
@@ -67,4 +68,9 @@ model CollectionEntry {
   cardCode      String @id
   card          Card   @relation(fields: [cardCode], references: [code])
   quantityOwned Int    @default(0)
+}
+
+model HiddenBuilderPack {
+  packCode String @id
+  pack     Pack   @relation(fields: [packCode], references: [code])
 }
