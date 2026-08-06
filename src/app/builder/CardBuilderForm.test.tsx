@@ -19,10 +19,20 @@ const mockResults = [
     code: '01007',
     title: 'Corroder',
     factionCode: 'anarch',
+    factionName: 'Anarch',
     typeCode: 'program',
+    typeName: 'Program',
     packCode: 'core',
     packName: 'Core Set',
     sideCode: 'runner',
+    cost: 2,
+    factionCost: 1,
+    strength: 2,
+    deckLimit: 3,
+    keywords: 'Icebreaker - Killer',
+    text: '+1 strength while breaking a subroutine.',
+    uniqueness: false,
+    position: 7,
     ownedQuantity: 0,
     quantity: 2,
   },
@@ -30,10 +40,20 @@ const mockResults = [
     code: '01011',
     title: 'Mimic',
     factionCode: 'anarch',
+    factionName: 'Anarch',
     typeCode: 'program',
+    typeName: 'Program',
     packCode: 'core',
     packName: 'Core Set',
     sideCode: 'runner',
+    cost: 3,
+    factionCost: 0,
+    strength: 2,
+    deckLimit: 3,
+    keywords: 'Icebreaker - Killer',
+    text: null,
+    uniqueness: false,
+    position: 11,
     ownedQuantity: 0,
     quantity: 2,
   },
@@ -66,6 +86,35 @@ describe('CardBuilderForm', () => {
 
     const row = within(screen.getByText('Corroder').closest('li')!)
     expect(row.getByRole('link', { name: 'Core Set' })).toHaveAttribute('href', '/sets/core')
+  })
+
+  it('clicking a result\'s thumbnail opens its card-detail popup', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Corroder' }))
+
+    expect(screen.getByRole('heading', { name: 'Corroder' })).toBeInTheDocument()
+    expect(screen.getByText('Anarch · Program · runner')).toBeInTheDocument()
+    expect(screen.getByText('Icebreaker - Killer')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
+  it('opening one result\'s popup does not affect another result\'s thumbnail', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'co')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Corroder' }))
+
+    expect(screen.getByRole('heading', { name: 'Corroder' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Mimic' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show details for Mimic' })).toBeInTheDocument()
   })
 
   it('shows four quantity buttons (1-4) for each result', async () => {

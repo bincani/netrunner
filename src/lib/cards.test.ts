@@ -77,6 +77,31 @@ describe('searchCards', () => {
     expect(results.map((r) => r.code)).toEqual(['01007'])
   })
 
+  it('includes full card-detail fields, joining faction and type names', async () => {
+    await seedCard(prisma, {
+      code: '01007',
+      title: 'Corroder',
+      packCode: 'core',
+      factionCode: 'anarch',
+      typeCode: 'program',
+    })
+
+    const [card] = await searchCards(prisma, { query: 'Corroder' })
+
+    expect(card.factionName).toBe('anarch')
+    expect(card.typeName).toBe('program')
+    expect(card.sideCode).toBe('runner')
+    expect(card.uniqueness).toBe(false)
+    // seedCard doesn't set these — confirms they pass through as null
+    // rather than throwing or defaulting to something misleading.
+    expect(card.cost).toBeNull()
+    expect(card.factionCost).toBeNull()
+    expect(card.strength).toBeNull()
+    expect(card.deckLimit).toBeNull()
+    expect(card.keywords).toBeNull()
+    expect(card.text).toBeNull()
+  })
+
   it("includes the card's declared printed quantity", async () => {
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
 

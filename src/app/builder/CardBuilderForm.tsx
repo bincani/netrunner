@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { addToCollection, updateCollectionQuantity } from '@/actions/collectionActions'
-import { CardThumbnail } from '@/components/CardThumbnail'
+import { CardDetailPopup } from '@/components/CardDetailPopup'
 import type { CardSearchResult } from '@/lib/cards'
 
 export function CardBuilderForm() {
@@ -90,7 +90,7 @@ export function CardBuilderForm() {
           const error = errorByCode[card.code]
           return (
             <li key={card.code} className="flex items-center gap-4 p-3">
-              <CardThumbnail code={card.code} title={card.title} />
+              <CardDetailPopup card={card} />
               <div className="flex-1">
                 <div className="font-medium">{card.title}</div>
                 <div className="text-sm text-muted">

@@ -12,10 +12,20 @@ export interface CardSearchResult {
   code: string
   title: string
   factionCode: string
+  factionName: string
   typeCode: string
+  typeName: string
   packCode: string
   packName: string
   sideCode: string
+  cost: number | null
+  factionCost: number | null
+  strength: number | null
+  deckLimit: number | null
+  keywords: string | null
+  text: string | null
+  uniqueness: boolean
+  position: number
   ownedQuantity: number
   /** How many copies of this specific card are printed in one copy of the set — the same field as PackCardEntry.quantity. */
   quantity: number | null
@@ -44,7 +54,7 @@ export async function searchCards(
           : {}),
       ...(filters.sideCode ? { sideCode: filters.sideCode } : {}),
     },
-    include: { pack: true, collectionEntry: true },
+    include: { pack: true, collectionEntry: true, faction: true, type: true },
     orderBy: { title: 'asc' },
     take: 50,
   })
@@ -53,10 +63,20 @@ export async function searchCards(
     code: card.code,
     title: card.title,
     factionCode: card.factionCode,
+    factionName: card.faction.name,
     typeCode: card.typeCode,
+    typeName: card.type.name,
     packCode: card.packCode,
     packName: card.pack.name,
     sideCode: card.sideCode,
+    cost: card.cost,
+    factionCost: card.factionCost,
+    strength: card.strength,
+    deckLimit: card.deckLimit,
+    keywords: card.keywords,
+    text: card.text,
+    uniqueness: card.uniqueness,
+    position: card.position,
     ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
     quantity: card.quantity,
   }))
