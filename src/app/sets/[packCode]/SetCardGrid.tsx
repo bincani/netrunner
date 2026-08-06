@@ -91,7 +91,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
   })
 
   return (
-    <div className="flex flex-col gap-6 sm:flex-row">
+    <div className="flex flex-col gap-6 lg:flex-row">
       <SetCardFilterSidebar
         cards={cards}
         ownership={ownership}
@@ -101,7 +101,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
       />
 
       <div className="min-w-0 flex-1">
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {visibleCards.map((card) => {
             const owned = savedQuantities[card.code]
             const isSaving = pendingCodes[card.code] === true

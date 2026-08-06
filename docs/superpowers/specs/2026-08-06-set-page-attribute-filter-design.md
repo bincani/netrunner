@@ -24,7 +24,7 @@ In scope:
   "No cost" checkbox rather than silently ignoring the Cost filter.
 - A "Clear all" action, shown only when a non-default filter is active.
 - Responsive layout: full-width, stacked above the grid on narrow screens;
-  a sticky ~14rem left column at the `sm:` breakpoint and up.
+  a sticky ~14rem left column at the `lg:` breakpoint and up.
 
 Out of scope:
 - Any change to the dashboard's existing set-type filter
@@ -86,11 +86,19 @@ nav (`SetProgressList.tsx`), but the sidebar is never hidden on mobile,
 since filtering is core functionality here rather than a secondary nav
 aid:
 
-- Below `sm:`, the sidebar renders full-width, stacked above the card
-  grid.
-- At `sm:` and up, it becomes a `w-56 shrink-0` sticky left column
-  (`sm:sticky sm:top-8 sm:self-start`), matching the existing sidebar's
-  sticky behavior elsewhere in the app.
+- Below `lg:`, the sidebar renders full-width, stacked above the card
+  grid (which is itself single-column below `lg:`).
+- At `lg:` and up, it becomes a `w-56 shrink-0` sticky left column
+  (`lg:sticky lg:top-8 lg:self-start`), matching the existing sidebar's
+  sticky behavior elsewhere in the app, and the card grid switches to
+  2 columns. Both switches were moved from `sm:` to `lg:` together so the
+  sidebar+2-column combination never activates in the cramped
+  ~640–830px range.
+- The sidebar also caps its height at `lg:` with
+  `lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto`, since real sets (e.g.
+  Core Set, ~32 checkboxes) can render more filter checkboxes than fit in
+  a typical laptop viewport — without the cap, sticky positioning made
+  the bottom section (usually Cost) unreachable.
 
 ## Testing
 

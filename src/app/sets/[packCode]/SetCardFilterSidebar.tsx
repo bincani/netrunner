@@ -63,7 +63,7 @@ export function SetCardFilterSidebar({
   }
 
   return (
-    <aside className="w-full shrink-0 space-y-4 sm:sticky sm:top-8 sm:w-56 sm:self-start">
+    <aside className="w-full shrink-0 space-y-4 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:w-56 lg:self-start lg:overflow-y-auto">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-300">Filters</h2>
         {showClearAll && (
