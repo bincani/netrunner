@@ -23,7 +23,7 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
   const year = releaseYear(pack.dateRelease)
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
+    <main className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <SetCoverImage packCode={pack.code} packName={pack.name} />
         <div>
@@ -37,6 +37,29 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
               {pack.name}
               {year && <span className="text-neutral-500"> ({year})</span>}
             </span>
+            <a
+              href={`https://netrunnerdb.com/en/set/${pack.code}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View ${pack.name} on NetrunnerDB`}
+              className="text-neutral-500 hover:text-neutral-300"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
           </h1>
           {completion && (
             <p className="text-neutral-400">
