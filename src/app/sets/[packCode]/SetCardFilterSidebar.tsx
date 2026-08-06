@@ -57,7 +57,7 @@ export function SetCardFilterSidebar({
   }
 
   return (
-    <aside className="w-full space-y-3">
+    <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:w-80 lg:self-start lg:overflow-y-auto">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-300">Filters</h2>
         {showClearAll && (
@@ -74,7 +74,7 @@ export function SetCardFilterSidebar({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-x-10 gap-y-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
         {facets.sides.length > 1 && (
           <fieldset>
             <legend className={legendClassName}>Side</legend>
