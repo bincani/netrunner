@@ -1,6 +1,28 @@
 @config "../../tailwind.config.ts";
 @import "tailwindcss";
 
+@theme {
+  --color-app: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f5f5f5;
+  --color-default: #d4d4d4;
+  --color-subtle: #e5e5e5;
+  --color-primary: #171717;
+  --color-muted: #525252;
+  --color-faint: #a3a3a3;
+}
+
+.dark {
+  --color-app: #0a0a0a;
+  --color-surface: #171717;
+  --color-surface-hover: #262626;
+  --color-default: #404040;
+  --color-subtle: #262626;
+  --color-primary: #f5f5f5;
+  --color-muted: #a3a3a3;
+  --color-faint: #737373;
+}
+
 html {
   /* Reserve space for the vertical scrollbar at all times, so content
      that toggles the page between scrollable and not (e.g. narrowing a
