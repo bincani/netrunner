@@ -3,6 +3,7 @@ import Script from 'next/script'
 import './globals.css'
 import type { Metadata } from 'next'
 import { ReportsNavDropdown } from '@/components/ReportsNavDropdown'
+import { SettingsMenu } from '@/components/SettingsMenu'
 
 export const metadata: Metadata = {
   title: 'Netrunner Collection Tracker',
@@ -29,12 +30,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
-        <nav className="flex gap-6 border-b border-subtle px-8 py-4">
-          <Link href="/" className="font-semibold">
-            Dashboard
-          </Link>
-          <Link href="/builder">Builder</Link>
-          <ReportsNavDropdown />
+        <nav className="flex items-center justify-between border-b border-subtle px-8 py-4">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="font-semibold">
+              Dashboard
+            </Link>
+            <Link href="/builder">Builder</Link>
+            <ReportsNavDropdown />
+          </div>
+          <SettingsMenu />
         </nav>
         {children}
       </body>
