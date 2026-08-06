@@ -80,6 +80,26 @@ export function SetCardFilterSidebar({
         )}
       </div>
 
+      {facets.sides.length > 1 && (
+        <fieldset>
+          <legend className={legendClassName}>Side</legend>
+          <div className="space-y-1">
+            {facets.sides.map((option) => (
+              <label key={option.value} className={checkboxLabelClassName}>
+                <input
+                  type="checkbox"
+                  checked={attributeFilters.sideCodes.has(option.value)}
+                  onChange={() => toggleSide(option.value)}
+                />
+                <span>
+                  {option.label} ({option.count})
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
       <fieldset>
         <legend className={legendClassName}>Ownership</legend>
         <div className="flex flex-wrap gap-2">
@@ -130,26 +150,6 @@ export function SetCardFilterSidebar({
                   type="checkbox"
                   checked={attributeFilters.typeCodes.has(option.value)}
                   onChange={() => toggleType(option.value)}
-                />
-                <span>
-                  {option.label} ({option.count})
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
-
-      {facets.sides.length > 1 && (
-        <fieldset>
-          <legend className={legendClassName}>Side</legend>
-          <div className="space-y-1">
-            {facets.sides.map((option) => (
-              <label key={option.value} className={checkboxLabelClassName}>
-                <input
-                  type="checkbox"
-                  checked={attributeFilters.sideCodes.has(option.value)}
-                  onChange={() => toggleSide(option.value)}
                 />
                 <span>
                   {option.label} ({option.count})
