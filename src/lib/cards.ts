@@ -17,6 +17,8 @@ export interface CardSearchResult {
   packName: string
   sideCode: string
   ownedQuantity: number
+  /** The set's officially declared card count, if known — see PackCardEntry.quantity's sibling concept at the set level. */
+  expectedCount: number | null
 }
 
 export async function searchCards(
@@ -56,6 +58,7 @@ export async function searchCards(
     packName: card.pack.name,
     sideCode: card.sideCode,
     ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
+    expectedCount: card.pack.size,
   }))
 }
 

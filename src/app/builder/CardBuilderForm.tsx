@@ -98,6 +98,7 @@ export function CardBuilderForm() {
                   <Link href={`/sets/${card.packCode}`} className="underline hover:text-primary">
                     {card.packName}
                   </Link>{' '}
+                  {card.expectedCount !== null && <span>({card.expectedCount} cards) </span>}
                   · owned: {card.ownedQuantity}
                 </div>
                 {status && <div className="text-xs text-success">{card.title}: {status}</div>}

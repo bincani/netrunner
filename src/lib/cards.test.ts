@@ -76,6 +76,25 @@ describe('searchCards', () => {
 
     expect(results.map((r) => r.code)).toEqual(['01007'])
   })
+
+  it("includes the set's declared expected card count", async () => {
+    // A fresh, file-unique packCode: seedCard's upsert only sets `size` on
+    // first creation of a given pack, so reusing 'core' here would pick up
+    // whatever size an earlier test in this file already gave it.
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'expcount1', packSize: 114 })
+
+    const results = await searchCards(prisma, { query: 'Corroder' })
+
+    expect(results[0].expectedCount).toBe(114)
+  })
+
+  it('returns a null expected count for a set with no declared size', async () => {
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'expcount2', packSize: null })
+
+    const results = await searchCards(prisma, { query: 'Corroder' })
+
+    expect(results[0].expectedCount).toBeNull()
+  })
 })
 
 describe('listCardsInPack', () => {

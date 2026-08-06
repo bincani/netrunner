@@ -24,6 +24,7 @@ const mockResults = [
     packName: 'Core Set',
     sideCode: 'runner',
     ownedQuantity: 0,
+    expectedCount: 114,
   },
   {
     code: '01011',
@@ -34,6 +35,7 @@ const mockResults = [
     packName: 'Core Set',
     sideCode: 'runner',
     ownedQuantity: 0,
+    expectedCount: 114,
   },
 ]
 
@@ -144,6 +146,30 @@ describe('CardBuilderForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/failed to reset corroder/i)
     expect(screen.queryByText(/now own/)).not.toBeInTheDocument()
+  })
+
+  it("shows the set's expected card count next to the set name", async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    const row = within(screen.getByText('Corroder').closest('li')!)
+    expect(row.getByText('(114 cards)')).toBeInTheDocument()
+  })
+
+  it('shows no card count when the set has no declared size', async () => {
+    global.fetch = vi.fn(async () => ({
+      json: async () => [{ ...mockResults[0], expectedCount: null }],
+    })) as unknown as typeof fetch
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    expect(screen.queryByText(/cards\)/)).not.toBeInTheDocument()
   })
 
   it('shows a visible error instead of an unhandled rejection when the search request fails', async () => {
