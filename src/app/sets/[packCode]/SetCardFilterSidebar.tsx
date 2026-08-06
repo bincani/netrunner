@@ -29,6 +29,11 @@ function toggleInSet<T>(set: Set<T>, value: T): Set<T> {
 
 const legendClassName = 'mb-1 text-xs font-semibold uppercase text-neutral-500'
 const checkboxLabelClassName = 'flex cursor-pointer items-center gap-2 text-sm'
+const zeroCountCheckboxLabelClassName = 'flex cursor-pointer items-center gap-2 text-sm text-neutral-600'
+
+function checkboxLabelClass(count: number): string {
+  return count === 0 ? zeroCountCheckboxLabelClassName : checkboxLabelClassName
+}
 
 export function SetCardFilterSidebar({
   cards,
@@ -81,7 +86,7 @@ export function SetCardFilterSidebar({
             <legend className={legendClassName}>Side</legend>
             <div className="space-y-1">
               {facets.sides.map((option) => (
-                <label key={option.value} className={checkboxLabelClassName}>
+                <label key={option.value} className={checkboxLabelClass(option.count)}>
                   <input
                     type="checkbox"
                     checked={attributeFilters.sideCodes.has(option.value)}
@@ -101,7 +106,7 @@ export function SetCardFilterSidebar({
             <legend className={legendClassName}>Faction</legend>
             <div className="space-y-1">
               {facets.factions.map((option) => (
-                <label key={option.value} className={checkboxLabelClassName}>
+                <label key={option.value} className={checkboxLabelClass(option.count)}>
                   <input
                     type="checkbox"
                     checked={attributeFilters.factionCodes.has(option.value)}
@@ -121,7 +126,7 @@ export function SetCardFilterSidebar({
             <legend className={legendClassName}>Type</legend>
             <div className="space-y-1">
               {facets.types.map((option) => (
-                <label key={option.value} className={checkboxLabelClassName}>
+                <label key={option.value} className={checkboxLabelClass(option.count)}>
                   <input
                     type="checkbox"
                     checked={attributeFilters.typeCodes.has(option.value)}
@@ -141,7 +146,7 @@ export function SetCardFilterSidebar({
             <legend className={legendClassName}>Cost</legend>
             <div className="space-y-1">
               {facets.costs.map((option) => (
-                <label key={option.label} className={checkboxLabelClassName}>
+                <label key={option.label} className={checkboxLabelClass(option.count)}>
                   <input
                     type="checkbox"
                     checked={attributeFilters.costs.has(option.value)}

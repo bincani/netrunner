@@ -146,4 +146,30 @@ describe('SetCardFilterSidebar', () => {
     expect(handleFiltersChange).toHaveBeenCalledTimes(1)
     expect(handleFiltersChange.mock.calls[0][0].factionCodes.size).toBe(0)
   })
+
+  it('dulls a filter option whose current cross-filtered count is 0', () => {
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '1', title: 'A', factionCode: 'anarch', factionName: 'Anarch', sideCode: 'runner' }),
+      makeCard({ code: '2', title: 'B', factionCode: 'shaper', factionName: 'Shaper', sideCode: 'corp' }),
+    ]
+    const filters = createEmptyAttributeFilters()
+    filters.sideCodes.add('runner')
+
+    render(
+      <SetCardFilterSidebar
+        cards={mixedCards}
+        ownership="all"
+        onOwnershipChange={() => {}}
+        attributeFilters={filters}
+        onAttributeFiltersChange={() => {}}
+      />
+    )
+
+    // Shaper has 0 Runner-side cards once Side: Runner is selected.
+    const shaperOption = screen.getByRole('checkbox', { name: 'Shaper (0)' })
+    expect(shaperOption.closest('label')?.className).toContain('text-neutral-600')
+
+    const anarchOption = screen.getByRole('checkbox', { name: 'Anarch (1)' })
+    expect(anarchOption.closest('label')?.className).not.toContain('text-neutral-600')
+  })
 })
