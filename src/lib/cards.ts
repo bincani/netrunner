@@ -82,6 +82,32 @@ export async function searchCards(
   }))
 }
 
+export interface CardPrinting {
+  code: string
+  packCode: string
+  packName: string
+}
+
+/** Every OTHER printing of the same card title — cards are stored per-printing, so a reprinted card has one row per set. */
+export async function getOtherPrintings(prisma: PrismaClient, cardCode: string): Promise<CardPrinting[]> {
+  const card = await prisma.card.findUnique({ where: { code: cardCode }, select: { title: true } })
+  if (!card) {
+    return []
+  }
+
+  const printings = await prisma.card.findMany({
+    where: { title: card.title, code: { not: cardCode } },
+    include: { pack: true },
+    orderBy: { pack: { dateRelease: 'asc' } },
+  })
+
+  return printings.map((printing) => ({
+    code: printing.code,
+    packCode: printing.packCode,
+    packName: printing.pack.name,
+  }))
+}
+
 export interface PackCardEntry {
   code: string
   title: string

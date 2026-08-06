@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard } from './testFixtures'
 import { incrementOwned } from './collection'
-import { searchCards, listCardsInPack } from './cards'
+import { searchCards, listCardsInPack, getOtherPrintings } from './cards'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -156,5 +156,40 @@ describe('listCardsInPack', () => {
     const [card] = await listCardsInPack(prisma, 'core')
 
     expect(card.quantity).toBe(2)
+  })
+})
+
+describe('getOtherPrintings', () => {
+  it('finds another printing of the same card title in a different set', async () => {
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', packName: 'Core Set' })
+    await seedCard(prisma, { code: '31006', title: 'Corroder', packCode: 'su21', packName: 'System Update 2021' })
+
+    const printings = await getOtherPrintings(prisma, '01007')
+
+    expect(printings).toEqual([{ code: '31006', packCode: 'su21', packName: 'System Update 2021' }])
+  })
+
+  it('excludes the card itself', async () => {
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
+    await seedCard(prisma, { code: '31006', title: 'Corroder', packCode: 'su21' })
+
+    const printings = await getOtherPrintings(prisma, '01007')
+
+    expect(printings.some((printing) => printing.code === '01007')).toBe(false)
+  })
+
+  it('returns an empty list for a card with no other printings', async () => {
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
+    await seedCard(prisma, { code: '01011', title: 'Mimic', packCode: 'core' })
+
+    const printings = await getOtherPrintings(prisma, '01007')
+
+    expect(printings).toEqual([])
+  })
+
+  it('returns an empty list for a card code that does not exist', async () => {
+    const printings = await getOtherPrintings(prisma, 'nonexistent')
+
+    expect(printings).toEqual([])
   })
 })

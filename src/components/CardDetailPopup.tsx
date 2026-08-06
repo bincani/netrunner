@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
+import Link from 'next/link'
 import { cardImageUrl } from '@/lib/cardImage'
 import { CardThumbnail } from './CardThumbnail'
-import type { PackCardEntry } from '@/lib/cards'
+import type { CardPrinting, PackCardEntry } from '@/lib/cards'
 
 // Wraps a card's small thumbnail so clicking it opens a popup with the
 // larger image plus whatever stats/text/faction info the card has.
 export function CardDetailPopup({ card }: { card: PackCardEntry }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [printings, setPrintings] = useState<CardPrinting[]>([])
 
   useEffect(() => {
     if (!isOpen) return
@@ -20,6 +22,27 @@ export function CardDetailPopup({ card }: { card: PackCardEntry }) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen])
+
+  // Other printings are looked up on demand rather than passed in as a
+  // prop — fetching them for every card in a list (up to ~150 on a set
+  // page) would be wasted work for the vast majority never opened.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+
+    fetch(`/api/cards/printings?code=${encodeURIComponent(card.code)}`)
+      .then((response) => response.json())
+      .then((data: CardPrinting[]) => {
+        if (!cancelled) setPrintings(data)
+      })
+      .catch(() => {
+        if (!cancelled) setPrintings([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, card.code])
 
   return (
     <>
@@ -60,7 +83,30 @@ export function CardDetailPopup({ card }: { card: PackCardEntry }) {
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-lg font-bold">
                     {card.uniqueness && <span className="mr-1 text-yellow-400">◆</span>}
-                    {card.title}
+                    {card.title}{' '}
+                    <a
+                      href={`https://netrunnerdb.com/en/card/${card.code}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View ${card.title} on NetrunnerDB`}
+                      className="inline-block align-middle text-sm text-faint hover:text-primary"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </a>
                   </h3>
                   <button
                     type="button"
@@ -88,6 +134,25 @@ export function CardDetailPopup({ card }: { card: PackCardEntry }) {
                 {card.text && <p className="whitespace-pre-line text-sm text-primary">{card.text}</p>}
 
                 <div className="pt-2 text-sm text-muted">Owned: {card.ownedQuantity}</div>
+
+                {printings.length > 0 && (
+                  <div className="pt-2">
+                    <div className="text-sm font-semibold text-primary">Other Printings</div>
+                    <ul className="text-sm text-muted">
+                      {printings.map((printing) => (
+                        <li key={printing.code}>
+                          <Link
+                            href={`/sets/${printing.packCode}`}
+                            onClick={() => setIsOpen(false)}
+                            className="underline hover:text-primary"
+                          >
+                            {printing.packName}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           </div>,

@@ -97,7 +97,7 @@ describe('CardBuilderForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show details for Corroder' }))
 
-    expect(screen.getByRole('heading', { name: 'Corroder' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Corroder/ })).toBeInTheDocument()
     expect(screen.getByText('Anarch · Program · runner')).toBeInTheDocument()
     expect(screen.getByText('Icebreaker - Killer')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
@@ -112,7 +112,7 @@ describe('CardBuilderForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show details for Corroder' }))
 
-    expect(screen.getByRole('heading', { name: 'Corroder' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Corroder/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Mimic' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show details for Mimic' })).toBeInTheDocument()
   })
