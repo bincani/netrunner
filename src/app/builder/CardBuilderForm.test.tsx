@@ -156,10 +156,10 @@ describe('CardBuilderForm', () => {
     await waitFor(() => screen.getByText('Corroder'))
 
     const row = within(screen.getByText('Corroder').closest('li')!)
-    expect(row.getByText('(114 cards)')).toBeInTheDocument()
+    expect(row.getByText('(set of 114)')).toBeInTheDocument()
   })
 
-  it('shows no card count when the set has no declared size', async () => {
+  it('shows no set-size note when the set has no declared size', async () => {
     global.fetch = vi.fn(async () => ({
       json: async () => [{ ...mockResults[0], expectedCount: null }],
     })) as unknown as typeof fetch
@@ -169,7 +169,7 @@ describe('CardBuilderForm', () => {
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
 
-    expect(screen.queryByText(/cards\)/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/set of/)).not.toBeInTheDocument()
   })
 
   it('shows a visible error instead of an unhandled rejection when the search request fails', async () => {
