@@ -23,12 +23,23 @@ export async function searchCards(
   prisma: PrismaClient,
   filters: CardSearchFilters
 ): Promise<CardSearchResult[]> {
+  const hiddenPacks = await prisma.hiddenBuilderPack.findMany({ select: { packCode: true } })
+  const hiddenPackCodes = hiddenPacks.map((row) => row.packCode)
+
   const cards = await prisma.card.findMany({
     where: {
       title: { contains: filters.query },
       ...(filters.factionCode ? { factionCode: filters.factionCode } : {}),
       ...(filters.typeCode ? { typeCode: filters.typeCode } : {}),
-      ...(filters.packCode ? { packCode: filters.packCode } : {}),
+      // An explicit pack filter is a deliberate, scoped search (like
+      // visiting that set's own page) and isn't subject to hiding —
+      // hiding only applies to the general/unscoped search hidden sets
+      // are meant to disappear from.
+      ...(filters.packCode
+        ? { packCode: filters.packCode }
+        : hiddenPackCodes.length > 0
+          ? { packCode: { notIn: hiddenPackCodes } }
+          : {}),
       ...(filters.sideCode ? { sideCode: filters.sideCode } : {}),
     },
     include: { pack: true, collectionEntry: true },

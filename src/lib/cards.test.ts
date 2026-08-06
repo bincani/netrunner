@@ -16,6 +16,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  await prisma.hiddenBuilderPack.deleteMany()
   await prisma.collectionEntry.deleteMany()
   await prisma.card.deleteMany()
 })
@@ -56,6 +57,24 @@ describe('searchCards', () => {
 
     expect(results).toHaveLength(1)
     expect(results[0].code).toBe('01007')
+  })
+
+  it('excludes cards from a hidden pack in the general search', async () => {
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
+    await seedCard(prisma, { code: '02007', title: 'Corroder Alt', packCode: 'sg' })
+    await prisma.hiddenBuilderPack.create({ data: { packCode: 'core' } })
+
+    const results = await searchCards(prisma, { query: 'Corroder' })
+
+    expect(results.map((r) => r.code)).toEqual(['02007'])
+  })
+
+  it('is unaffected when no packs are hidden', async () => {
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
+
+    const results = await searchCards(prisma, { query: 'Corroder' })
+
+    expect(results.map((r) => r.code)).toEqual(['01007'])
   })
 })
 
