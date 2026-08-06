@@ -1,2 +1,9 @@
 @config "../../tailwind.config.ts";
 @import "tailwindcss";
+
+html {
+  /* Reserve space for the vertical scrollbar at all times, so content
+     that toggles the page between scrollable and not (e.g. narrowing a
+     card list with a filter) doesn't shift horizontally each time. */
+  scrollbar-gutter: stable;
+}
