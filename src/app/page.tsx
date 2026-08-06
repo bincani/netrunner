@@ -39,7 +39,7 @@ export default async function DashboardPage() {
             {unsizedPacks.map((pack) => (
               <li key={pack.packCode} className="flex items-center gap-2">
                 <SetTypeBadge setType={pack.setType} />
-                <Link href={`/sets/${pack.packCode}`} className="text-blue-400 hover:underline">
+                <Link href={`/sets/${pack.packCode}`} className="text-accent hover:underline">
                   {pack.packName}
                 </Link>
               </li>

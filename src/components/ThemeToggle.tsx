@@ -37,7 +37,7 @@ export function ThemeToggle() {
           onClick={() => selectTheme(option.value)}
           className={`cursor-pointer rounded border px-3 py-1 text-sm ${
             theme === option.value
-              ? 'border-blue-600 bg-blue-600/20 text-blue-400'
+              ? 'border-accent bg-accent/20 text-accent'
               : 'border-default hover:bg-surface-hover'
           }`}
         >

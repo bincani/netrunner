@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Script from 'next/script'
 import './globals.css'
 import type { Metadata } from 'next'
 import { ReportsNavDropdown } from '@/components/ReportsNavDropdown'
@@ -23,13 +22,9 @@ try {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-app text-primary">
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <nav className="flex items-center justify-between border-b border-subtle px-8 py-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="font-semibold">

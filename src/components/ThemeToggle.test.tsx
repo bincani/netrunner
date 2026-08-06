@@ -14,15 +14,15 @@ describe('ThemeToggle', () => {
     document.documentElement.classList.add('dark')
     render(<ThemeToggle />)
 
-    expect(screen.getByRole('button', { name: 'Dark' })).toHaveClass('text-blue-400')
-    expect(screen.getByRole('button', { name: 'Light' })).not.toHaveClass('text-blue-400')
+    expect(screen.getByRole('button', { name: 'Dark' })).toHaveClass('text-accent')
+    expect(screen.getByRole('button', { name: 'Light' })).not.toHaveClass('text-accent')
   })
 
   it('shows Light as selected when the html element does not have the dark class', () => {
     render(<ThemeToggle />)
 
-    expect(screen.getByRole('button', { name: 'Light' })).toHaveClass('text-blue-400')
-    expect(screen.getByRole('button', { name: 'Dark' })).not.toHaveClass('text-blue-400')
+    expect(screen.getByRole('button', { name: 'Light' })).toHaveClass('text-accent')
+    expect(screen.getByRole('button', { name: 'Dark' })).not.toHaveClass('text-accent')
   })
 
   it('clicking Light removes the dark class and persists the choice', async () => {
@@ -34,7 +34,7 @@ describe('ThemeToggle', () => {
 
     expect(document.documentElement.classList.contains('dark')).toBe(false)
     expect(localStorage.getItem('netrunner-theme')).toBe('light')
-    expect(screen.getByRole('button', { name: 'Light' })).toHaveClass('text-blue-400')
+    expect(screen.getByRole('button', { name: 'Light' })).toHaveClass('text-accent')
   })
 
   it('clicking Dark adds the dark class and persists the choice', async () => {
@@ -45,6 +45,6 @@ describe('ThemeToggle', () => {
 
     expect(document.documentElement.classList.contains('dark')).toBe(true)
     expect(localStorage.getItem('netrunner-theme')).toBe('dark')
-    expect(screen.getByRole('button', { name: 'Dark' })).toHaveClass('text-blue-400')
+    expect(screen.getByRole('button', { name: 'Dark' })).toHaveClass('text-accent')
   })
 })

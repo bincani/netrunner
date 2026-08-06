@@ -78,7 +78,7 @@ export function CardBuilderForm() {
       />
 
       {searchError && (
-        <p className="text-red-400" role="alert">
+        <p className="text-danger" role="alert">
           {searchError}
         </p>
       )}
@@ -100,9 +100,9 @@ export function CardBuilderForm() {
                   </Link>{' '}
                   · owned: {card.ownedQuantity}
                 </div>
-                {status && <div className="text-xs text-green-400">{card.title}: {status}</div>}
+                {status && <div className="text-xs text-success">{card.title}: {status}</div>}
                 {error && (
-                  <div className="text-xs text-red-400" role="alert">
+                  <div className="text-xs text-danger" role="alert">
                     {error}
                   </div>
                 )}

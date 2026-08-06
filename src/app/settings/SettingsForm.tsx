@@ -88,7 +88,7 @@ export function SettingsForm({
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="cursor-pointer rounded border border-blue-600 bg-blue-600/20 px-4 py-1.5 text-sm text-blue-400 hover:bg-blue-600/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded border border-accent bg-accent/20 px-4 py-1.5 text-sm text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? 'Saving…' : 'Save'}
           </button>

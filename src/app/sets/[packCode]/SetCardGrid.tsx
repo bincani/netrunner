@@ -123,7 +123,7 @@ export function SetCardGrid({
                 onClick={() => setOwnership(option.value)}
                 className={`cursor-pointer rounded border px-3 py-1 text-sm ${
                   ownership === option.value
-                    ? 'border-blue-600 bg-blue-600/20 text-blue-400'
+                    ? 'border-accent bg-accent/20 text-accent'
                     : 'border-default hover:bg-surface-hover'
                 }`}
               >
@@ -153,7 +153,7 @@ export function SetCardGrid({
                   <div className="font-medium">{card.title}</div>
                   <div className="text-sm text-muted">{card.factionName}</div>
                   {error && (
-                    <div className="text-xs text-red-400" role="alert">
+                    <div className="text-xs text-danger" role="alert">
                       {error}
                     </div>
                   )}

@@ -73,7 +73,7 @@ export function SetCardFilterSidebar({
             onAttributeFiltersChange(createEmptyAttributeFilters())
           }}
           className={`text-xs ${
-            showClearAll ? 'cursor-pointer text-blue-400 hover:underline' : 'cursor-not-allowed text-faint'
+            showClearAll ? 'cursor-pointer text-accent hover:underline' : 'cursor-not-allowed text-faint'
           }`}
         >
           Clear all

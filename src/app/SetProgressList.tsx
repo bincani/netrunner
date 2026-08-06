@@ -75,7 +75,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
               onClick={() => setFilter(option)}
               className={`cursor-pointer rounded border px-3 py-1 text-sm ${
                 filter === option
-                  ? 'border-blue-600 bg-blue-600/20 text-blue-400'
+                  ? 'border-accent bg-accent/20 text-accent'
                   : 'border-default hover:bg-surface-hover'
               }`}
             >
