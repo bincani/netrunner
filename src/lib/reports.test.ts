@@ -124,8 +124,8 @@ describe('reports', () => {
   })
 
   it('lists packs with no locally-downloaded cover image', async () => {
-    // 'sg' (System Gateway) has a real entry in setImages.ts; 'td' does not.
-    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'td', packSize: 1, position: 1 })
+    // 'sg' (System Gateway) has a real entry in setImages.ts; 'draft' does not.
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'draft', packSize: 1, position: 1 })
     await seedCard(prisma, {
       code: '02001',
       title: 'Card B',
@@ -137,7 +137,7 @@ describe('reports', () => {
 
     const missing = await listPacksMissingImage(prisma)
 
-    expect(missing.map((p) => p.packCode)).toEqual(['td'])
+    expect(missing.map((p) => p.packCode)).toEqual(['draft'])
   })
 
   it('computes overall collection totals across all cards', async () => {

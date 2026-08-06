@@ -18,10 +18,10 @@ describe('SetThumbnail', () => {
   })
 
   it('falls back to an initial badge for a set with no downloaded image', () => {
-    const { container } = render(<SetThumbnail packCode="td" packName="Terminal Directive Cards" />)
+    const { container } = render(<SetThumbnail packCode="draft" packName="Draft" />)
 
     expect(container.querySelector('img')).toBeNull()
-    expect(screen.getByText('T')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Terminal Directive Cards (no cover image)' })).toBeInTheDocument()
+    expect(screen.getByText('D')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Draft (no cover image)' })).toBeInTheDocument()
   })
 })

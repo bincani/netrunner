@@ -78,6 +78,7 @@ const SET_IMAGE_EXTENSIONS: Record<string, string> = {
   fm: 'png', // Free Mars
   cd: 'png', // Crimson Dust
   tdc: 'jpg', // Terminal Directive Campaign
+  td: 'jpg', // Terminal Directive Cards (same box art as tdc — one physical box, two tracked printings)
   core2: 'jpg', // Revised Core Set
   ss: 'png', // Sovereign Sight
   dtwn: 'png', // Down the White Nile
