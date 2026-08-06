@@ -57,7 +57,7 @@ export function SetCardFilterSidebar({
   }
 
   return (
-    <aside className="w-full shrink-0 space-y-4 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:w-56 lg:self-start lg:overflow-y-auto">
+    <aside className="w-full space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-300">Filters</h2>
         {showClearAll && (
@@ -74,85 +74,87 @@ export function SetCardFilterSidebar({
         )}
       </div>
 
-      {facets.sides.length > 1 && (
-        <fieldset>
-          <legend className={legendClassName}>Side</legend>
-          <div className="space-y-1">
-            {facets.sides.map((option) => (
-              <label key={option.value} className={checkboxLabelClassName}>
-                <input
-                  type="checkbox"
-                  checked={attributeFilters.sideCodes.has(option.value)}
-                  onChange={() => toggleSide(option.value)}
-                />
-                <span>
-                  {option.label} ({option.count})
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
+      <div className="flex flex-wrap gap-x-10 gap-y-4">
+        {facets.sides.length > 1 && (
+          <fieldset>
+            <legend className={legendClassName}>Side</legend>
+            <div className="space-y-1">
+              {facets.sides.map((option) => (
+                <label key={option.value} className={checkboxLabelClassName}>
+                  <input
+                    type="checkbox"
+                    checked={attributeFilters.sideCodes.has(option.value)}
+                    onChange={() => toggleSide(option.value)}
+                  />
+                  <span>
+                    {option.label} ({option.count})
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
-      {facets.factions.length > 1 && (
-        <fieldset>
-          <legend className={legendClassName}>Faction</legend>
-          <div className="space-y-1">
-            {facets.factions.map((option) => (
-              <label key={option.value} className={checkboxLabelClassName}>
-                <input
-                  type="checkbox"
-                  checked={attributeFilters.factionCodes.has(option.value)}
-                  onChange={() => toggleFaction(option.value)}
-                />
-                <span>
-                  {option.label} ({option.count})
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
+        {facets.factions.length > 1 && (
+          <fieldset>
+            <legend className={legendClassName}>Faction</legend>
+            <div className="space-y-1">
+              {facets.factions.map((option) => (
+                <label key={option.value} className={checkboxLabelClassName}>
+                  <input
+                    type="checkbox"
+                    checked={attributeFilters.factionCodes.has(option.value)}
+                    onChange={() => toggleFaction(option.value)}
+                  />
+                  <span>
+                    {option.label} ({option.count})
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
-      {facets.types.length > 1 && (
-        <fieldset>
-          <legend className={legendClassName}>Type</legend>
-          <div className="space-y-1">
-            {facets.types.map((option) => (
-              <label key={option.value} className={checkboxLabelClassName}>
-                <input
-                  type="checkbox"
-                  checked={attributeFilters.typeCodes.has(option.value)}
-                  onChange={() => toggleType(option.value)}
-                />
-                <span>
-                  {option.label} ({option.count})
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
+        {facets.types.length > 1 && (
+          <fieldset>
+            <legend className={legendClassName}>Type</legend>
+            <div className="space-y-1">
+              {facets.types.map((option) => (
+                <label key={option.value} className={checkboxLabelClassName}>
+                  <input
+                    type="checkbox"
+                    checked={attributeFilters.typeCodes.has(option.value)}
+                    onChange={() => toggleType(option.value)}
+                  />
+                  <span>
+                    {option.label} ({option.count})
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
-      {facets.costs.length > 1 && (
-        <fieldset>
-          <legend className={legendClassName}>Cost</legend>
-          <div className="space-y-1">
-            {facets.costs.map((option) => (
-              <label key={option.label} className={checkboxLabelClassName}>
-                <input
-                  type="checkbox"
-                  checked={attributeFilters.costs.has(option.value)}
-                  onChange={() => toggleCost(option.value)}
-                />
-                <span>
-                  {option.label} ({option.count})
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
+        {facets.costs.length > 1 && (
+          <fieldset>
+            <legend className={legendClassName}>Cost</legend>
+            <div className="space-y-1">
+              {facets.costs.map((option) => (
+                <label key={option.label} className={checkboxLabelClassName}>
+                  <input
+                    type="checkbox"
+                    checked={attributeFilters.costs.has(option.value)}
+                    onChange={() => toggleCost(option.value)}
+                  />
+                  <span>
+                    {option.label} ({option.count})
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+      </div>
     </aside>
   )
 }

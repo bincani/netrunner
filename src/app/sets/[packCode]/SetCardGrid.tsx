@@ -97,7 +97,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
   })
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
+    <div className="space-y-6">
       <SetCardFilterSidebar
         cards={cards}
         ownership={ownership}
@@ -106,7 +106,7 @@ export function SetCardGrid({ cards }: { cards: PackCardEntry[] }) {
         onAttributeFiltersChange={setAttributeFilters}
       />
 
-      <div className="min-w-0 flex-1">
+      <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
             {OWNERSHIP_OPTIONS.map((option) => (
