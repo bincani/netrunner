@@ -24,7 +24,7 @@ const mockResults = [
     packName: 'Core Set',
     sideCode: 'runner',
     ownedQuantity: 0,
-    expectedCount: 114,
+    quantity: 2,
   },
   {
     code: '01011',
@@ -35,7 +35,7 @@ const mockResults = [
     packName: 'Core Set',
     sideCode: 'runner',
     ownedQuantity: 0,
-    expectedCount: 114,
+    quantity: 2,
   },
 ]
 
@@ -148,7 +148,7 @@ describe('CardBuilderForm', () => {
     expect(screen.queryByText(/now own/)).not.toBeInTheDocument()
   })
 
-  it("shows the set's expected card count next to the set name", async () => {
+  it("shows the card's declared printed quantity next to its owned count", async () => {
     const user = userEvent.setup()
     render(<CardBuilderForm />)
 
@@ -156,12 +156,13 @@ describe('CardBuilderForm', () => {
     await waitFor(() => screen.getByText('Corroder'))
 
     const row = within(screen.getByText('Corroder').closest('li')!)
-    expect(row.getByText('(set of 114)')).toBeInTheDocument()
+    expect(row.getByText(/owned: 0/)).toBeInTheDocument()
+    expect(row.getByText('of 2')).toBeInTheDocument()
   })
 
-  it('shows no set-size note when the set has no declared size', async () => {
+  it('shows no printed-quantity note when the card has none declared', async () => {
     global.fetch = vi.fn(async () => ({
-      json: async () => [{ ...mockResults[0], expectedCount: null }],
+      json: async () => [{ ...mockResults[0], quantity: null }],
     })) as unknown as typeof fetch
     const user = userEvent.setup()
     render(<CardBuilderForm />)
@@ -169,7 +170,7 @@ describe('CardBuilderForm', () => {
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
 
-    expect(screen.queryByText(/set of/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^of /)).not.toBeInTheDocument()
   })
 
   it('shows a visible error instead of an unhandled rejection when the search request fails', async () => {
