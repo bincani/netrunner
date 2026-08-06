@@ -172,7 +172,11 @@ export function SetCardGrid({
                           event.currentTarget.blur()
                         }
                       }}
-                      className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-center"
+                      className={`w-16 rounded border bg-neutral-900 px-2 py-1 text-center ${
+                        card.quantity !== null && owned < card.quantity
+                          ? 'border-red-400 bg-red-500/10'
+                          : 'border-neutral-700'
+                      }`}
                     />
                     {card.quantity !== null && <span className="text-xs text-neutral-500">of {card.quantity}</span>}
                   </div>

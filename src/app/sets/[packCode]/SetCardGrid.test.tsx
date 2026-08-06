@@ -318,4 +318,29 @@ describe('SetCardGrid', () => {
 
     expect(screen.queryByText(/^of /)).not.toBeInTheDocument()
   })
+
+  it('highlights the owned-quantity input red when owned is less than the declared printed quantity', () => {
+    const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 2, quantity: 3 })]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    expect(screen.getByLabelText('Card A owned quantity').className).toContain('border-red-400')
+  })
+
+  it('does not highlight the input when owned meets or exceeds the declared printed quantity', () => {
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '01001', title: 'Card A', ownedQuantity: 3, quantity: 3 }),
+      makeCard({ code: '01002', title: 'Card B', ownedQuantity: 5, quantity: 3 }),
+    ]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-red-400')
+    expect(screen.getByLabelText('Card B owned quantity').className).not.toContain('border-red-400')
+  })
+
+  it('does not highlight the input when the card has no declared printed quantity', () => {
+    const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 0, quantity: null })]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-red-400')
+  })
 })
