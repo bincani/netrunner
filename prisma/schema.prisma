@@ -74,3 +74,20 @@ model HiddenBuilderPack {
   packCode String @id
   pack     Pack   @relation(fields: [packCode], references: [code])
 }
+
+model Deck {
+  id         Int        @id
+  uuid       String
+  name       String
+  importedAt DateTime   @default(now())
+  cards      DeckCard[]
+}
+
+model DeckCard {
+  deckId   Int
+  deck     Deck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  cardCode String
+  quantity Int
+
+  @@id([deckId, cardCode])
+}
