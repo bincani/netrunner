@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SetCardGrid } from './SetCardGrid'
 import { updateCollectionQuantity } from '@/actions/collectionActions'
@@ -30,6 +30,7 @@ function makeCard(overrides: Partial<PackCardEntry> & Pick<PackCardEntry, 'code'
     uniqueness: false,
     position: 1,
     ownedQuantity: 0,
+    quantity: 3,
     ...overrides,
   }
 }
@@ -295,5 +296,26 @@ describe('SetCardGrid', () => {
     render(<SetCardGrid cards={cards} expectedCount={null} />)
 
     expect(screen.getByText('2 of 2 cards')).toBeInTheDocument()
+  })
+
+  it("shows each card's declared printed quantity next to its owned-quantity input", () => {
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '01001', title: 'Card A', position: 1, ownedQuantity: 2, quantity: 3 }),
+      makeCard({ code: '01002', title: 'Card B', position: 2, ownedQuantity: 0, quantity: 1 }),
+    ]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    const cardAItem = screen.getByText('Card A').closest('li')
+    expect(within(cardAItem!).getByText('of 3')).toBeInTheDocument()
+
+    const cardBItem = screen.getByText('Card B').closest('li')
+    expect(within(cardBItem!).getByText('of 1')).toBeInTheDocument()
+  })
+
+  it('shows no printed quantity for a card with none declared', () => {
+    const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', quantity: null })]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    expect(screen.queryByText(/^of /)).not.toBeInTheDocument()
   })
 })

@@ -159,20 +159,23 @@ export function SetCardGrid({
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <input
-                    type="number"
-                    min={0}
-                    aria-label={`${card.title} owned quantity`}
-                    value={inputValues[card.code]}
-                    onChange={(event) => handleChange(card.code, event.target.value)}
-                    onBlur={() => commit(card.code)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.currentTarget.blur()
-                      }
-                    }}
-                    className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-center"
-                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      aria-label={`${card.title} owned quantity`}
+                      value={inputValues[card.code]}
+                      onChange={(event) => handleChange(card.code, event.target.value)}
+                      onBlur={() => commit(card.code)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.currentTarget.blur()
+                        }
+                      }}
+                      className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-center"
+                    />
+                    {card.quantity !== null && <span className="text-xs text-neutral-500">of {card.quantity}</span>}
+                  </div>
                   {isSaving && <span className="text-[10px] text-neutral-500">saving…</span>}
                 </div>
               </li>

@@ -97,4 +97,12 @@ describe('listCardsInPack', () => {
     expect(card.keywords).toBeNull()
     expect(card.text).toBeNull()
   })
+
+  it("includes each card's declared printed quantity", async () => {
+    await seedCard(prisma, { code: '01001', title: 'Corroder', packCode: 'core', quantity: 2 })
+
+    const [card] = await listCardsInPack(prisma, 'core')
+
+    expect(card.quantity).toBe(2)
+  })
 })

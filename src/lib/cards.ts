@@ -65,6 +65,8 @@ export interface PackCardEntry {
   uniqueness: boolean
   position: number
   ownedQuantity: number
+  /** How many copies of this specific card are printed in one copy of the set — the "expected" count for a single owned box. */
+  quantity: number | null
 }
 
 export async function listCardsInPack(prisma: PrismaClient, packCode: string): Promise<PackCardEntry[]> {
@@ -91,5 +93,6 @@ export async function listCardsInPack(prisma: PrismaClient, packCode: string): P
     uniqueness: card.uniqueness,
     position: card.position,
     ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
+    quantity: card.quantity,
   }))
 }
