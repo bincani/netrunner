@@ -1,25 +1,35 @@
 'use client'
 
 import { useState } from 'react'
-import { updateHiddenBuilderPacks } from '@/actions/settingsActions'
+import { updateHiddenBuilderPacks, updateBuilderMode } from '@/actions/settingsActions'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import type { BuilderMode } from '@/actions/settingsMutations'
 
 interface PackOption {
   code: string
   name: string
 }
 
+const BUILDER_MODE_OPTIONS: { value: BuilderMode; label: string }[] = [
+  { value: 'simple', label: 'Simple' },
+  { value: 'batch', label: 'Batch' },
+]
+
 export function SettingsForm({
   packs,
   initialHiddenPackCodes,
+  initialBuilderMode,
 }: {
   packs: PackOption[]
   initialHiddenPackCodes: string[]
+  initialBuilderMode: BuilderMode
 }) {
   const [hiddenCodes, setHiddenCodes] = useState<Set<string>>(new Set(initialHiddenPackCodes))
   const [nameQuery, setNameQuery] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const [builderMode, setBuilderModeState] = useState<BuilderMode>(initialBuilderMode)
+  const [isSavingBuilderMode, setIsSavingBuilderMode] = useState(false)
 
   const trimmedQuery = nameQuery.trim().toLowerCase()
   const visiblePacks = packs.filter((pack) => trimmedQuery === '' || pack.name.toLowerCase().includes(trimmedQuery))
@@ -34,6 +44,19 @@ export function SettingsForm({
       }
       return next
     })
+  }
+
+  async function selectBuilderMode(mode: BuilderMode) {
+    const previous = builderMode
+    setBuilderModeState(mode)
+    setIsSavingBuilderMode(true)
+    try {
+      await updateBuilderMode(mode)
+    } catch {
+      setBuilderModeState(previous)
+    } finally {
+      setIsSavingBuilderMode(false)
+    }
   }
 
   async function handleSave() {
@@ -54,6 +77,31 @@ export function SettingsForm({
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Theme</h2>
         <ThemeToggle />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Builder Mode</h2>
+        <p className="text-sm text-muted">
+          Simple adds cards to your collection immediately. Batch stages a sorting session for review before
+          anything is added.
+        </p>
+        <div className="flex gap-2">
+          {BUILDER_MODE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => selectBuilderMode(option.value)}
+              disabled={isSavingBuilderMode}
+              className={`cursor-pointer rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+                builderMode === option.value
+                  ? 'border-accent bg-accent/20 text-accent'
+                  : 'border-default hover:bg-surface-hover'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-3">

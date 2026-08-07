@@ -1,16 +1,17 @@
 import { prisma } from '@/lib/db'
-import { getHiddenBuilderPackCodes } from '@/actions/settingsMutations'
+import { getHiddenBuilderPackCodes, getBuilderMode } from '@/actions/settingsMutations'
 import { SettingsForm } from './SettingsForm'
 
-// Reflects live DB state (every pack, and which ones are currently
-// hidden) — not something to freeze into a build-time snapshot. See the
-// dashboard's identical rationale.
+// Reflects live DB state (every pack, which ones are hidden, and the
+// current Builder Mode) — not something to freeze into a build-time
+// snapshot. See the dashboard's identical rationale.
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
-  const [packs, hiddenPackCodes] = await Promise.all([
+  const [packs, hiddenPackCodes, builderMode] = await Promise.all([
     prisma.pack.findMany({ orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }] }),
     getHiddenBuilderPackCodes(prisma),
+    getBuilderMode(prisma),
   ])
 
   return (
@@ -19,6 +20,7 @@ export default async function SettingsPage() {
       <SettingsForm
         packs={packs.map((pack) => ({ code: pack.code, name: pack.name }))}
         initialHiddenPackCodes={hiddenPackCodes}
+        initialBuilderMode={builderMode}
       />
     </main>
   )
