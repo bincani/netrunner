@@ -62,6 +62,7 @@ model Card {
   quantity        Int?
   position        Int
   collectionEntry CollectionEntry?
+  batchCards      BatchCard[]
 }
 
 model CollectionEntry {
@@ -90,4 +91,34 @@ model DeckCard {
   quantity Int
 
   @@id([deckId, cardCode])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Batch {
+  id            Int         @id @default(autoincrement())
+  name          String
+  expectedCount Int
+  /// 'running' | 'paused' | 'stopped' | 'approved' | 'discarded'
+  status        String
+  startedAt     DateTime    @default(now())
+  /// Accumulated active (non-paused) time in milliseconds.
+  elapsedMs     Int         @default(0)
+  /// Set when status is 'running'; null otherwise. Live elapsed while
+  /// running = elapsedMs + (now - lastResumedAt).
+  lastResumedAt DateTime?
+  cards         BatchCard[]
+}
+
+model BatchCard {
+  batchId  Int
+  batch    Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  cardCode String
+  card     Card   @relation(fields: [cardCode], references: [code])
+  quantity Int
+
+  @@id([batchId, cardCode])
 }
