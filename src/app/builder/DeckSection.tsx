@@ -13,15 +13,14 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
   async function handleImport() {
     setIsImporting(true)
     setError(null)
-    try {
-      const summary = await importDeck(input)
-      setDecks((prev) => [summary, ...prev.filter((deck) => deck.id !== summary.id)])
+    const result = await importDeck(input)
+    if (result.ok) {
+      setDecks((prev) => [result.deck, ...prev.filter((deck) => deck.id !== result.deck.id)])
       setInput('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import deck')
-    } finally {
-      setIsImporting(false)
+    } else {
+      setError(result.error)
     }
+    setIsImporting(false)
   }
 
   async function handleRemove(id: number) {
@@ -62,57 +61,59 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
         )}
       </div>
 
-      <ul className="space-y-4">
-        {decks.map((deck) => (
-          <li key={deck.id} className="space-y-2 rounded border border-default p-3">
-            <div className="flex items-start justify-between gap-2">
-              <a
-                href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium underline hover:text-primary"
-              >
-                {deck.name}
-              </a>
-              <button
-                type="button"
-                onClick={() => handleRemove(deck.id)}
-                aria-label={`Remove ${deck.name}`}
-                className="shrink-0 cursor-pointer text-xs text-faint hover:text-danger"
-              >
-                Remove
-              </button>
-            </div>
-
-            <div>
-              <p className="text-sm text-muted">
-                {deck.ownedCount}/{deck.totalCount} owned ({deck.percentOwned}%)
-              </p>
-              <div className="mt-1 h-2 rounded bg-subtle">
-                <div className="h-2 rounded bg-blue-600" style={{ width: `${deck.percentOwned}%` }} />
-              </div>
-            </div>
-
-            <ul className="space-y-1 text-sm">
-              {deck.cards.map((card) => (
-                <li
-                  key={card.code}
-                  className={`flex items-center justify-between gap-2 ${
-                    card.ownedQuantity < card.neededQuantity ? 'text-danger' : 'text-muted'
-                  }`}
+      {decks.length === 0 ? (
+        <p className="text-sm text-faint">No decks imported yet.</p>
+      ) : (
+        <ul className="space-y-4">
+          {decks.map((deck) => (
+            <li key={deck.id} className="space-y-2 rounded border border-default p-3">
+              <div className="flex items-start justify-between gap-2">
+                <a
+                  href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium underline hover:text-primary"
                 >
-                  <span>{card.found ? card.title : `Unknown card (${card.code})`}</span>
-                  <span className="shrink-0">
-                    {card.ownedQuantity}/{card.neededQuantity}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
+                  {deck.name}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(deck.id)}
+                  aria-label={`Remove ${deck.name}`}
+                  className="shrink-0 cursor-pointer text-xs text-faint hover:text-danger"
+                >
+                  Remove
+                </button>
+              </div>
 
-        {decks.length === 0 && <p className="text-sm text-faint">No decks imported yet.</p>}
-      </ul>
+              <div>
+                <p className="text-sm text-muted">
+                  {deck.ownedCount}/{deck.totalCount} owned ({deck.percentOwned}%)
+                </p>
+                <div className="mt-1 h-2 rounded bg-subtle">
+                  <div className="h-2 rounded bg-blue-600" style={{ width: `${deck.percentOwned}%` }} />
+                </div>
+              </div>
+
+              <ul className="space-y-1 text-sm">
+                {deck.cards.map((card) => (
+                  <li
+                    key={card.code}
+                    className={`flex items-center justify-between gap-2 ${
+                      card.ownedQuantity < card.neededQuantity ? 'text-danger' : 'text-muted'
+                    }`}
+                  >
+                    <span>{card.found ? card.title : `Unknown card (${card.code})`}</span>
+                    <span className="shrink-0">
+                      {card.ownedQuantity}/{card.neededQuantity}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

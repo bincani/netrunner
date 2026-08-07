@@ -73,12 +73,18 @@ async function computeDeckSummary(prisma: PrismaClient, deck: DeckWithCards): Pr
 }
 
 export async function getDecksWithOwnership(prisma: PrismaClient): Promise<DeckSummary[]> {
-  const decks = await prisma.deck.findMany({ include: { cards: true }, orderBy: { importedAt: 'desc' } })
+  const decks = await prisma.deck.findMany({
+    include: { cards: { orderBy: { cardCode: 'asc' } } },
+    orderBy: { importedAt: 'desc' },
+  })
   return Promise.all(decks.map((deck) => computeDeckSummary(prisma, deck)))
 }
 
 export async function getDeckWithOwnership(prisma: PrismaClient, id: number): Promise<DeckSummary | null> {
-  const deck = await prisma.deck.findUnique({ where: { id }, include: { cards: true } })
+  const deck = await prisma.deck.findUnique({
+    where: { id },
+    include: { cards: { orderBy: { cardCode: 'asc' } } },
+  })
   if (!deck) {
     return null
   }

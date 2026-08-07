@@ -81,7 +81,7 @@ describe('DeckSection', () => {
   })
 
   it('importing a deck adds it to the list and clears the input', async () => {
-    vi.mocked(importDeck).mockResolvedValue(sampleDeck)
+    vi.mocked(importDeck).mockResolvedValue({ ok: true, deck: sampleDeck })
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[]} />)
 
@@ -94,7 +94,7 @@ describe('DeckSection', () => {
   })
 
   it('shows a visible error when import fails', async () => {
-    vi.mocked(importDeck).mockRejectedValue(new Error('Decklist not found'))
+    vi.mocked(importDeck).mockResolvedValue({ ok: false, error: 'Decklist not found' })
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[]} />)
 
@@ -106,7 +106,7 @@ describe('DeckSection', () => {
 
   it('re-importing an already-saved deck id replaces it rather than duplicating it', async () => {
     const updatedDeck: DeckSummary = { ...sampleDeck, ownedCount: 3, percentOwned: 100 }
-    vi.mocked(importDeck).mockResolvedValue(updatedDeck)
+    vi.mocked(importDeck).mockResolvedValue({ ok: true, deck: updatedDeck })
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[sampleDeck]} />)
 

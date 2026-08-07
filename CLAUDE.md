@@ -16,9 +16,15 @@ for the full design; this file is the high-level orientation.
 - Set browser: see every card in a set, owned vs. missing, and correct
   owned quantities directly.
 
-**Out of scope for now:** deckbuilding / "what can I build with this"
-(phase 2+) and multi-user accounts or auth (single user, no login — this
-holds even when deployed behind nginx, see below).
+**Out of scope for now:** full deckbuilding / "what can I build with this"
+(in-app deck editing, MWL/legality checking) and multi-user accounts or
+auth (single user, no login — this holds even when deployed behind nginx,
+see below).
+
+**Phase 2 (shipped):** deck tracking — import a published NetrunnerDB
+decklist by URL/ID (`src/lib/netrunnerdb.ts`) and see ownership completion
+per card and overall (`src/lib/decks.ts`) on `/builder`. This is distinct
+from full deckbuilding above, which remains out of scope.
 
 An nginx + systemd production deployment option was added after phase 1
 shipped — see `README.md`'s "Production deployment" section and the

@@ -4,8 +4,10 @@ A personal, local-first web app for tracking a physical *Android: Netrunner*
 card collection: import the full card catalog, record what you own, and see
 completion percentages per set.
 
-Phase 1 covers collection tracking and reporting. Deckbuilding ("what can I
-build with what I own") is a future phase.
+Phase 1 covers collection tracking and reporting. Phase 2 adds deck
+tracking: import a published NetrunnerDB decklist and see how much of it
+you own. Full deckbuilding ("what can I build with what I own", in-app
+deck editing, MWL/legality checking) is still a future phase.
 
 ## Features
 
@@ -18,6 +20,8 @@ build with what I own") is a future phase.
   and an overall collection total.
 - **Set browser** — view every card in a set, see what's missing, and
   correct owned quantities directly (overwrites the count).
+- **Deck tracking** — import a published NetrunnerDB decklist by URL or
+  ID and see how much of it you own, card by card.
 
 ## Tech stack
 
