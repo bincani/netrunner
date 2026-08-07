@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from '@/lib/testDb'
 import { seedCard } from '@/lib/testFixtures'
-import { getHiddenBuilderPackCodes, setHiddenBuilderPacks } from './settingsMutations'
+import { getHiddenBuilderPackCodes, setHiddenBuilderPacks, getSetting, setSetting, getBuilderMode, setBuilderMode } from './settingsMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -15,6 +15,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  await prisma.setting.deleteMany()
   await prisma.hiddenBuilderPack.deleteMany()
   await prisma.collectionEntry.deleteMany()
   await prisma.card.deleteMany()
@@ -52,5 +53,45 @@ describe('getHiddenBuilderPackCodes / setHiddenBuilderPacks', () => {
     await setHiddenBuilderPacks(prisma, [])
 
     expect(await getHiddenBuilderPackCodes(prisma)).toEqual([])
+  })
+})
+
+describe('getSetting / setSetting', () => {
+  it('returns null when a key has never been set', async () => {
+    expect(await getSetting(prisma, 'someKey')).toBeNull()
+  })
+
+  it('persists a value and returns it back', async () => {
+    await setSetting(prisma, 'someKey', 'someValue')
+
+    expect(await getSetting(prisma, 'someKey')).toBe('someValue')
+  })
+
+  it('overwrites rather than erroring on an existing key', async () => {
+    await setSetting(prisma, 'someKey', 'first')
+
+    await setSetting(prisma, 'someKey', 'second')
+
+    expect(await getSetting(prisma, 'someKey')).toBe('second')
+  })
+})
+
+describe('getBuilderMode / setBuilderMode', () => {
+  it('defaults to simple when unset', async () => {
+    expect(await getBuilderMode(prisma)).toBe('simple')
+  })
+
+  it('persists and returns batch mode', async () => {
+    await setBuilderMode(prisma, 'batch')
+
+    expect(await getBuilderMode(prisma)).toBe('batch')
+  })
+
+  it('can switch back to simple', async () => {
+    await setBuilderMode(prisma, 'batch')
+
+    await setBuilderMode(prisma, 'simple')
+
+    expect(await getBuilderMode(prisma)).toBe('simple')
   })
 })
