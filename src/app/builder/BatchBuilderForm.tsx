@@ -113,6 +113,14 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
     setIsReviewOpen(false)
     setResults([])
     setQuery('')
+    // Per-card status/error/pending state and the chrome error banner are
+    // scoped to the batch that just finished — carrying them into a fresh
+    // "no active batch" screen (and the next batch after it) would show
+    // stale, contradictory signals for cards that happen to share a code.
+    setStatusByCode({})
+    setErrorByCode({})
+    setPendingCodes({})
+    setChromeError(null)
   }
 
   async function handleDiscard() {

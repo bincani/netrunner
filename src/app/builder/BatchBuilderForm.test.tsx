@@ -208,4 +208,63 @@ describe('BatchBuilderForm', () => {
     expect(discardBatch).toHaveBeenCalledWith(1)
     await waitFor(() => expect(screen.getByLabelText('Expected card count')).toBeInTheDocument())
   })
+
+  it('does not leak a previous batch\'s per-card status into the next batch', async () => {
+    const batchOne: BatchSummary = {
+      id: 1,
+      name: 'Batch One',
+      expectedCount: 3,
+      status: 'running',
+      currentCount: 0,
+      elapsedMs: 0,
+      cards: [],
+    }
+    const batchOneStopped: BatchSummary = {
+      ...batchOne,
+      status: 'stopped',
+      currentCount: 3,
+      cards: [{ code: '01007', title: 'Corroder', quantity: 3 }],
+    }
+    const batchTwo: BatchSummary = {
+      id: 2,
+      name: 'Batch Two',
+      expectedCount: 60,
+      status: 'running',
+      currentCount: 0,
+      elapsedMs: 0,
+      cards: [],
+    }
+    vi.mocked(startBatch).mockResolvedValueOnce({ ok: true, batch: batchOne }).mockResolvedValueOnce({ ok: true, batch: batchTwo })
+    vi.mocked(addCardToBatch).mockResolvedValue({ ok: true, batch: batchOneStopped })
+    vi.mocked(approveBatch).mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={null} />)
+
+    // Start batch one, add Corroder x3 (which completes/auto-stops it —
+    // this sets local per-card status state for card 01007), then
+    // approve it and return to the start form.
+    await user.type(screen.getByLabelText('Expected card count'), '3')
+    await user.click(screen.getByRole('button', { name: 'Start' }))
+    await waitFor(() => screen.getByPlaceholderText('Search for a card by title...'))
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    await user.click(screen.getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(screen.getByLabelText('Expected card count')).toBeInTheDocument())
+
+    // Start a fresh batch two and search for the same card again — the
+    // stale "added 3" status from batch one must not reappear.
+    await user.type(screen.getByLabelText('Expected card count'), '60')
+    await user.click(screen.getByRole('button', { name: 'Start' }))
+    await waitFor(() => screen.getByPlaceholderText('Search for a card by title...'))
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    expect(screen.queryByText(/added 3/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/in this batch/)).not.toBeInTheDocument()
+  })
 })
