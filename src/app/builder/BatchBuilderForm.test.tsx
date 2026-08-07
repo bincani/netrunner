@@ -148,6 +148,47 @@ describe('BatchBuilderForm', () => {
     await waitFor(() => expect(continueBatch).toHaveBeenCalledWith(1))
   })
 
+  it('typing a multi-character query while paused resumes the batch exactly once, not per keystroke', async () => {
+    vi.mocked(continueBatch).mockResolvedValue({ ok: true, batch: runningBatch })
+    const pausedBatch: BatchSummary = { ...runningBatch, status: 'paused' }
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={pausedBatch} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+
+    await waitFor(() => expect(continueBatch).toHaveBeenCalledWith(1))
+    expect(continueBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicking a quantity button while paused, with no new typing, resumes the batch before adding', async () => {
+    vi.mocked(pauseBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, status: 'paused' } })
+    vi.mocked(continueBatch).mockResolvedValue({ ok: true, batch: runningBatch })
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} />)
+
+    // Populate results while running, same as any normal search.
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    expect(continueBatch).not.toHaveBeenCalled()
+
+    // Pause — results stay on screen; nothing further is typed.
+    await user.click(screen.getByRole('button', { name: 'Pause' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument())
+
+    // Click a quantity button directly against the paused batch. Before
+    // the Important-1 fix, this called addCardToBatch straight against a
+    // paused batch and surfaced the server's raw rejection message.
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+
+    expect(continueBatch).toHaveBeenCalledWith(1)
+    expect(addCardToBatch).toHaveBeenCalledWith(1, '01007', 3)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('clicking Pause calls pauseBatch and updates the chrome', async () => {
     vi.mocked(pauseBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, status: 'paused' } })
     const user = userEvent.setup()

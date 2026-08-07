@@ -15,7 +15,12 @@ deck editing, MWL/legality checking) is still a future phase.
   (2012–2018) and the ongoing Null Signal Games continuation, imported from
   the community NetrunnerDB dataset (~2,500 cards across ~75 sets).
 - **Collection builder** — search for a card, pick a quantity, add it to
-  your collection (adds to what you already own).
+  your collection (adds to what you already own). An alternative **Batch
+  mode**, settable on `/settings`, lets you start a batch with an expected
+  card count, add cards to it as you sort a physical pile, then Review
+  (Approve to merge into your collection, or Discard) once you're done —
+  handy for logging a big pickup in one sitting instead of one card at a
+  time.
 - **Set completion reports** — see what percentage of each set you own,
   and an overall collection total.
 - **Set browser** — view every card in a set, see what's missing, and

@@ -152,6 +152,17 @@ describe('pauseBatch / continueBatch', () => {
 
     await expect(continueBatch(prisma, batchId)).rejects.toThrow('status "running"')
   })
+
+  it('rejects continuing a batch that has auto-stopped — stopped is a dead end, no Continue', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 3)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('stopped')
+
+    await expect(continueBatch(prisma, batchId)).rejects.toThrow('status "stopped"')
+  })
 })
 
 describe('discardBatch', () => {

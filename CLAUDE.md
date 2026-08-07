@@ -69,6 +69,16 @@ be able to build directly on this codebase.
 - The set browser's quantity editor *does* overwrite/set the count
   directly, and is not capped at 4 (physical ownership can exceed a normal
   playset).
+- Simple mode (`CardBuilderForm`) stays unmodified by Batch mode
+  (`BatchBuilderForm`) — they're two independent forms on `/builder`, not
+  a shared component with branching.
+- An active batch always overrides the `Builder Mode` setting on
+  `/builder` — `BuilderPage` shows `BatchBuilderForm` whenever
+  `getActiveBatch` returns non-null, regardless of the stored setting, so
+  a batch can never be stranded by flipping the setting mid-batch.
+- `Setting` (`src/actions/settingsMutations.ts`) is a generic key/value
+  table — it's the one place all future `/settings` additions should be
+  persisted, not a new dedicated table per setting.
 
 ## Commands
 

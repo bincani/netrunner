@@ -63,14 +63,17 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
   async function handleStart() {
     setIsStarting(true)
     setStartError(null)
-    const result = await startBatch(Number(expectedCountInput))
-    if (result.ok) {
-      setBatch(result.batch)
-      setExpectedCountInput('')
-    } else {
-      setStartError(result.error)
+    try {
+      const result = await startBatch(Number(expectedCountInput))
+      if (result.ok) {
+        setBatch(result.batch)
+        setExpectedCountInput('')
+      } else {
+        setStartError(result.error)
+      }
+    } finally {
+      setIsStarting(false)
     }
-    setIsStarting(false)
   }
 
   async function handleAdd(card: CardSearchResult, amount: number) {
@@ -82,14 +85,29 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
       return rest
     })
 
-    const result = await addCardToBatch(batch.id, card.code, amount)
-    if (result.ok) {
-      setBatch(result.batch)
-      setStatusByCode((prev) => ({ ...prev, [card.code]: `added ${amount}` }))
-    } else {
-      setErrorByCode((prev) => ({ ...prev, [card.code]: result.error }))
+    try {
+      // Clicking a quantity button resumes a paused batch too, mirroring
+      // runSearch's resume-on-pause block above — a user can Pause, then
+      // click Add on results still on screen without typing anything new.
+      let batchId = batch.id
+      if (batch.status === 'paused') {
+        const resumeResult = await continueBatch(batch.id)
+        if (resumeResult.ok) {
+          batchId = resumeResult.batch.id
+          setBatch(resumeResult.batch)
+        }
+      }
+
+      const result = await addCardToBatch(batchId, card.code, amount)
+      if (result.ok) {
+        setBatch(result.batch)
+        setStatusByCode((prev) => ({ ...prev, [card.code]: `added ${amount}` }))
+      } else {
+        setErrorByCode((prev) => ({ ...prev, [card.code]: result.error }))
+      }
+    } finally {
+      setPendingCodes((prev) => ({ ...prev, [card.code]: false }))
     }
-    setPendingCodes((prev) => ({ ...prev, [card.code]: false }))
   }
 
   async function handlePause() {
@@ -126,19 +144,25 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
   async function handleDiscard() {
     if (!batch) return
     setIsSubmittingReview(true)
-    const result = await discardBatch(batch.id)
-    setIsSubmittingReview(false)
-    if (result.ok) resetAfterReview()
-    else setChromeError(result.error)
+    try {
+      const result = await discardBatch(batch.id)
+      if (result.ok) resetAfterReview()
+      else setChromeError(result.error)
+    } finally {
+      setIsSubmittingReview(false)
+    }
   }
 
   async function handleApprove() {
     if (!batch) return
     setIsSubmittingReview(true)
-    const result = await approveBatch(batch.id)
-    setIsSubmittingReview(false)
-    if (result.ok) resetAfterReview()
-    else setChromeError(result.error)
+    try {
+      const result = await approveBatch(batch.id)
+      if (result.ok) resetAfterReview()
+      else setChromeError(result.error)
+    } finally {
+      setIsSubmittingReview(false)
+    }
   }
 
   function batchCardQuantity(code: string): number {
@@ -175,6 +199,11 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
             {startError}
           </p>
         )}
+        <div>
+          <Link href="/builder/batches" className="text-sm text-faint underline hover:text-primary">
+            Batch History
+          </Link>
+        </div>
       </div>
     )
   }

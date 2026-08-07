@@ -158,8 +158,11 @@ in code (e.g. `Deck`'s re-import-replaces logic) rather than the schema.
   `BatchCard`s ≥ `expectedCount` and the batch is currently `running`,
   folds elapsed time the same way `pauseBatch` does and sets
   `status: 'stopped'`. (By this point the batch is always `running` —
-  either it already was, or the client's resume-on-search call already
-  transitioned it before the add.)
+  resume-on-pause happens from both `runSearch`, the moment the search
+  input transitions from empty to non-empty, and `handleAdd`, the moment a
+  quantity button is clicked on results already on screen — so whichever
+  of the two triggers the add, the client has already transitioned the
+  batch to `running` beforehand.)
 - The client renders a ticking display via a local `setInterval` computed
   from `elapsedMs`/`lastResumedAt`/`status` (fetched at load and after
   every mutation) — no server polling needed between actions.
