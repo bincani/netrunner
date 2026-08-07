@@ -1,0 +1,155 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { BatchReviewModal } from './BatchReviewModal'
+
+const cards = [
+  { code: '01001', title: 'Card A', quantity: 3 },
+  { code: '01002', title: 'Card B', quantity: 1 },
+]
+
+describe('BatchReviewModal', () => {
+  it('renders the batch name and its card list', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('heading', { name: 'Batch Test' })).toBeInTheDocument()
+    expect(screen.getByText('Card A')).toBeInTheDocument()
+    expect(screen.getByText('Card B')).toBeInTheDocument()
+  })
+
+  it('shows a message when the batch has no cards', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={[]}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('No cards were added to this batch.')).toBeInTheDocument()
+  })
+
+  it('clicking Discard calls onDiscard', async () => {
+    const onDiscard = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={onDiscard}
+        onApprove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(onDiscard).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicking Approve calls onApprove', async () => {
+    const onApprove = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={onApprove}
+        onClose={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Approve' }))
+
+    expect(onApprove).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables Discard and Approve while submitting', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={true}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  })
+
+  it('clicking the backdrop calls onClose', async () => {
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onClose={onClose}
+      />
+    )
+
+    await user.click(screen.getByRole('presentation'))
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('pressing Escape calls onClose', async () => {
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onClose={onClose}
+      />
+    )
+
+    await user.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicking the close button calls onClose', async () => {
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onClose={onClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
