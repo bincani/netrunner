@@ -186,6 +186,13 @@ describe('reports', () => {
       expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
     })
 
+    it('excludes a card owned more than its printed quantity', async () => {
+      await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+      await incrementOwned(prisma, '01001', 5)
+
+      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+    })
+
     it('excludes a card owned zero of', async () => {
       await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
 

@@ -25,9 +25,11 @@ export default async function UnderOwnedCardsReportPage() {
         <div className="space-y-6">
           {sets.map((set) => (
             <div key={set.packCode} className="space-y-2">
-              <Link href={`/sets/${set.packCode}`} className="font-semibold underline hover:text-primary">
-                {set.packName}
-              </Link>
+              <h2 className="font-semibold">
+                <Link href={`/sets/${set.packCode}`} className="underline hover:text-accent">
+                  {set.packName}
+                </Link>
+              </h2>
               <ul className="space-y-1">
                 {set.cards.map((card) => (
                   <li key={card.code} className="flex items-center justify-between gap-2 text-danger">
