@@ -34,9 +34,8 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
   }
 
   return (
-    <div className="w-full space-y-6 lg:max-w-md">
+    <div className="w-full space-y-6">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Decks</h2>
         <div className="flex gap-2">
           <input
             type="text"

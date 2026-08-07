@@ -31,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Dashboard
             </Link>
             <Link href="/builder">Builder</Link>
+            <Link href="/decks">Decks</Link>
             <ReportsNavDropdown />
           </div>
           <SettingsMenu />

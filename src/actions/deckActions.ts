@@ -17,7 +17,7 @@ export async function importDeck(
   try {
     const decklist = await fetchDecklist(decklistId)
     await saveDeck(prisma, decklist.id, decklist.uuid, decklist.name, decklist.cards)
-    revalidatePath('/builder')
+    revalidatePath('/decks')
 
     const summary = await getDeckWithOwnership(prisma, decklist.id)
     if (!summary) {
@@ -31,5 +31,5 @@ export async function importDeck(
 
 export async function deleteDeck(id: number): Promise<void> {
   await removeDeck(prisma, id)
-  revalidatePath('/builder')
+  revalidatePath('/decks')
 }
