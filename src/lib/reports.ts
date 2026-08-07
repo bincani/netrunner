@@ -169,3 +169,64 @@ export function groupSetsByCycle(sets: SetCompletion[]): Map<string, SetCompleti
   }
   return grouped
 }
+
+export interface UnderOwnedCard {
+  code: string
+  title: string
+  factionName: string
+  quantityOwned: number
+  quantity: number
+}
+
+export interface UnderOwnedSet {
+  packCode: string
+  packName: string
+  cards: UnderOwnedCard[]
+}
+
+/**
+ * Cards owned some copies of but fewer than a full playset, grouped by
+ * set. A card with no declared printed quantity is excluded — "under the
+ * expected amount" doesn't apply when there's no expected amount. A set
+ * with no qualifying cards is omitted entirely.
+ */
+export async function listCardsUnderExpectedQuantity(prisma: PrismaClient): Promise<UnderOwnedSet[]> {
+  const packs = await prisma.pack.findMany({
+    orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }],
+  })
+
+  const results: UnderOwnedSet[] = []
+
+  for (const pack of packs) {
+    const cards = await prisma.card.findMany({
+      where: { packCode: pack.code, quantity: { not: null } },
+      select: {
+        code: true,
+        title: true,
+        quantity: true,
+        faction: { select: { name: true } },
+        collectionEntry: { select: { quantityOwned: true } },
+      },
+      orderBy: { title: 'asc' },
+    })
+
+    const underOwned: UnderOwnedCard[] = cards
+      .filter((card) => {
+        const owned = card.collectionEntry?.quantityOwned ?? 0
+        return owned > 0 && owned < card.quantity!
+      })
+      .map((card) => ({
+        code: card.code,
+        title: card.title,
+        factionName: card.faction.name,
+        quantityOwned: card.collectionEntry!.quantityOwned,
+        quantity: card.quantity!,
+      }))
+
+    if (underOwned.length > 0) {
+      results.push({ packCode: pack.code, packName: pack.name, cards: underOwned })
+    }
+  }
+
+  return results
+}

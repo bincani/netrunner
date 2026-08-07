@@ -11,6 +11,7 @@ import {
   listPacksMissingImage,
   releaseYear,
   cardContribution,
+  listCardsUnderExpectedQuantity,
 } from './reports'
 import type { PrismaClient } from '@prisma/client'
 
@@ -160,6 +161,72 @@ describe('reports', () => {
 
     // 2 of 3 copies of Card A, 0 of 1 copy of Card B: 2 owned out of 4 total.
     expect(totals).toEqual({ ownedCards: 2, totalCards: 4, percentOwned: 50 })
+  })
+
+  describe('listCardsUnderExpectedQuantity', () => {
+    it('includes a card owned less than its printed quantity', async () => {
+      await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+      await incrementOwned(prisma, '01001', 2)
+
+      const sets = await listCardsUnderExpectedQuantity(prisma)
+
+      expect(sets).toEqual([
+        {
+          packCode: 'core',
+          packName: 'core',
+          cards: [{ code: '01001', title: 'Card A', factionName: 'anarch', quantityOwned: 2, quantity: 3 }],
+        },
+      ])
+    })
+
+    it('excludes a fully-owned card', async () => {
+      await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+      await incrementOwned(prisma, '01001', 3)
+
+      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+    })
+
+    it('excludes a card owned zero of', async () => {
+      await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+
+      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+    })
+
+    it('excludes a partially-owned card with no declared printed quantity', async () => {
+      await seedCard(prisma, {
+        code: '01001',
+        title: 'Draft Card',
+        packCode: 'draft',
+        packSize: null,
+        position: 1,
+        quantity: null,
+      })
+      await incrementOwned(prisma, '01001', 1)
+
+      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+    })
+
+    it('omits a set with no under-owned cards, includes one that has a shortfall', async () => {
+      await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
+      await incrementOwned(prisma, '01001', 3)
+      await seedCard(prisma, { code: '02001', title: 'Card B', packCode: 'genesis1', packSize: 1, position: 1, quantity: 2 })
+      await incrementOwned(prisma, '02001', 1)
+
+      const sets = await listCardsUnderExpectedQuantity(prisma)
+
+      expect(sets.map((s) => s.packCode)).toEqual(['genesis1'])
+    })
+
+    it('sorts under-owned cards within a set by title', async () => {
+      await seedCard(prisma, { code: '01002', title: 'Zebra Card', packCode: 'core', packSize: 1, position: 2, quantity: 2 })
+      await incrementOwned(prisma, '01002', 1)
+      await seedCard(prisma, { code: '01001', title: 'Alpha Card', packCode: 'core', packSize: 1, position: 1, quantity: 2 })
+      await incrementOwned(prisma, '01001', 1)
+
+      const sets = await listCardsUnderExpectedQuantity(prisma)
+
+      expect(sets[0].cards.map((c) => c.title)).toEqual(['Alpha Card', 'Zebra Card'])
+    })
   })
 })
 
