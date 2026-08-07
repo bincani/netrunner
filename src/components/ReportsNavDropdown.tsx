@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
-const REPORTS = [{ href: '/reports/sets-missing-image', label: 'Sets Missing Image' }]
+const REPORTS = [
+  { href: '/reports/sets-missing-image', label: 'Sets Missing Image' },
+  { href: '/reports/under-owned-cards', label: 'Under-Owned Cards' },
+]
 
 export function ReportsNavDropdown() {
   const [isOpen, setIsOpen] = useState(false)

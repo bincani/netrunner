@@ -39,6 +39,10 @@ describe('ReportsNavDropdown', () => {
       'href',
       '/reports/sets-missing-image'
     )
+    expect(screen.getByRole('menuitem', { name: 'Under-Owned Cards' })).toHaveAttribute(
+      'href',
+      '/reports/under-owned-cards'
+    )
   })
 
   it('clicking the trigger again closes the menu', async () => {
