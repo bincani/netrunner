@@ -37,6 +37,17 @@ describe('SettingsMenu', () => {
     expect(screen.getByRole('menuitem', { name: 'Configuration' })).toHaveAttribute('href', '/settings')
   })
 
+  it('opens the menu with a link to /builder/batches, listed under Configuration', async () => {
+    const user = userEvent.setup()
+    render(<SettingsMenu />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+    const items = screen.getAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Configuration', 'Batch History'])
+    expect(screen.getByRole('menuitem', { name: 'Batch History' })).toHaveAttribute('href', '/builder/batches')
+  })
+
   it('clicking the trigger again closes the menu', async () => {
     const user = userEvent.setup()
     render(<SettingsMenu />)
@@ -71,6 +82,16 @@ describe('SettingsMenu', () => {
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
     await user.click(screen.getByRole('menuitem', { name: 'Configuration' }))
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('clicking the Batch History link closes the menu', async () => {
+    const user = userEvent.setup()
+    render(<SettingsMenu />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Batch History' }))
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
