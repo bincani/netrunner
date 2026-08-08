@@ -347,11 +347,13 @@ describe('BatchBuilderForm', () => {
     await waitFor(() => screen.getByText('Corroder'))
     await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
     await waitFor(() => screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByText(/Corroder: added 3/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Undo' }))
 
     expect(removeFromBatch).toHaveBeenCalledWith(1, '01007', 3)
     await waitFor(() => expect(screen.queryByText(/Added 3× Corroder/)).not.toBeInTheDocument())
+    expect(screen.queryByText(/Corroder: added 3/)).not.toBeInTheDocument()
   })
 
   it('keeps the Undo line visible even once the batch is stopped', async () => {

@@ -123,6 +123,10 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
       if (result.ok) {
         setBatch(result.batch)
         setLastAdded(null)
+        setStatusByCode((prev) => {
+          const { [lastAdded.code]: _removed, ...rest } = prev
+          return rest
+        })
       } else {
         setChromeError(result.error)
       }
