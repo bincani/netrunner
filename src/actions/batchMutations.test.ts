@@ -2,7 +2,15 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import { createTestDb } from '@/lib/testDb'
 import { seedCard } from '@/lib/testFixtures'
 import { getOwnedQuantity } from '@/lib/collection'
-import { startBatch, addCardToBatch, pauseBatch, continueBatch, discardBatch, approveBatch } from './batchMutations'
+import {
+  startBatch,
+  addCardToBatch,
+  pauseBatch,
+  continueBatch,
+  discardBatch,
+  approveBatch,
+  removeFromBatch,
+} from './batchMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -230,5 +238,111 @@ describe('approveBatch', () => {
     const batchId = await startBatch(prisma, 60)
 
     await expect(approveBatch(prisma, batchId)).rejects.toThrow('status "running"')
+  })
+})
+
+describe('removeFromBatch', () => {
+  it("reduces a card's quantity by a partial amount, keeping the row", async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+
+    await removeFromBatch(prisma, batchId, '01001', 1)
+
+    const card = await prisma.batchCard.findUniqueOrThrow({
+      where: { batchId_cardCode: { batchId, cardCode: '01001' } },
+    })
+    expect(card.quantity).toBe(2)
+  })
+
+  it('deletes the row when removing its full quantity', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+
+    await removeFromBatch(prisma, batchId, '01001', 3)
+
+    const card = await prisma.batchCard.findUnique({
+      where: { batchId_cardCode: { batchId, cardCode: '01001' } },
+    })
+    expect(card).toBeNull()
+  })
+
+  it('rejects removing more than the current quantity', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 60)
+    await addCardToBatch(prisma, batchId, '01001', 2)
+
+    await expect(removeFromBatch(prisma, batchId, '01001', 3)).rejects.toThrow('only 2 in the batch')
+  })
+
+  it('rejects on an approved batch', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 1)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+    await approveBatch(prisma, batchId)
+
+    await expect(removeFromBatch(prisma, batchId, '01001', 1)).rejects.toThrow('status "approved"')
+  })
+
+  it('rejects on a discarded batch', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 60)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+    await pauseBatch(prisma, batchId)
+    await discardBatch(prisma, batchId)
+
+    await expect(removeFromBatch(prisma, batchId, '01001', 1)).rejects.toThrow('status "discarded"')
+  })
+
+  it('reverts a stopped batch to paused when the removal drops the count below the target', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 3)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    let batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('stopped')
+
+    await removeFromBatch(prisma, batchId, '01001', 1)
+
+    batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('paused')
+  })
+
+  it('stays stopped if the remaining count is still at or above the target', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
+    const batchId = await startBatch(prisma, 3)
+    await addCardToBatch(prisma, batchId, '01001', 2)
+    await addCardToBatch(prisma, batchId, '01002', 2)
+    let batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('stopped')
+
+    await removeFromBatch(prisma, batchId, '01002', 1)
+
+    batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('stopped')
+  })
+
+  it('does not change status when removing from a running batch', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+
+    await removeFromBatch(prisma, batchId, '01001', 1)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('running')
+  })
+
+  it('does not change status when removing from an already-paused batch', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+
+    await removeFromBatch(prisma, batchId, '01001', 1)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('paused')
   })
 })

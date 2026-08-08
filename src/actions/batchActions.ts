@@ -10,6 +10,7 @@ import {
   continueBatch as continueBatchMutation,
   discardBatch as discardBatchMutation,
   approveBatch as approveBatchMutation,
+  removeFromBatch as removeFromBatchMutation,
 } from './batchMutations'
 
 export type BatchActionResult = { ok: true; batch: BatchSummary } | { ok: false; error: string }
@@ -72,4 +73,12 @@ export async function approveBatch(batchId: number): Promise<SimpleActionResult>
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
   }
+}
+
+export async function removeFromBatch(
+  batchId: number,
+  cardCode: string,
+  amount: number
+): Promise<BatchActionResult> {
+  return withActiveBatch(() => removeFromBatchMutation(prisma, batchId, cardCode, amount))
 }

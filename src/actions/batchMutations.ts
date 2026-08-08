@@ -120,3 +120,43 @@ export async function approveBatch(prisma: PrismaClient, batchId: number): Promi
     prisma.batch.update({ where: { id: batchId }, data: { status: 'approved' } }),
   ])
 }
+
+export async function removeFromBatch(
+  prisma: PrismaClient,
+  batchId: number,
+  cardCode: string,
+  amount: number
+): Promise<void> {
+  if (!Number.isInteger(amount) || amount < 1) {
+    throw new Error(`amount must be a positive integer, got ${amount}`)
+  }
+
+  const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+  if (batch.status !== 'running' && batch.status !== 'paused' && batch.status !== 'stopped') {
+    throw new Error(`Cannot remove a card from a batch with status "${batch.status}"`)
+  }
+
+  const batchCard = await prisma.batchCard.findUniqueOrThrow({
+    where: { batchId_cardCode: { batchId, cardCode } },
+  })
+  if (amount > batchCard.quantity) {
+    throw new Error(`Cannot remove ${amount}, only ${batchCard.quantity} in the batch`)
+  }
+
+  if (amount === batchCard.quantity) {
+    await prisma.batchCard.delete({ where: { batchId_cardCode: { batchId, cardCode } } })
+  } else {
+    await prisma.batchCard.update({
+      where: { batchId_cardCode: { batchId, cardCode } },
+      data: { quantity: { decrement: amount } },
+    })
+  }
+
+  if (batch.status === 'stopped') {
+    const totals = await prisma.batchCard.aggregate({ where: { batchId }, _sum: { quantity: true } })
+    const currentCount = totals._sum.quantity ?? 0
+    if (currentCount < batch.expectedCount) {
+      await prisma.batch.update({ where: { id: batchId }, data: { status: 'paused' } })
+    }
+  }
+}
