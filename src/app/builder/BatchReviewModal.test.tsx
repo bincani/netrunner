@@ -18,6 +18,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={vi.fn()}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={vi.fn()}
       />
     )
@@ -35,6 +36,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={vi.fn()}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={vi.fn()}
       />
     )
@@ -52,6 +54,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={onDiscard}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={vi.fn()}
       />
     )
@@ -71,6 +74,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={vi.fn()}
         onApprove={onApprove}
+        onRemoveCard={vi.fn()}
         onClose={vi.fn()}
       />
     )
@@ -88,6 +92,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={true}
         onDiscard={vi.fn()}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={vi.fn()}
       />
     )
@@ -106,6 +111,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={vi.fn()}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={onClose}
       />
     )
@@ -125,6 +131,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={vi.fn()}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={onClose}
       />
     )
@@ -144,6 +151,7 @@ describe('BatchReviewModal', () => {
         isSubmitting={false}
         onDiscard={vi.fn()}
         onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
         onClose={onClose}
       />
     )
@@ -151,5 +159,62 @@ describe('BatchReviewModal', () => {
     await user.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a remove button for each card', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Remove Card A' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove Card B' })).toBeInTheDocument()
+  })
+
+  it("clicking a card's remove button calls onRemoveCard with that card's code", async () => {
+    const onRemoveCard = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={onRemoveCard}
+        onClose={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Remove Card A' }))
+
+    expect(onRemoveCard).toHaveBeenCalledWith('01001')
+  })
+
+  it('does not close the modal when removing a card', async () => {
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
+        onClose={onClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Remove Card A' }))
+
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

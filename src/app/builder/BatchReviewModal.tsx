@@ -9,6 +9,7 @@ export function BatchReviewModal({
   isSubmitting,
   onDiscard,
   onApprove,
+  onRemoveCard,
   onClose,
 }: {
   batchName: string
@@ -16,6 +17,7 @@ export function BatchReviewModal({
   isSubmitting: boolean
   onDiscard: () => void
   onApprove: () => void
+  onRemoveCard: (code: string) => void
   onClose: () => void
 }) {
   useEffect(() => {
@@ -52,7 +54,17 @@ export function BatchReviewModal({
           {cards.map((card) => (
             <li key={card.code} className="flex items-center justify-between gap-2">
               <span>{card.title}</span>
-              <span className="shrink-0">{card.quantity}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span>{card.quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveCard(card.code)}
+                  aria-label={`Remove ${card.title}`}
+                  className="cursor-pointer text-faint hover:text-danger"
+                >
+                  ✕
+                </button>
+              </span>
             </li>
           ))}
           {cards.length === 0 && <li className="text-faint">No cards were added to this batch.</li>}
