@@ -5,6 +5,20 @@ card collection. See
 `docs/superpowers/specs/2026-08-04-netrunner-collection-tracker-design.md`
 for the full design; this file is the high-level orientation.
 
+**`data/netrunner.db` holds the user's real physical collection — this is
+not test/seed data, including while a feature is actively being built and
+tested.** The user develops and tests directly against their real
+collection (real `CollectionEntry` rows, real `Batch` records from
+actually using Batch Builder Mode). Never assume a `Batch`, a
+`CollectionEntry` row, or any other data you find is a leftover artifact
+from automated/subagent testing — even if the timestamps or pattern look
+that way. Always confirm with the user before deleting or modifying
+collection/batch data, and never do so without explicit confirmation, even
+to "fix" something. When dispatching a subagent (or acting yourself) to do
+manual/dev-server verification, use clearly isolated, self-created data
+that you clean up yourself — never assume the DB's existing state is
+disposable.
+
 ## Phase 1 scope (current)
 
 - Import the full card pool — every set, FFG era (2012–2018) *and* the
