@@ -356,6 +356,40 @@ describe('BatchBuilderForm', () => {
     expect(screen.queryByText(/Corroder: added 3/)).not.toBeInTheDocument()
   })
 
+  it('a new add replaces what Undo would reverse, not accumulate with it', async () => {
+    vi.mocked(addCardToBatch)
+      .mockResolvedValueOnce({
+        ok: true,
+        batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        batch: { ...runningBatch, currentCount: 5, cards: [{ code: '01007', title: 'Corroder', quantity: 5 }] },
+      })
+    vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] } })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    // First add: 3×.
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+    await waitFor(() => expect(screen.getByText(/Added 3× Corroder/)).toBeInTheDocument())
+
+    // Second add of the same card: 2× more (batch now at 5 total). The
+    // Undo line must reflect only this second add, not the first and not
+    // their sum.
+    await user.click(screen.getByRole('button', { name: 'Add 2 Corroder' }))
+    await waitFor(() => expect(screen.getByText(/Added 2× Corroder/)).toBeInTheDocument())
+    expect(screen.queryByText(/Added 3× Corroder/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Added 5× Corroder/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(removeFromBatch).toHaveBeenCalledWith(1, '01007', 2)
+  })
+
   it('keeps the Undo line visible even once the batch is stopped', async () => {
     vi.mocked(addCardToBatch).mockResolvedValue({
       ok: true,

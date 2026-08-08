@@ -37,6 +37,19 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
   const [lastAdded, setLastAdded] = useState<{ code: string; title: string; amount: number } | null>(null)
   const [isUndoing, setIsUndoing] = useState(false)
 
+  // Clears a card's per-code status label (the green "Corroder: added 3"
+  // line under a search result row). Shared by handleUndo and
+  // handleRemoveCard, both of which can make that label stale — the
+  // search results stay mounted underneath the Review modal, so a card
+  // removed there can otherwise keep showing a label for an add that no
+  // longer holds.
+  function clearCardStatus(code: string) {
+    setStatusByCode((prev) => {
+      const { [code]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
   async function runSearch(value: string) {
     setQuery(value)
     setSearchError(null)
@@ -123,10 +136,7 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
       if (result.ok) {
         setBatch(result.batch)
         setLastAdded(null)
-        setStatusByCode((prev) => {
-          const { [lastAdded.code]: _removed, ...rest } = prev
-          return rest
-        })
+        clearCardStatus(lastAdded.code)
       } else {
         setChromeError(result.error)
       }
@@ -146,6 +156,7 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
         if (lastAdded?.code === code) {
           setLastAdded(null)
         }
+        clearCardStatus(code)
       } else {
         setChromeError(result.error)
       }
