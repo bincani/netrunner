@@ -3,7 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BatchBuilderForm } from './BatchBuilderForm'
-import { startBatch, addCardToBatch, pauseBatch, continueBatch, discardBatch, approveBatch } from '@/actions/batchActions'
+import {
+  startBatch,
+  addCardToBatch,
+  pauseBatch,
+  continueBatch,
+  discardBatch,
+  approveBatch,
+  removeFromBatch,
+} from '@/actions/batchActions'
 import type { BatchSummary } from '@/lib/batches'
 
 vi.mock('@/actions/batchActions', () => ({
@@ -13,6 +21,7 @@ vi.mock('@/actions/batchActions', () => ({
   continueBatch: vi.fn(),
   discardBatch: vi.fn(),
   approveBatch: vi.fn(),
+  removeFromBatch: vi.fn(),
 }))
 
 vi.mock('next/image', () => ({
@@ -307,5 +316,112 @@ describe('BatchBuilderForm', () => {
 
     expect(screen.queryByText(/added 3/)).not.toBeInTheDocument()
     expect(screen.queryByText(/in this batch/)).not.toBeInTheDocument()
+  })
+
+  it('shows an "Added" line with an Undo button after a successful add', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+
+    await waitFor(() => expect(screen.getByText(/Added 3× Corroder/)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
+
+  it('clicking Undo calls removeFromBatch with the tracked code/amount and clears the line', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
+    })
+    vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 0, cards: [] } })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+    await waitFor(() => screen.getByRole('button', { name: 'Undo' }))
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(removeFromBatch).toHaveBeenCalledWith(1, '01007', 3)
+    await waitFor(() => expect(screen.queryByText(/Added 3× Corroder/)).not.toBeInTheDocument())
+  })
+
+  it('keeps the Undo line visible even once the batch is stopped', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: {
+        ...runningBatch,
+        status: 'stopped',
+        currentCount: 60,
+        cards: [{ code: '01007', title: 'Corroder', quantity: 60 }],
+      },
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 4 Corroder' }))
+
+    await waitFor(() => expect(screen.queryByPlaceholderText('Search for a card by title...')).not.toBeInTheDocument())
+    expect(screen.getByText(/Added 4× Corroder/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
+
+  it('removing a card from Review calls removeFromBatch with its full quantity and keeps the modal open', async () => {
+    vi.mocked(removeFromBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, status: 'stopped', currentCount: 0, cards: [] },
+    })
+    const stoppedBatch = {
+      ...runningBatch,
+      status: 'stopped' as const,
+      currentCount: 3,
+      cards: [{ code: '01007', title: 'Corroder', quantity: 3 }],
+    }
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await user.click(screen.getByRole('button', { name: 'Remove Corroder' }))
+
+    expect(removeFromBatch).toHaveBeenCalledWith(1, '01007', 3)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Batch Test' })).toBeInTheDocument())
+  })
+
+  it('removing a card that drops a stopped batch below target reveals the Continue button after closing Review', async () => {
+    vi.mocked(removeFromBatch).mockResolvedValue({
+      ok: true,
+      batch: {
+        ...runningBatch,
+        status: 'paused',
+        currentCount: 2,
+        cards: [{ code: '01007', title: 'Corroder', quantity: 2 }],
+      },
+    })
+    const stoppedBatch = {
+      ...runningBatch,
+      status: 'stopped' as const,
+      currentCount: 3,
+      cards: [{ code: '01007', title: 'Corroder', quantity: 3 }, { code: '01011', title: 'Mimic', quantity: 0 }],
+    }
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await user.click(screen.getByRole('button', { name: 'Remove Corroder' }))
+    await waitFor(() => expect(removeFromBatch).toHaveBeenCalled())
+
+    await user.keyboard('{Escape}')
+
+    expect(await screen.findByRole('button', { name: 'Continue' })).toBeInTheDocument()
   })
 })

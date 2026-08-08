@@ -9,6 +9,7 @@ import {
   continueBatch,
   discardBatch,
   approveBatch,
+  removeFromBatch,
 } from '@/actions/batchActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
 import { BatchStatusBar } from './BatchStatusBar'
@@ -32,6 +33,9 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
   const [isReviewOpen, setIsReviewOpen] = useState(false)
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [chromeError, setChromeError] = useState<string | null>(null)
+
+  const [lastAdded, setLastAdded] = useState<{ code: string; title: string; amount: number } | null>(null)
+  const [isUndoing, setIsUndoing] = useState(false)
 
   async function runSearch(value: string) {
     setQuery(value)
@@ -102,11 +106,47 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
       if (result.ok) {
         setBatch(result.batch)
         setStatusByCode((prev) => ({ ...prev, [card.code]: `added ${amount}` }))
+        setLastAdded({ code: card.code, title: card.title, amount })
       } else {
         setErrorByCode((prev) => ({ ...prev, [card.code]: result.error }))
       }
     } finally {
       setPendingCodes((prev) => ({ ...prev, [card.code]: false }))
+    }
+  }
+
+  async function handleUndo() {
+    if (!batch || !lastAdded) return
+    setIsUndoing(true)
+    try {
+      const result = await removeFromBatch(batch.id, lastAdded.code, lastAdded.amount)
+      if (result.ok) {
+        setBatch(result.batch)
+        setLastAdded(null)
+      } else {
+        setChromeError(result.error)
+      }
+    } finally {
+      setIsUndoing(false)
+    }
+  }
+
+  async function handleRemoveCard(code: string) {
+    if (!batch) return
+    const card = batch.cards.find((c) => c.code === code)
+    if (!card) return
+    try {
+      const result = await removeFromBatch(batch.id, code, card.quantity)
+      if (result.ok) {
+        setBatch(result.batch)
+        if (lastAdded?.code === code) {
+          setLastAdded(null)
+        }
+      } else {
+        setChromeError(result.error)
+      }
+    } catch {
+      setChromeError('Failed to remove card — try again')
     }
   }
 
@@ -131,14 +171,15 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
     setIsReviewOpen(false)
     setResults([])
     setQuery('')
-    // Per-card status/error/pending state and the chrome error banner are
-    // scoped to the batch that just finished — carrying them into a fresh
-    // "no active batch" screen (and the next batch after it) would show
-    // stale, contradictory signals for cards that happen to share a code.
+    // Per-card status/error/pending state, the chrome error banner, and
+    // the last-added/undo tracker are all scoped to the batch that just
+    // finished — carrying them into a fresh "no active batch" screen (and
+    // the next batch after it) would show stale, contradictory signals.
     setStatusByCode({})
     setErrorByCode({})
     setPendingCodes({})
     setChromeError(null)
+    setLastAdded(null)
   }
 
   async function handleDiscard() {
@@ -216,6 +257,20 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
         onContinue={handleContinue}
         onReview={() => setIsReviewOpen(true)}
       />
+
+      {lastAdded && (
+        <p className="text-sm text-muted">
+          Added {lastAdded.amount}× {lastAdded.title}{' '}
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={isUndoing}
+            className="cursor-pointer text-accent underline hover:text-accent/80 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isUndoing ? 'Undoing…' : 'Undo'}
+          </button>
+        </p>
+      )}
 
       {chromeError && (
         <p className="text-sm text-danger" role="alert">
@@ -297,6 +352,7 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
           isSubmitting={isSubmittingReview}
           onDiscard={handleDiscard}
           onApprove={handleApprove}
+          onRemoveCard={handleRemoveCard}
           onClose={() => setIsReviewOpen(false)}
         />
       )}
