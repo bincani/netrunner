@@ -20,7 +20,15 @@ export default async function DashboardPage() {
   return (
     <main className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Collection Overview</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold">Collection Overview</h1>
+          <a
+            href="/api/collection/export"
+            className="shrink-0 cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover"
+          >
+            Export CSV
+          </a>
+        </div>
         <p className="text-muted">
           {totals.ownedCards} / {totals.totalCards} cards owned ({totals.percentOwned}%)
         </p>

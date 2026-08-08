@@ -40,3 +40,36 @@ export async function getOwnedQuantity(prisma: PrismaClient, cardCode: string): 
   const entry = await prisma.collectionEntry.findUnique({ where: { cardCode } })
   return entry?.quantityOwned ?? 0
 }
+
+function csvEscape(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
+/** CSV of every owned card: code, title, faction, set, owned quantity, and printed quantity. */
+export async function exportCollectionCsv(prisma: PrismaClient): Promise<string> {
+  const entries = await prisma.collectionEntry.findMany({
+    include: { card: { include: { pack: true, faction: true } } },
+    orderBy: [{ card: { packCode: 'asc' } }, { card: { position: 'asc' } }],
+  })
+
+  const header = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n'
+  const rows = entries.map((entry) => {
+    const card = entry.card
+    return (
+      [
+        csvEscape(card.code),
+        csvEscape(card.title),
+        csvEscape(card.faction.name),
+        csvEscape(card.packCode),
+        csvEscape(card.pack.name),
+        String(entry.quantityOwned),
+        card.quantity === null ? '' : String(card.quantity),
+      ].join(',') + '\n'
+    )
+  })
+
+  return header + rows.join('')
+}
