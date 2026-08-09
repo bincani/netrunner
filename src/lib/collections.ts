@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
-import { formatBatchName, getActiveBatch } from './batches'
+import { formatBatchName, getActiveBatch, type BatchSummary } from './batches'
+import { computeCollectionTotals } from './reports'
 
 /**
  * Bumps a collection's updatedAt. `data: {}` alone optimizes away to a
@@ -46,6 +47,26 @@ export async function getDefaultCollectionId(prisma: PrismaClient): Promise<numb
 export async function listCollections(prisma: PrismaClient): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({ orderBy: { createdAt: 'asc' } })
   return collections.map(toSummary)
+}
+
+export interface CollectionListEntry extends CollectionSummary {
+  ownedCards: number
+  totalCards: number
+  percentOwned: number
+  pendingBatch: BatchSummary | null
+}
+
+export async function listCollectionsWithStats(prisma: PrismaClient): Promise<CollectionListEntry[]> {
+  const collections = await listCollections(prisma)
+  return Promise.all(
+    collections.map(async (collection) => {
+      const [totals, pendingBatch] = await Promise.all([
+        computeCollectionTotals(prisma, collection.id),
+        getActiveBatch(prisma, collection.id),
+      ])
+      return { ...collection, ...totals, pendingBatch }
+    })
+  )
 }
 
 function validateName(name: string): string {

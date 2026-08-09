@@ -9,6 +9,7 @@ import {
   deleteCollection,
   setDefaultCollection,
   importCsvAsBatch,
+  listCollectionsWithStats,
 } from './collections'
 import { exportCollectionCsv, incrementOwned } from './collection'
 import { approveBatch } from '@/actions/batchMutations'
@@ -272,5 +273,75 @@ describe('importCsvAsBatch', () => {
       { cardCode: '01001', quantityOwned: 2 },
       { cardCode: '01002', quantityOwned: 1 },
     ])
+  })
+})
+
+describe('listCollectionsWithStats', () => {
+  it('returns stats and default-collection order for every collection', async () => {
+    await seedCollection(prisma, { name: 'First' })
+    await seedCollection(prisma, { name: 'Second', isDefault: false })
+
+    const list = await listCollectionsWithStats(prisma)
+
+    expect(list.map((c) => c.name)).toEqual(['First', 'Second'])
+    expect(list[0].isDefault).toBe(true)
+    expect(list[1].isDefault).toBe(false)
+  })
+
+  it('computes ownedCards/totalCards/percentOwned per collection', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 2, position: 1 })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 2, position: 2 })
+    await incrementOwned(prisma, collectionId, '01001', 1)
+
+    const [entry] = await listCollectionsWithStats(prisma)
+
+    expect(entry.ownedCards).toBe(1)
+    expect(entry.totalCards).toBe(2)
+    expect(entry.percentOwned).toBe(50)
+  })
+
+  it('keeps stats independent across two different collections', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
+    await incrementOwned(prisma, a.id, '01001', 1)
+
+    const list = await listCollectionsWithStats(prisma)
+
+    expect(list.find((c) => c.id === a.id)?.ownedCards).toBe(1)
+    expect(list.find((c) => c.id === b.id)?.ownedCards).toBe(0)
+  })
+
+  it('reports pendingBatch as null when there is no active batch', async () => {
+    await seedCollection(prisma)
+
+    const [entry] = await listCollectionsWithStats(prisma)
+
+    expect(entry.pendingBatch).toBeNull()
+  })
+
+  it('reports pendingBatch when a batch is stopped awaiting review', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
+    const { batchId } = await importCsvAsBatch(prisma, collectionId, csv)
+
+    const [entry] = await listCollectionsWithStats(prisma)
+
+    expect(entry.pendingBatch?.id).toBe(batchId)
+    expect(entry.pendingBatch?.status).toBe('stopped')
+  })
+
+  it('reports pendingBatch as null again after the batch is approved', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
+    const { batchId } = await importCsvAsBatch(prisma, collectionId, csv)
+    await approveBatch(prisma, collectionId, batchId)
+
+    const [entry] = await listCollectionsWithStats(prisma)
+
+    expect(entry.pendingBatch).toBeNull()
   })
 })
