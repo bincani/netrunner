@@ -5,7 +5,16 @@ import { exportCollectionCsv } from '@/lib/collection'
 
 export async function GET(request: NextRequest) {
   const collectionIdParam = request.nextUrl.searchParams.get('collectionId')
-  const collectionId = collectionIdParam ? Number(collectionIdParam) : await getDefaultCollectionId(prisma)
+  let collectionId: number
+  if (collectionIdParam === null) {
+    collectionId = await getDefaultCollectionId(prisma)
+  } else {
+    const parsed = Number(collectionIdParam)
+    if (!Number.isInteger(parsed)) {
+      return NextResponse.json({ error: `Invalid collectionId "${collectionIdParam}"` }, { status: 400 })
+    }
+    collectionId = parsed
+  }
   const csv = await exportCollectionCsv(prisma, collectionId)
 
   return new NextResponse(csv, {

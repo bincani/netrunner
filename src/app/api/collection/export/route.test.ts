@@ -73,4 +73,11 @@ describe('GET /api/collection/export', () => {
 
     expect(body).toContain('01007,Corroder,anarch,core,core,2,3')
   })
+
+  it('returns a 400 error when collectionId param is not a valid integer', async () => {
+    const request = new NextRequest('http://localhost/api/collection/export?collectionId=abc')
+    const response = await GET(request)
+
+    expect(response.status).toBe(400)
+  })
 })
