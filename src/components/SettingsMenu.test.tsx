@@ -37,14 +37,15 @@ describe('SettingsMenu', () => {
     expect(screen.getByRole('menuitem', { name: 'Configuration' })).toHaveAttribute('href', '/settings')
   })
 
-  it('opens the menu with a link to /builder/batches, listed under Configuration', async () => {
+  it('opens the menu with links to /collections and /builder/batches, in order', async () => {
     const user = userEvent.setup()
     render(<SettingsMenu />)
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
 
     const items = screen.getAllByRole('menuitem')
-    expect(items.map((item) => item.textContent)).toEqual(['Configuration', 'Batch History'])
+    expect(items.map((item) => item.textContent)).toEqual(['Configuration', 'Collections', 'Batch History'])
+    expect(screen.getByRole('menuitem', { name: 'Collections' })).toHaveAttribute('href', '/collections')
     expect(screen.getByRole('menuitem', { name: 'Batch History' })).toHaveAttribute('href', '/builder/batches')
   })
 
@@ -82,6 +83,16 @@ describe('SettingsMenu', () => {
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
     await user.click(screen.getByRole('menuitem', { name: 'Configuration' }))
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('clicking the Collections link closes the menu', async () => {
+    const user = userEvent.setup()
+    render(<SettingsMenu />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Collections' }))
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })

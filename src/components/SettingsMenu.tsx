@@ -58,6 +58,14 @@ export function SettingsMenu() {
             Configuration
           </Link>
           <Link
+            href="/collections"
+            role="menuitem"
+            onClick={() => setIsOpen(false)}
+            className="block px-3 py-2 text-sm hover:bg-surface-hover"
+          >
+            Collections
+          </Link>
+          <Link
             href="/builder/batches"
             role="menuitem"
             onClick={() => setIsOpen(false)}

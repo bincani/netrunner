@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import './globals.css'
 import type { Metadata } from 'next'
+import { prisma } from '@/lib/db'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { ReportsNavDropdown } from '@/components/ReportsNavDropdown'
 import { SettingsMenu } from '@/components/SettingsMenu'
 
@@ -8,6 +10,12 @@ export const metadata: Metadata = {
   title: 'Netrunner Collection Tracker',
   description: 'Track your Android: Netrunner card collection',
 }
+
+// Reflects the current default collection, which can change at runtime
+// (Set as Default) — not something to freeze into a build-time snapshot.
+// See the dashboard's identical rationale. Applies to the whole app since
+// every page shares this layout's nav indicator.
+export const dynamic = 'force-dynamic'
 
 const THEME_INIT_SCRIPT = `
 try {
@@ -20,7 +28,10 @@ try {
 } catch (e) {}
 `
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const collectionId = await getDefaultCollectionId(prisma)
+  const collection = await prisma.collection.findUniqueOrThrow({ where: { id: collectionId } })
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-app text-primary">
@@ -34,7 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/decks">Decks</Link>
             <ReportsNavDropdown />
           </div>
-          <SettingsMenu />
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted">{collection.name}</span>
+            <SettingsMenu />
+          </div>
         </nav>
         {children}
       </body>
