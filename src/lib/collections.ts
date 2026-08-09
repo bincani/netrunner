@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
+import { formatBatchName, getActiveBatch } from './batches'
 
 /**
  * Bumps a collection's updatedAt. `data: {}` alone optimizes away to a
@@ -138,20 +139,27 @@ function parseCsv(text: string): string[][] {
   return rows
 }
 
-export interface ImportResult {
-  imported: number
+export interface ImportBatchResult {
+  batchId: number
   skipped: { cardCode: string; reason: string }[]
 }
 
-/** Replaces a collection's entries with what the CSV contains — matching this app's existing "re-import replaces" precedent (see Deck import). */
-export async function importCollectionCsv(
+/**
+ * Parses a CSV (same format exportCollectionCsv produces) into a new
+ * Batch for review — never writes CollectionEntry rows directly, so an
+ * import can be reviewed and discarded like any other batch, and merges
+ * into whatever the collection already owns rather than replacing it.
+ * Reuses the same "only one active batch per collection" rule startBatch
+ * enforces, since this creates a Batch too.
+ */
+export async function importCsvAsBatch(
   prisma: PrismaClient,
   collectionId: number,
   csvText: string
-): Promise<ImportResult> {
+): Promise<ImportBatchResult> {
   const rows = parseCsv(csvText.trim())
   if (rows.length === 0) {
-    return { imported: 0, skipped: [] }
+    throw new Error('CSV is empty')
   }
 
   const [header, ...dataRows] = rows
@@ -161,9 +169,14 @@ export async function importCollectionCsv(
     throw new Error('CSV must have cardCode and quantityOwned columns')
   }
 
+  const existingBatch = await getActiveBatch(prisma, collectionId)
+  if (existingBatch) {
+    throw new Error('A batch is already active — review or finish it before starting a new one')
+  }
+
   const existingCodes = new Set((await prisma.card.findMany({ select: { code: true } })).map((c) => c.code))
 
-  const toInsert: { cardCode: string; quantityOwned: number }[] = []
+  const toInsert: { cardCode: string; quantity: number }[] = []
   const skipped: { cardCode: string; reason: string }[] = []
 
   for (const row of dataRows) {
@@ -178,21 +191,29 @@ export async function importCollectionCsv(
     }
 
     const quantity = Number(rawQuantity)
-    if (!Number.isInteger(quantity) || quantity < 0) {
+    if (!Number.isInteger(quantity) || quantity <= 0) {
       skipped.push({ cardCode, reason: `Invalid quantity "${rawQuantity}"` })
       continue
     }
 
-    toInsert.push({ cardCode, quantityOwned: quantity })
+    toInsert.push({ cardCode, quantity })
   }
 
-  await prisma.$transaction([
-    prisma.collectionEntry.deleteMany({ where: { collectionId } }),
-    prisma.collectionEntry.createMany({
-      data: toInsert.map((entry) => ({ collectionId, ...entry })),
-    }),
-    touchCollection(prisma, collectionId),
-  ])
+  const expectedCount = toInsert.reduce((sum, row) => sum + row.quantity, 0)
+  const now = new Date()
 
-  return { imported: toInsert.length, skipped }
+  const batch = await prisma.batch.create({
+    data: {
+      collectionId,
+      name: formatBatchName(now, 'Import'),
+      expectedCount,
+      status: 'stopped',
+      startedAt: now,
+      elapsedMs: 0,
+      lastResumedAt: null,
+      cards: { createMany: { data: toInsert.map((row) => ({ cardCode: row.cardCode, quantity: row.quantity })) } },
+    },
+  })
+
+  return { batchId: batch.id, skipped }
 }

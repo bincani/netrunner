@@ -8,9 +8,10 @@ import {
   renameCollection,
   deleteCollection,
   setDefaultCollection,
-  importCollectionCsv,
+  importCsvAsBatch,
 } from './collections'
 import { exportCollectionCsv, incrementOwned } from './collection'
+import { approveBatch } from '@/actions/batchMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -24,6 +25,8 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  await prisma.batchCard.deleteMany()
+  await prisma.batch.deleteMany()
   await prisma.collectionEntry.deleteMany()
   await prisma.collection.deleteMany()
   await prisma.card.deleteMany()
@@ -139,19 +142,38 @@ describe('setDefaultCollection', () => {
   })
 })
 
-describe('importCollectionCsv', () => {
-  it('replaces the collection\'s entries with what the CSV contains', async () => {
+describe('importCsvAsBatch', () => {
+  it('creates a stopped batch with one BatchCard per valid row', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01001', 9)
 
-    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01002,Card B,anarch,core,core,3,1\n'
-    const result = await importCollectionCsv(prisma, collectionId, csv)
+    const csv =
+      'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n' +
+      '01001,Card A,anarch,core,core,3,1\n' +
+      '01002,Card B,anarch,core,core,2,1\n'
+    const result = await importCsvAsBatch(prisma, collectionId, csv)
 
-    expect(result).toEqual({ imported: 1, skipped: [] })
-    const entries = await prisma.collectionEntry.findMany({ where: { collectionId } })
-    expect(entries).toEqual([{ collectionId, cardCode: '01002', quantityOwned: 3 }])
+    expect(result.skipped).toEqual([])
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: result.batchId } })
+    expect(batch.status).toBe('stopped')
+    expect(batch.expectedCount).toBe(5)
+    expect(batch.collectionId).toBe(collectionId)
+    const cards = await prisma.batchCard.findMany({ where: { batchId: result.batchId }, orderBy: { cardCode: 'asc' } })
+    expect(cards).toEqual([
+      { batchId: result.batchId, cardCode: '01001', quantity: 3 },
+      { batchId: result.batchId, cardCode: '01002', quantity: 2 },
+    ])
+  })
+
+  it('does not touch CollectionEntry — the batch must be approved first', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+
+    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,3,1\n'
+    await importCsvAsBatch(prisma, collectionId, csv)
+
+    expect(await prisma.collectionEntry.count()).toBe(0)
   })
 
   it('skips and reports an unknown card code rather than failing the whole import', async () => {
@@ -162,10 +184,11 @@ describe('importCollectionCsv', () => {
       'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n' +
       '01001,Card A,anarch,core,core,2,1\n' +
       'nonexistent,Ghost Card,anarch,core,core,1,1\n'
-    const result = await importCollectionCsv(prisma, collectionId, csv)
+    const result = await importCsvAsBatch(prisma, collectionId, csv)
 
-    expect(result.imported).toBe(1)
     expect(result.skipped).toEqual([{ cardCode: 'nonexistent', reason: 'Unknown card code' }])
+    const cards = await prisma.batchCard.findMany({ where: { batchId: result.batchId } })
+    expect(cards).toEqual([{ batchId: result.batchId, cardCode: '01001', quantity: 2 }])
   })
 
   it('skips and reports a malformed quantity', async () => {
@@ -173,10 +196,20 @@ describe('importCollectionCsv', () => {
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
 
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,not-a-number,1\n'
-    const result = await importCollectionCsv(prisma, collectionId, csv)
+    const result = await importCsvAsBatch(prisma, collectionId, csv)
 
-    expect(result.imported).toBe(0)
     expect(result.skipped).toEqual([{ cardCode: '01001', reason: 'Invalid quantity "not-a-number"' }])
+    expect(await prisma.batchCard.count({ where: { batchId: result.batchId } })).toBe(0)
+  })
+
+  it('skips and reports a zero quantity — nothing to review for a card you own none of', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+
+    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,0,1\n'
+    const result = await importCsvAsBatch(prisma, collectionId, csv)
+
+    expect(result.skipped).toEqual([{ cardCode: '01001', reason: 'Invalid quantity "0"' }])
   })
 
   it('handles a quoted title containing a comma and escaped quotes', async () => {
@@ -186,12 +219,40 @@ describe('importCollectionCsv', () => {
     const csv =
       'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n' +
       '01001,"Kate ""Mac"" McCaffrey",anarch,core,core,1,1\n'
-    const result = await importCollectionCsv(prisma, collectionId, csv)
+    const result = await importCsvAsBatch(prisma, collectionId, csv)
 
-    expect(result).toEqual({ imported: 1, skipped: [] })
+    expect(result.skipped).toEqual([])
+    expect(await prisma.batchCard.count({ where: { batchId: result.batchId } })).toBe(1)
   })
 
-  it('round-trips: exporting then importing reproduces the same collection', async () => {
+  it('throws for an empty CSV', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await expect(importCsvAsBatch(prisma, collectionId, '')).rejects.toThrow('CSV is empty')
+  })
+
+  it('rejects importing into a collection that already has an active batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
+    await importCsvAsBatch(prisma, collectionId, csv)
+
+    await expect(importCsvAsBatch(prisma, collectionId, csv)).rejects.toThrow('already active')
+  })
+
+  it('allows importing into a different collection while one has an active batch', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
+    await importCsvAsBatch(prisma, a.id, csv)
+
+    const result = await importCsvAsBatch(prisma, b.id, csv)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: result.batchId } })
+    expect(batch.collectionId).toBe(b.id)
+  })
+
+  it('round-trips: exporting then importing-and-approving reproduces the same collection', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', quantity: 3 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', quantity: 2 })
@@ -200,9 +261,9 @@ describe('importCollectionCsv', () => {
 
     const csv = await exportCollectionCsv(prisma, collectionId)
     const other = await createCollection(prisma, 'Other')
-    const result = await importCollectionCsv(prisma, other, csv)
+    const result = await importCsvAsBatch(prisma, other, csv)
+    await approveBatch(prisma, other, result.batchId)
 
-    expect(result).toEqual({ imported: 2, skipped: [] })
     const entries = await prisma.collectionEntry.findMany({
       where: { collectionId: other },
       orderBy: { cardCode: 'asc' },
