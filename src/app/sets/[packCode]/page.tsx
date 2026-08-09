@@ -19,7 +19,7 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
   const collectionId = await getDefaultCollectionId(prisma)
   const [cards, completion] = await Promise.all([
     listCardsInPack(prisma, collectionId, packCode),
-    computeSetCompletion(prisma, packCode),
+    computeSetCompletion(prisma, collectionId, packCode),
   ])
 
   const year = releaseYear(pack.dateRelease)

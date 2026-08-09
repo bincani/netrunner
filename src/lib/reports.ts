@@ -42,6 +42,7 @@ export interface CollectionTotals {
 
 export async function computeSetCompletion(
   prisma: PrismaClient,
+  collectionId: number,
   packCode: string
 ): Promise<SetCompletion | null> {
   const pack = await prisma.pack.findUnique({ where: { code: packCode }, include: { cycle: true } })
@@ -51,12 +52,15 @@ export async function computeSetCompletion(
 
   const cards = await prisma.card.findMany({
     where: { packCode },
-    select: { quantity: true, collectionEntry: { select: { quantityOwned: true } } },
+    select: {
+      quantity: true,
+      collectionEntries: { where: { collectionId }, select: { quantityOwned: true } },
+    },
   })
 
   const totalCount = cards.reduce((sum, card) => sum + (card.quantity ?? 1), 0)
   const ownedCount = cards.reduce(
-    (sum, card) => sum + cardContribution(card.collectionEntry?.quantityOwned ?? 0, card.quantity),
+    (sum, card) => sum + cardContribution(card.collectionEntries[0]?.quantityOwned ?? 0, card.quantity),
     0
   )
 
@@ -73,7 +77,7 @@ export async function computeSetCompletion(
   }
 }
 
-export async function computeAllSetsCompletion(prisma: PrismaClient): Promise<SetCompletion[]> {
+export async function computeAllSetsCompletion(prisma: PrismaClient, collectionId: number): Promise<SetCompletion[]> {
   const packs = await prisma.pack.findMany({
     where: { size: { not: null } },
     orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }],
@@ -81,7 +85,7 @@ export async function computeAllSetsCompletion(prisma: PrismaClient): Promise<Se
 
   const results: SetCompletion[] = []
   for (const pack of packs) {
-    const completion = await computeSetCompletion(prisma, pack.code)
+    const completion = await computeSetCompletion(prisma, collectionId, pack.code)
     if (completion) {
       results.push(completion)
     }
@@ -90,14 +94,17 @@ export async function computeAllSetsCompletion(prisma: PrismaClient): Promise<Se
   return results
 }
 
-export async function computeCollectionTotals(prisma: PrismaClient): Promise<CollectionTotals> {
+export async function computeCollectionTotals(prisma: PrismaClient, collectionId: number): Promise<CollectionTotals> {
   const cards = await prisma.card.findMany({
-    select: { quantity: true, collectionEntry: { select: { quantityOwned: true } } },
+    select: {
+      quantity: true,
+      collectionEntries: { where: { collectionId }, select: { quantityOwned: true } },
+    },
   })
 
   const totalCards = cards.reduce((sum, card) => sum + (card.quantity ?? 1), 0)
   const ownedCards = cards.reduce(
-    (sum, card) => sum + cardContribution(card.collectionEntry?.quantityOwned ?? 0, card.quantity),
+    (sum, card) => sum + cardContribution(card.collectionEntries[0]?.quantityOwned ?? 0, card.quantity),
     0
   )
 
@@ -190,7 +197,7 @@ export interface UnderOwnedSet {
  * expected amount" doesn't apply when there's no expected amount. A set
  * with no qualifying cards is omitted entirely.
  */
-export async function listCardsUnderExpectedQuantity(prisma: PrismaClient): Promise<UnderOwnedSet[]> {
+export async function listCardsUnderExpectedQuantity(prisma: PrismaClient, collectionId: number): Promise<UnderOwnedSet[]> {
   const packs = await prisma.pack.findMany({
     orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }],
   })
@@ -205,21 +212,21 @@ export async function listCardsUnderExpectedQuantity(prisma: PrismaClient): Prom
         title: true,
         quantity: true,
         faction: { select: { name: true } },
-        collectionEntry: { select: { quantityOwned: true } },
+        collectionEntries: { where: { collectionId }, select: { quantityOwned: true } },
       },
       orderBy: { title: 'asc' },
     })
 
     const underOwned: UnderOwnedCard[] = cards
       .filter((card) => {
-        const owned = card.collectionEntry?.quantityOwned ?? 0
+        const owned = card.collectionEntries[0]?.quantityOwned ?? 0
         return owned > 0 && owned < card.quantity!
       })
       .map((card) => ({
         code: card.code,
         title: card.title,
         factionName: card.faction.name,
-        quantityOwned: card.collectionEntry!.quantityOwned,
+        quantityOwned: card.collectionEntries[0]!.quantityOwned,
         quantity: card.quantity!,
       }))
 

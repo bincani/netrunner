@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
-import { seedCard } from './testFixtures'
+import { seedCard, seedCollection } from './testFixtures'
 import { incrementOwned } from './collection'
 import {
   computeSetCompletion,
@@ -28,17 +28,19 @@ describe('reports', () => {
 
   beforeEach(async () => {
     await prisma.collectionEntry.deleteMany()
+    await prisma.collection.deleteMany()
     await prisma.card.deleteMany()
     await prisma.pack.deleteMany()
     await prisma.cycle.deleteMany()
   })
 
   it('computes percent owned for a set', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 2, position: 1 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 2, position: 2 })
-    await incrementOwned(prisma, '01001', 1)
+    await incrementOwned(prisma, collectionId, '01001', 1)
 
-    const completion = await computeSetCompletion(prisma, 'core')
+    const completion = await computeSetCompletion(prisma, collectionId, 'core')
 
     expect(completion).toEqual({
       packCode: 'core',
@@ -54,6 +56,7 @@ describe('reports', () => {
   })
 
   it("includes the pack's official set type", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, {
       code: '01001',
       title: 'Card A',
@@ -63,19 +66,17 @@ describe('reports', () => {
       packSetType: 'deluxe',
     })
 
-    const completion = await computeSetCompletion(prisma, 'core')
+    const completion = await computeSetCompletion(prisma, collectionId, 'core')
 
     expect(completion?.setType).toBe('deluxe')
   })
 
   it('counts partial ownership of a multi-copy card toward the percentage, not just whether you own any', async () => {
-    // The set contains 3 copies of Card A; owning only 2 should count as
-    // 2/3 toward the total, not "1 card owned" the way distinct-card
-    // counting would treat it.
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
-    await incrementOwned(prisma, '01001', 2)
+    await incrementOwned(prisma, collectionId, '01001', 2)
 
-    const completion = await computeSetCompletion(prisma, 'core')
+    const completion = await computeSetCompletion(prisma, collectionId, 'core')
 
     expect(completion?.ownedCount).toBe(2)
     expect(completion?.totalCount).toBe(3)
@@ -83,10 +84,11 @@ describe('reports', () => {
   })
 
   it("caps a card's contribution at its printed quantity, even if you own more than that", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
-    await incrementOwned(prisma, '01001', 5)
+    await incrementOwned(prisma, collectionId, '01001', 5)
 
-    const completion = await computeSetCompletion(prisma, 'core')
+    const completion = await computeSetCompletion(prisma, collectionId, 'core')
 
     expect(completion?.ownedCount).toBe(3)
     expect(completion?.totalCount).toBe(3)
@@ -94,16 +96,18 @@ describe('reports', () => {
   })
 
   it('returns null for a pack with no declared size', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Draft Card', packCode: 'draft', packSize: null, position: 1 })
-    const completion = await computeSetCompletion(prisma, 'draft')
+    const completion = await computeSetCompletion(prisma, collectionId, 'draft')
     expect(completion).toBeNull()
   })
 
   it('excludes sets with no declared size from the full list', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
     await seedCard(prisma, { code: '02001', title: 'Draft Card', packCode: 'draft', packSize: null, position: 1 })
 
-    const all = await computeAllSetsCompletion(prisma)
+    const all = await computeAllSetsCompletion(prisma, collectionId)
 
     expect(all.map((c) => c.packCode)).toEqual(['core'])
   })
@@ -125,7 +129,6 @@ describe('reports', () => {
   })
 
   it('lists packs with no locally-downloaded cover image', async () => {
-    // 'sg' (System Gateway) has a real entry in setImages.ts; 'draft' does not.
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'draft', packSize: 1, position: 1 })
     await seedCard(prisma, {
       code: '02001',
@@ -142,33 +145,48 @@ describe('reports', () => {
   })
 
   it('computes overall collection totals across all cards', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 2, position: 1 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 2, position: 2 })
     await seedCard(prisma, { code: 'd0001', title: 'Draft Card', packCode: 'draft', packSize: null, position: 1 })
-    await incrementOwned(prisma, '01001', 1)
+    await incrementOwned(prisma, collectionId, '01001', 1)
 
-    const totals = await computeCollectionTotals(prisma)
+    const totals = await computeCollectionTotals(prisma, collectionId)
 
     expect(totals).toEqual({ ownedCards: 1, totalCards: 3, percentOwned: 33 })
   })
 
   it('weights overall totals by printed quantity too, not just distinct cards owned', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 1, position: 2, quantity: 1 })
-    await incrementOwned(prisma, '01001', 2)
+    await incrementOwned(prisma, collectionId, '01001', 2)
 
-    const totals = await computeCollectionTotals(prisma)
+    const totals = await computeCollectionTotals(prisma, collectionId)
 
-    // 2 of 3 copies of Card A, 0 of 1 copy of Card B: 2 owned out of 4 total.
     expect(totals).toEqual({ ownedCards: 2, totalCards: 4, percentOwned: 50 })
+  })
+
+  it('keeps completion independent across two different collections', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
+    await incrementOwned(prisma, a.id, '01001', 1)
+
+    const totalsA = await computeCollectionTotals(prisma, a.id)
+    const totalsB = await computeCollectionTotals(prisma, b.id)
+
+    expect(totalsA.ownedCards).toBe(1)
+    expect(totalsB.ownedCards).toBe(0)
   })
 
   describe('listCardsUnderExpectedQuantity', () => {
     it('includes a card owned less than its printed quantity', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
-      await incrementOwned(prisma, '01001', 2)
+      await incrementOwned(prisma, collectionId, '01001', 2)
 
-      const sets = await listCardsUnderExpectedQuantity(prisma)
+      const sets = await listCardsUnderExpectedQuantity(prisma, collectionId)
 
       expect(sets).toEqual([
         {
@@ -180,26 +198,30 @@ describe('reports', () => {
     })
 
     it('excludes a fully-owned card', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
-      await incrementOwned(prisma, '01001', 3)
+      await incrementOwned(prisma, collectionId, '01001', 3)
 
-      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+      expect(await listCardsUnderExpectedQuantity(prisma, collectionId)).toEqual([])
     })
 
     it('excludes a card owned more than its printed quantity', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
-      await incrementOwned(prisma, '01001', 5)
+      await incrementOwned(prisma, collectionId, '01001', 5)
 
-      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+      expect(await listCardsUnderExpectedQuantity(prisma, collectionId)).toEqual([])
     })
 
     it('excludes a card owned zero of', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
 
-      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+      expect(await listCardsUnderExpectedQuantity(prisma, collectionId)).toEqual([])
     })
 
     it('excludes a partially-owned card with no declared printed quantity', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, {
         code: '01001',
         title: 'Draft Card',
@@ -208,29 +230,31 @@ describe('reports', () => {
         position: 1,
         quantity: null,
       })
-      await incrementOwned(prisma, '01001', 1)
+      await incrementOwned(prisma, collectionId, '01001', 1)
 
-      expect(await listCardsUnderExpectedQuantity(prisma)).toEqual([])
+      expect(await listCardsUnderExpectedQuantity(prisma, collectionId)).toEqual([])
     })
 
     it('omits a set with no under-owned cards, includes one that has a shortfall', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
-      await incrementOwned(prisma, '01001', 3)
+      await incrementOwned(prisma, collectionId, '01001', 3)
       await seedCard(prisma, { code: '02001', title: 'Card B', packCode: 'genesis1', packSize: 1, position: 1, quantity: 2 })
-      await incrementOwned(prisma, '02001', 1)
+      await incrementOwned(prisma, collectionId, '02001', 1)
 
-      const sets = await listCardsUnderExpectedQuantity(prisma)
+      const sets = await listCardsUnderExpectedQuantity(prisma, collectionId)
 
       expect(sets.map((s) => s.packCode)).toEqual(['genesis1'])
     })
 
     it('sorts under-owned cards within a set by title', async () => {
+      const { id: collectionId } = await seedCollection(prisma)
       await seedCard(prisma, { code: '01002', title: 'Zebra Card', packCode: 'core', packSize: 1, position: 2, quantity: 2 })
-      await incrementOwned(prisma, '01002', 1)
+      await incrementOwned(prisma, collectionId, '01002', 1)
       await seedCard(prisma, { code: '01001', title: 'Alpha Card', packCode: 'core', packSize: 1, position: 1, quantity: 2 })
-      await incrementOwned(prisma, '01001', 1)
+      await incrementOwned(prisma, collectionId, '01001', 1)
 
-      const sets = await listCardsUnderExpectedQuantity(prisma)
+      const sets = await listCardsUnderExpectedQuantity(prisma, collectionId)
 
       expect(sets[0].cards.map((c) => c.title)).toEqual(['Alpha Card', 'Zebra Card'])
     })

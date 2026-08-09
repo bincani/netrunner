@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetProgressList } from './SetProgressList'
 
@@ -11,9 +12,10 @@ import { SetProgressList } from './SetProgressList'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
+  const collectionId = await getDefaultCollectionId(prisma)
   const [sets, totals, unsizedPacks] = await Promise.all([
-    computeAllSetsCompletion(prisma),
-    computeCollectionTotals(prisma),
+    computeAllSetsCompletion(prisma, collectionId),
+    computeCollectionTotals(prisma, collectionId),
     listUnsizedPacks(prisma),
   ])
 
