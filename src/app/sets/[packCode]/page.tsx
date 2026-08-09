@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { listCardsInPack } from '@/lib/cards'
 import { computeSetCompletion, releaseYear } from '@/lib/reports'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { SetCoverImage } from '@/components/SetCoverImage'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetCardGrid } from './SetCardGrid'
@@ -15,8 +16,9 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
     notFound()
   }
 
+  const collectionId = await getDefaultCollectionId(prisma)
   const [cards, completion] = await Promise.all([
-    listCardsInPack(prisma, packCode),
+    listCardsInPack(prisma, collectionId, packCode),
     computeSetCompletion(prisma, packCode),
   ])
 

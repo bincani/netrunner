@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import { NextRequest } from 'next/server'
 import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
-import { seedCard } from '@/lib/testFixtures'
+import { seedCard, seedCollection } from '@/lib/testFixtures'
 
 // route.ts imports a module-level `prisma` singleton from '@/lib/db'. To
 // exercise the real route handler against an isolated, seeded test
@@ -32,6 +32,7 @@ describe('GET /api/cards/search', () => {
 
   beforeEach(async () => {
     await prisma.collectionEntry.deleteMany()
+    await prisma.collection.deleteMany()
     await prisma.card.deleteMany()
     await prisma.pack.deleteMany()
     await prisma.cycle.deleteMany()
@@ -65,6 +66,7 @@ describe('GET /api/cards/search', () => {
   })
 
   it('returns matching cards for a real query', async () => {
+    await seedCollection(prisma)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', packName: 'Core Set' })
     await seedCard(prisma, { code: '01025', title: 'Sure Gamble', packCode: 'core', packName: 'Core Set' })
 
@@ -77,6 +79,7 @@ describe('GET /api/cards/search', () => {
   })
 
   it('applies the faction filter param', async () => {
+    await seedCollection(prisma)
     await seedCard(prisma, {
       code: '01007',
       title: 'Common Card A',
@@ -98,6 +101,7 @@ describe('GET /api/cards/search', () => {
   })
 
   it('applies the type, pack, and side filter params', async () => {
+    await seedCollection(prisma)
     await seedCard(prisma, {
       code: '01007',
       title: 'Runner Program',

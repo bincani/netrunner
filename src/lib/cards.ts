@@ -33,6 +33,7 @@ export interface CardSearchResult {
 
 export async function searchCards(
   prisma: PrismaClient,
+  collectionId: number,
   filters: CardSearchFilters
 ): Promise<CardSearchResult[]> {
   const hiddenPacks = await prisma.hiddenBuilderPack.findMany({ select: { packCode: true } })
@@ -54,7 +55,12 @@ export async function searchCards(
           : {}),
       ...(filters.sideCode ? { sideCode: filters.sideCode } : {}),
     },
-    include: { pack: true, collectionEntry: true, faction: true, type: true },
+    include: {
+      pack: true,
+      collectionEntries: { where: { collectionId } },
+      faction: true,
+      type: true,
+    },
     orderBy: { title: 'asc' },
     take: 50,
   })
@@ -77,7 +83,7 @@ export async function searchCards(
     text: card.text,
     uniqueness: card.uniqueness,
     position: card.position,
-    ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
+    ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
     quantity: card.quantity,
   }))
 }
@@ -129,10 +135,18 @@ export interface PackCardEntry {
   quantity: number | null
 }
 
-export async function listCardsInPack(prisma: PrismaClient, packCode: string): Promise<PackCardEntry[]> {
+export async function listCardsInPack(
+  prisma: PrismaClient,
+  collectionId: number,
+  packCode: string
+): Promise<PackCardEntry[]> {
   const cards = await prisma.card.findMany({
     where: { packCode },
-    include: { collectionEntry: true, faction: true, type: true },
+    include: {
+      collectionEntries: { where: { collectionId } },
+      faction: true,
+      type: true,
+    },
     orderBy: { position: 'asc' },
   })
 
@@ -152,7 +166,7 @@ export async function listCardsInPack(prisma: PrismaClient, packCode: string): P
     text: card.text,
     uniqueness: card.uniqueness,
     position: card.position,
-    ownedQuantity: card.collectionEntry?.quantityOwned ?? 0,
+    ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
     quantity: card.quantity,
   }))
 }

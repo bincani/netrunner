@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { searchCards } from '@/lib/cards'
+import { getDefaultCollectionId } from '@/lib/collections'
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get('q') ?? ''
@@ -9,7 +10,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([])
   }
 
-  const results = await searchCards(prisma, {
+  const collectionId = await getDefaultCollectionId(prisma)
+  const results = await searchCards(prisma, collectionId, {
     query,
     factionCode: request.nextUrl.searchParams.get('faction') ?? undefined,
     typeCode: request.nextUrl.searchParams.get('type') ?? undefined,
