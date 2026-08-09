@@ -10,8 +10,9 @@ import {
   setDefaultCollection,
   importCsvToCollection,
   approveImportBatch,
+  removeFromImportBatch,
 } from '@/actions/collectionActions'
-import { discardBatch, removeFromBatch } from '@/actions/batchActions'
+import { discardBatch } from '@/actions/batchActions'
 import type { CollectionListEntry } from '@/lib/collections'
 import type { BatchSummary } from '@/lib/batches'
 
@@ -22,11 +23,11 @@ vi.mock('@/actions/collectionActions', () => ({
   setDefaultCollection: vi.fn(),
   importCsvToCollection: vi.fn(),
   approveImportBatch: vi.fn(),
+  removeFromImportBatch: vi.fn(),
 }))
 
 vi.mock('@/actions/batchActions', () => ({
   discardBatch: vi.fn(),
-  removeFromBatch: vi.fn(),
 }))
 
 const defaultCollection: CollectionListEntry = {
@@ -224,6 +225,36 @@ describe('CollectionsList', () => {
 
     expect(await screen.findByText('1 row(s) skipped')).toBeInTheDocument()
     expect(screen.getByText('nonexistent: Unknown card code')).toBeInTheDocument()
+  })
+
+  it('removing a card from the review modal calls removeFromImportBatch scoped to this collection, not the default', async () => {
+    const importedBatch: BatchSummary = {
+      id: 5,
+      name: 'Import 2026-03-05 10:00',
+      expectedCount: 1,
+      status: 'stopped',
+      currentCount: 1,
+      elapsedMs: 0,
+      cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
+    }
+    const updatedBatch: BatchSummary = { ...importedBatch, currentCount: 0, cards: [] }
+    vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
+    vi.mocked(removeFromImportBatch).mockResolvedValue({ ok: true, batch: updatedBatch })
+    const user = userEvent.setup()
+    render(<CollectionsList initialCollections={[secondCollection]} />)
+
+    await user.click(screen.getByText('Trade Binder'))
+    const file = new File(['cardCode,quantityOwned\n01001,1\n'], 'collection.csv', { type: 'text/csv' })
+    await user.upload(screen.getByLabelText('Import CSV'), file)
+    await screen.findByText('Import 2026-03-05 10:00')
+
+    await user.click(screen.getByRole('button', { name: 'Remove Corroder' }))
+
+    // secondCollection.id is 2, importedBatch.id is 5 — must be scoped to
+    // this collection, not silently fall back to the default collection's
+    // active batch (the bug this action replaces).
+    expect(removeFromImportBatch).toHaveBeenCalledWith(2, 5, '01001', 1)
+    await waitFor(() => expect(screen.queryByText('Corroder')).not.toBeInTheDocument())
   })
 
   it('approving the review modal calls approveImportBatch and clears pending state', async () => {

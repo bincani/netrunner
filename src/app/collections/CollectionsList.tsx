@@ -8,8 +8,9 @@ import {
   setDefaultCollection,
   importCsvToCollection,
   approveImportBatch,
+  removeFromImportBatch,
 } from '@/actions/collectionActions'
-import { discardBatch, removeFromBatch } from '@/actions/batchActions'
+import { discardBatch } from '@/actions/batchActions'
 import { BatchReviewModal } from '@/app/builder/BatchReviewModal'
 import type { CollectionListEntry } from '@/lib/collections'
 import type { BatchSummary } from '@/lib/batches'
@@ -173,6 +174,7 @@ function CollectionRow({
       if (result.ok) {
         setReviewBatch(result.batch)
         setSkipped(result.skipped)
+        onUpdate({ pendingBatch: result.batch })
       } else {
         setImportError(result.error)
       }
@@ -219,9 +221,10 @@ function CollectionRow({
     if (!reviewBatch) return
     const card = reviewBatch.cards.find((c) => c.code === code)
     if (!card) return
-    const result = await removeFromBatch(reviewBatch.id, code, card.quantity)
+    const result = await removeFromImportBatch(collection.id, reviewBatch.id, code, card.quantity)
     if (result.ok) {
       setReviewBatch(result.batch)
+      onUpdate({ pendingBatch: result.batch })
     }
   }
 
@@ -369,11 +372,11 @@ function CollectionRow({
       {reviewBatch && (
         <div>
           {skipped.length > 0 && (
-            <div className="fixed inset-x-0 top-4 z-50 mx-auto w-full max-w-md rounded border border-danger bg-surface p-3 text-sm shadow-lg">
+            <div className="fixed inset-x-0 top-4 z-[60] mx-auto w-full max-w-md rounded border border-danger bg-surface p-3 text-sm shadow-lg">
               <p className="font-medium text-danger">{skipped.length} row(s) skipped</p>
               <ul className="mt-1 space-y-0.5 text-muted">
-                {skipped.map((row) => (
-                  <li key={row.cardCode}>
+                {skipped.map((row, index) => (
+                  <li key={`${row.cardCode}-${index}`}>
                     {row.cardCode}: {row.reason}
                   </li>
                 ))}
