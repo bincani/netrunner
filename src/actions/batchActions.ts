@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getActiveBatch, type BatchSummary } from '@/lib/batches'
+import { getDefaultCollectionId } from '@/lib/collections'
 import {
   startBatch as startBatchMutation,
   addCardToBatch as addCardToBatchMutation,
@@ -64,7 +65,8 @@ export async function discardBatch(batchId: number): Promise<SimpleActionResult>
 
 export async function approveBatch(batchId: number): Promise<SimpleActionResult> {
   try {
-    await approveBatchMutation(prisma, batchId)
+    const collectionId = await getDefaultCollectionId(prisma)
+    await approveBatchMutation(prisma, collectionId, batchId)
     revalidatePath('/')
     revalidatePath('/sets/[packCode]', 'page')
     revalidatePath('/builder')

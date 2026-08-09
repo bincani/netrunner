@@ -97,7 +97,7 @@ export async function discardBatch(prisma: PrismaClient, batchId: number): Promi
   await prisma.batch.update({ where: { id: batchId }, data: { status: 'discarded' } })
 }
 
-export async function approveBatch(prisma: PrismaClient, batchId: number): Promise<void> {
+export async function approveBatch(prisma: PrismaClient, collectionId: number, batchId: number): Promise<void> {
   const batch = await prisma.batch.findUniqueOrThrow({
     where: { id: batchId },
     include: { cards: true },
@@ -112,12 +112,17 @@ export async function approveBatch(prisma: PrismaClient, batchId: number): Promi
   await prisma.$transaction([
     ...batch.cards.map((batchCard) =>
       prisma.collectionEntry.upsert({
-        where: { cardCode: batchCard.cardCode },
-        create: { cardCode: batchCard.cardCode, quantityOwned: batchCard.quantity },
+        where: { collectionId_cardCode: { collectionId, cardCode: batchCard.cardCode } },
+        create: { collectionId, cardCode: batchCard.cardCode, quantityOwned: batchCard.quantity },
         update: { quantityOwned: { increment: batchCard.quantity } },
       })
     ),
     prisma.batch.update({ where: { id: batchId }, data: { status: 'approved' } }),
+    // `data: {}` alone would optimize away to a no-op SELECT (this Prisma
+    // client version doesn't emit an UPDATE for an empty data object), so
+    // @updatedAt never fires — explicitly set updatedAt to force a real
+    // UPDATE and actually bump it.
+    prisma.collection.update({ where: { id: collectionId }, data: { updatedAt: new Date() } }),
   ])
 }
 
