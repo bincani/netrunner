@@ -17,9 +17,9 @@ describe('collection action wiring', () => {
     vi.mocked(collectionLib.incrementOwned).mockResolvedValue(5)
     const prisma = {} as PrismaClient
 
-    const result = await addToCollectionMutation(prisma, '01007', 2)
+    const result = await addToCollectionMutation(prisma, 1, '01007', 2)
 
-    expect(collectionLib.incrementOwned).toHaveBeenCalledWith(prisma, '01007', 2)
+    expect(collectionLib.incrementOwned).toHaveBeenCalledWith(prisma, 1, '01007', 2)
     expect(collectionLib.setOwned).not.toHaveBeenCalled()
     expect(result).toBe(5)
   })
@@ -28,9 +28,9 @@ describe('collection action wiring', () => {
     vi.mocked(collectionLib.setOwned).mockResolvedValue(1)
     const prisma = {} as PrismaClient
 
-    const result = await updateCollectionQuantityMutation(prisma, '01007', 1)
+    const result = await updateCollectionQuantityMutation(prisma, 1, '01007', 1)
 
-    expect(collectionLib.setOwned).toHaveBeenCalledWith(prisma, '01007', 1)
+    expect(collectionLib.setOwned).toHaveBeenCalledWith(prisma, 1, '01007', 1)
     expect(collectionLib.incrementOwned).not.toHaveBeenCalled()
     expect(result).toBe(1)
   })
