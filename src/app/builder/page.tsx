@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { getBuilderMode } from '@/actions/settingsMutations'
 import { getActiveBatch } from '@/lib/batches'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { CardBuilderForm } from './CardBuilderForm'
 import { BatchBuilderForm } from './BatchBuilderForm'
 
@@ -10,7 +11,8 @@ import { BatchBuilderForm } from './BatchBuilderForm'
 export const dynamic = 'force-dynamic'
 
 export default async function BuilderPage() {
-  const [builderMode, activeBatch] = await Promise.all([getBuilderMode(prisma), getActiveBatch(prisma)])
+  const collectionId = await getDefaultCollectionId(prisma)
+  const [builderMode, activeBatch] = await Promise.all([getBuilderMode(prisma), getActiveBatch(prisma, collectionId)])
 
   // An in-progress batch is shown regardless of the current Builder Mode
   // setting — otherwise switching the setting mid-batch would strand it

@@ -18,6 +18,11 @@ export interface BatchSummary {
   cards: BatchCardEntry[]
 }
 
+export function formatBatchName(date: Date, prefix: string): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${prefix} ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export function formatElapsedMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -56,9 +61,9 @@ const BATCH_CARDS_INCLUDE = {
   cards: { include: { card: { select: { title: true } } }, orderBy: { cardCode: 'asc' as const } },
 }
 
-export async function getActiveBatch(prisma: PrismaClient): Promise<BatchSummary | null> {
+export async function getActiveBatch(prisma: PrismaClient, collectionId: number): Promise<BatchSummary | null> {
   const batch = await prisma.batch.findFirst({
-    where: { status: { in: ['running', 'paused', 'stopped'] } },
+    where: { collectionId, status: { in: ['running', 'paused', 'stopped'] } },
     include: BATCH_CARDS_INCLUDE,
   })
   return batch ? toSummary(batch) : null

@@ -22,10 +22,10 @@ export type SimpleActionResult = { ok: true } | { ok: false; error: string }
 // a thrown error (Prisma or otherwise) always converts to { ok: false }
 // instead of escaping the Server Action uncaught (where production builds
 // strip it to a generic minified message).
-async function withActiveBatch(mutate: () => Promise<unknown>): Promise<BatchActionResult> {
+async function withActiveBatch(collectionId: number, mutate: () => Promise<unknown>): Promise<BatchActionResult> {
   try {
     await mutate()
-    const batch = await getActiveBatch(prisma)
+    const batch = await getActiveBatch(prisma, collectionId)
     if (!batch) {
       return { ok: false, error: 'No active batch' }
     }
@@ -37,19 +37,23 @@ async function withActiveBatch(mutate: () => Promise<unknown>): Promise<BatchAct
 }
 
 export async function startBatch(expectedCount: number): Promise<BatchActionResult> {
-  return withActiveBatch(() => startBatchMutation(prisma, expectedCount))
+  const collectionId = await getDefaultCollectionId(prisma)
+  return withActiveBatch(collectionId, () => startBatchMutation(prisma, collectionId, expectedCount))
 }
 
 export async function addCardToBatch(batchId: number, cardCode: string, amount: number): Promise<BatchActionResult> {
-  return withActiveBatch(() => addCardToBatchMutation(prisma, batchId, cardCode, amount))
+  const collectionId = await getDefaultCollectionId(prisma)
+  return withActiveBatch(collectionId, () => addCardToBatchMutation(prisma, batchId, cardCode, amount))
 }
 
 export async function pauseBatch(batchId: number): Promise<BatchActionResult> {
-  return withActiveBatch(() => pauseBatchMutation(prisma, batchId))
+  const collectionId = await getDefaultCollectionId(prisma)
+  return withActiveBatch(collectionId, () => pauseBatchMutation(prisma, batchId))
 }
 
 export async function continueBatch(batchId: number): Promise<BatchActionResult> {
-  return withActiveBatch(() => continueBatchMutation(prisma, batchId))
+  const collectionId = await getDefaultCollectionId(prisma)
+  return withActiveBatch(collectionId, () => continueBatchMutation(prisma, batchId))
 }
 
 export async function discardBatch(batchId: number): Promise<SimpleActionResult> {
@@ -57,6 +61,7 @@ export async function discardBatch(batchId: number): Promise<SimpleActionResult>
     await discardBatchMutation(prisma, batchId)
     revalidatePath('/builder')
     revalidatePath('/builder/batches')
+    revalidatePath('/collections')
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
@@ -82,5 +87,6 @@ export async function removeFromBatch(
   cardCode: string,
   amount: number
 ): Promise<BatchActionResult> {
-  return withActiveBatch(() => removeFromBatchMutation(prisma, batchId, cardCode, amount))
+  const collectionId = await getDefaultCollectionId(prisma)
+  return withActiveBatch(collectionId, () => removeFromBatchMutation(prisma, batchId, cardCode, amount))
 }

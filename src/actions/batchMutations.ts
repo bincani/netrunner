@@ -1,10 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
 import { touchCollection } from '@/lib/collections'
-
-function formatBatchName(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `Batch ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
+import { formatBatchName, getActiveBatch } from '@/lib/batches'
 
 async function freeze(
   prisma: PrismaClient,
@@ -19,14 +15,12 @@ async function freeze(
   })
 }
 
-export async function startBatch(prisma: PrismaClient, expectedCount: number): Promise<number> {
+export async function startBatch(prisma: PrismaClient, collectionId: number, expectedCount: number): Promise<number> {
   if (!Number.isInteger(expectedCount) || expectedCount < 1) {
     throw new Error(`expectedCount must be a positive integer, got ${expectedCount}`)
   }
 
-  const existing = await prisma.batch.findFirst({
-    where: { status: { in: ['running', 'paused', 'stopped'] } },
-  })
+  const existing = await getActiveBatch(prisma, collectionId)
   if (existing) {
     throw new Error('A batch is already active — review or finish it before starting a new one')
   }
@@ -34,7 +28,8 @@ export async function startBatch(prisma: PrismaClient, expectedCount: number): P
   const now = new Date()
   const batch = await prisma.batch.create({
     data: {
-      name: formatBatchName(now),
+      collectionId,
+      name: formatBatchName(now, 'Batch'),
       expectedCount,
       status: 'running',
       startedAt: now,

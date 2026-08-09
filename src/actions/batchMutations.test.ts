@@ -33,30 +33,46 @@ beforeEach(async () => {
 
 describe('startBatch', () => {
   it('creates a running batch with a timestamp-based name', async () => {
-    const batchId = await startBatch(prisma, 60)
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
     expect(batch.status).toBe('running')
     expect(batch.expectedCount).toBe(60)
     expect(batch.name).toMatch(/^Batch \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
     expect(batch.lastResumedAt).not.toBeNull()
+    expect(batch.collectionId).toBe(collectionId)
   })
 
   it('rejects a non-positive expected count', async () => {
-    await expect(startBatch(prisma, 0)).rejects.toThrow('expectedCount must be a positive integer')
+    const { id: collectionId } = await seedCollection(prisma)
+    await expect(startBatch(prisma, collectionId, 0)).rejects.toThrow('expectedCount must be a positive integer')
   })
 
-  it('rejects starting a second batch while one is already active', async () => {
-    await startBatch(prisma, 60)
+  it('rejects starting a second batch in the same collection while one is already active', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await startBatch(prisma, collectionId, 60)
 
-    await expect(startBatch(prisma, 40)).rejects.toThrow('already active')
+    await expect(startBatch(prisma, collectionId, 40)).rejects.toThrow('already active')
+  })
+
+  it('allows starting a batch in a different collection while one is active elsewhere', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await startBatch(prisma, a.id, 60)
+
+    const batchId = await startBatch(prisma, b.id, 40)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.collectionId).toBe(b.id)
   })
 })
 
 describe('addCardToBatch', () => {
   it('adds a new card to the batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     await addCardToBatch(prisma, batchId, '01001', 3)
 
@@ -65,8 +81,9 @@ describe('addCardToBatch', () => {
   })
 
   it('accumulates quantity across repeated adds of the same card', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     await addCardToBatch(prisma, batchId, '01001', 2)
     await addCardToBatch(prisma, batchId, '01001', 1)
@@ -80,7 +97,7 @@ describe('addCardToBatch', () => {
   it('does not touch the real collection', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     await addCardToBatch(prisma, batchId, '01001', 3)
 
@@ -88,8 +105,9 @@ describe('addCardToBatch', () => {
   })
 
   it('auto-stops the batch once the expected count is reached', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 3)
+    const batchId = await startBatch(prisma, collectionId, 3)
 
     await addCardToBatch(prisma, batchId, '01001', 3)
 
@@ -99,8 +117,9 @@ describe('addCardToBatch', () => {
   })
 
   it('does not auto-stop before the expected count is reached', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 3)
+    const batchId = await startBatch(prisma, collectionId, 3)
 
     await addCardToBatch(prisma, batchId, '01001', 2)
 
@@ -109,8 +128,9 @@ describe('addCardToBatch', () => {
   })
 
   it('rejects adding to a batch that is not running', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await pauseBatch(prisma, batchId)
 
     await expect(addCardToBatch(prisma, batchId, '01001', 1)).rejects.toThrow('status "paused"')
@@ -119,9 +139,10 @@ describe('addCardToBatch', () => {
 
 describe('pauseBatch / continueBatch', () => {
   it('pausing freezes the elapsed time and clears lastResumedAt', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     vi.setSystemTime(new Date('2026-01-01T00:00:10Z'))
     await pauseBatch(prisma, batchId)
@@ -134,9 +155,10 @@ describe('pauseBatch / continueBatch', () => {
   })
 
   it('continuing resumes from paused without losing the accumulated elapsed time', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     vi.setSystemTime(new Date('2026-01-01T00:00:10Z'))
     await pauseBatch(prisma, batchId)
 
@@ -151,21 +173,24 @@ describe('pauseBatch / continueBatch', () => {
   })
 
   it('rejects pausing a batch that is not running', async () => {
-    const batchId = await startBatch(prisma, 60)
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await pauseBatch(prisma, batchId)
 
     await expect(pauseBatch(prisma, batchId)).rejects.toThrow('status "paused"')
   })
 
   it('rejects continuing a batch that is not paused', async () => {
-    const batchId = await startBatch(prisma, 60)
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     await expect(continueBatch(prisma, batchId)).rejects.toThrow('status "running"')
   })
 
   it('rejects continuing a batch that has auto-stopped — stopped is a dead end, no Continue', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 3)
+    const batchId = await startBatch(prisma, collectionId, 3)
     await addCardToBatch(prisma, batchId, '01001', 3)
 
     const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
@@ -179,7 +204,7 @@ describe('discardBatch', () => {
   it('archives a paused batch as discarded without touching the collection', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
     await pauseBatch(prisma, batchId)
 
@@ -191,8 +216,9 @@ describe('discardBatch', () => {
   })
 
   it('archives a stopped batch as discarded', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 3)
+    const batchId = await startBatch(prisma, collectionId, 3)
     await addCardToBatch(prisma, batchId, '01001', 3)
 
     await discardBatch(prisma, batchId)
@@ -202,7 +228,8 @@ describe('discardBatch', () => {
   })
 
   it('rejects discarding a running batch', async () => {
-    const batchId = await startBatch(prisma, 60)
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     await expect(discardBatch(prisma, batchId)).rejects.toThrow('status "running"')
   })
@@ -213,7 +240,7 @@ describe('approveBatch', () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
     await addCardToBatch(prisma, batchId, '01002', 2)
     await pauseBatch(prisma, batchId)
@@ -230,7 +257,7 @@ describe('approveBatch', () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.collectionEntry.create({ data: { collectionId, cardCode: '01001', quantityOwned: 2 } })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
     await pauseBatch(prisma, batchId)
 
@@ -239,10 +266,10 @@ describe('approveBatch', () => {
     expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(5)
   })
 
-  it('bumps the collection\'s updatedAt', async () => {
+  it("bumps the collection's updatedAt", async () => {
     const { id: collectionId, updatedAt: originalUpdatedAt } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
     await pauseBatch(prisma, batchId)
 
@@ -254,16 +281,31 @@ describe('approveBatch', () => {
 
   it('rejects approving a running batch', async () => {
     const { id: collectionId } = await seedCollection(prisma)
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
 
     await expect(approveBatch(prisma, collectionId, batchId)).rejects.toThrow('status "running"')
+  })
+
+  it('can approve a batch into a different collection than the one it was started in', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, a.id, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+
+    await approveBatch(prisma, b.id, batchId)
+
+    expect(await getOwnedQuantity(prisma, a.id, '01001')).toBe(0)
+    expect(await getOwnedQuantity(prisma, b.id, '01001')).toBe(3)
   })
 })
 
 describe('removeFromBatch', () => {
   it("reduces a card's quantity by a partial amount, keeping the row", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
 
     await removeFromBatch(prisma, batchId, '01001', 1)
@@ -275,8 +317,9 @@ describe('removeFromBatch', () => {
   })
 
   it('deletes the row when removing its full quantity', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
 
     await removeFromBatch(prisma, batchId, '01001', 3)
@@ -288,8 +331,9 @@ describe('removeFromBatch', () => {
   })
 
   it('rejects removing more than the current quantity', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 2)
 
     await expect(removeFromBatch(prisma, batchId, '01001', 3)).rejects.toThrow('only 2 in the batch')
@@ -298,7 +342,7 @@ describe('removeFromBatch', () => {
   it('rejects on an approved batch', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 1)
+    const batchId = await startBatch(prisma, collectionId, 1)
     await addCardToBatch(prisma, batchId, '01001', 1)
     await approveBatch(prisma, collectionId, batchId)
 
@@ -306,8 +350,9 @@ describe('removeFromBatch', () => {
   })
 
   it('rejects on a discarded batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 1)
     await pauseBatch(prisma, batchId)
     await discardBatch(prisma, batchId)
@@ -316,8 +361,9 @@ describe('removeFromBatch', () => {
   })
 
   it('reverts a stopped batch to paused when the removal drops the count below the target', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 3)
+    const batchId = await startBatch(prisma, collectionId, 3)
     await addCardToBatch(prisma, batchId, '01001', 3)
     let batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
     expect(batch.status).toBe('stopped')
@@ -329,9 +375,10 @@ describe('removeFromBatch', () => {
   })
 
   it('stays stopped if the remaining count is still at or above the target', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
-    const batchId = await startBatch(prisma, 3)
+    const batchId = await startBatch(prisma, collectionId, 3)
     await addCardToBatch(prisma, batchId, '01001', 2)
     await addCardToBatch(prisma, batchId, '01002', 2)
     let batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
@@ -344,8 +391,9 @@ describe('removeFromBatch', () => {
   })
 
   it('does not change status when removing from a running batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
 
     await removeFromBatch(prisma, batchId, '01001', 1)
@@ -355,8 +403,9 @@ describe('removeFromBatch', () => {
   })
 
   it('does not change status when removing from an already-paused batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    const batchId = await startBatch(prisma, 60)
+    const batchId = await startBatch(prisma, collectionId, 60)
     await addCardToBatch(prisma, batchId, '01001', 3)
     await pauseBatch(prisma, batchId)
 
