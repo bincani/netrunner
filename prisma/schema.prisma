@@ -72,6 +72,7 @@ model Collection {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   entries   CollectionEntry[]
+  batches   Batch[]
 }
 
 model CollectionEntry {
@@ -113,6 +114,8 @@ model Setting {
 
 model Batch {
   id            Int         @id @default(autoincrement())
+  collectionId  Int
+  collection    Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   name          String
   expectedCount Int
   /// 'running' | 'paused' | 'stopped' | 'approved' | 'discarded'
