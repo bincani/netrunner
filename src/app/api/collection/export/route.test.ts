@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
+import { NextRequest } from 'next/server'
 import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
 import { seedCard, seedCollection } from '@/lib/testFixtures'
@@ -39,21 +40,37 @@ describe('GET /api/collection/export', () => {
   it('responds with a CSV content type and a download filename', async () => {
     await seedCollection(prisma)
 
-    const response = await GET()
+    const request = new NextRequest('http://localhost/api/collection/export')
+    const response = await GET(request)
 
     expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8')
     expect(response.headers.get('Content-Disposition')).toBe('attachment; filename="netrunner-collection.csv"')
   })
 
-  it('returns the default collection as CSV', async () => {
+  it('returns the default collection as CSV when no collectionId param is given', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
     await incrementOwned(prisma, collectionId, '01007', 2)
 
-    const response = await GET()
+    const request = new NextRequest('http://localhost/api/collection/export')
+    const response = await GET(request)
     const body = await response.text()
 
     expect(body).toContain('cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity')
+    expect(body).toContain('01007,Corroder,anarch,core,core,2,3')
+  })
+
+  it('returns the specified collection as CSV when a collectionId param is given', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
+    await incrementOwned(prisma, a.id, '01007', 1)
+    await incrementOwned(prisma, b.id, '01007', 2)
+
+    const request = new NextRequest(`http://localhost/api/collection/export?collectionId=${b.id}`)
+    const response = await GET(request)
+    const body = await response.text()
+
     expect(body).toContain('01007,Corroder,anarch,core,core,2,3')
   })
 })
