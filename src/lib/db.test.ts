@@ -47,9 +47,14 @@ describe('prisma schema', () => {
     expect(card.type.name).toBe('Program')
   })
 
-  it('tracks a collection entry for a card', async () => {
-    await prisma.collectionEntry.create({ data: { cardCode: '01007', quantityOwned: 2 } })
-    const entry = await prisma.collectionEntry.findUniqueOrThrow({ where: { cardCode: '01007' } })
+  it('tracks a collection entry for a card, scoped to a collection', async () => {
+    const collection = await prisma.collection.create({ data: { name: 'Test Collection', isDefault: true } })
+    await prisma.collectionEntry.create({
+      data: { collectionId: collection.id, cardCode: '01007', quantityOwned: 2 },
+    })
+    const entry = await prisma.collectionEntry.findUniqueOrThrow({
+      where: { collectionId_cardCode: { collectionId: collection.id, cardCode: '01007' } },
+    })
     expect(entry.quantityOwned).toBe(2)
   })
 })

@@ -15,16 +15,16 @@ model Cycle {
 }
 
 model Pack {
-  code        String  @id
-  name        String
-  cycleCode   String
-  cycle       Cycle   @relation(fields: [cycleCode], references: [code])
-  position    Int
-  size        Int?
-  dateRelease String?
+  code              String             @id
+  name              String
+  cycleCode         String
+  cycle             Cycle              @relation(fields: [cycleCode], references: [code])
+  position          Int
+  size              Int?
+  dateRelease       String?
   /// e.g. "core", "data_pack", "deluxe", "expansion", "booster_pack", "campaign", "draft", "promo" — see src/lib/setTypes.ts
-  setType     String?
-  cards       Card[]
+  setType           String?
+  cards             Card[]
   hiddenFromBuilder HiddenBuilderPack?
 }
 
@@ -43,32 +43,45 @@ model CardType {
 }
 
 model Card {
-  code            String           @id
-  title           String
-  typeCode        String
-  type            CardType         @relation(fields: [typeCode], references: [code])
-  factionCode     String
-  faction         Faction          @relation(fields: [factionCode], references: [code])
-  packCode        String
-  pack            Pack             @relation(fields: [packCode], references: [code])
-  sideCode        String
-  cost            Int?
-  factionCost     Int?
-  text            String?
-  deckLimit       Int?
-  keywords        String?
-  strength        Int?
-  uniqueness      Boolean          @default(false)
-  quantity        Int?
-  position        Int
-  collectionEntry CollectionEntry?
-  batchCards      BatchCard[]
+  code              String            @id
+  title             String
+  typeCode          String
+  type              CardType          @relation(fields: [typeCode], references: [code])
+  factionCode       String
+  faction           Faction           @relation(fields: [factionCode], references: [code])
+  packCode          String
+  pack              Pack              @relation(fields: [packCode], references: [code])
+  sideCode          String
+  cost              Int?
+  factionCost       Int?
+  text              String?
+  deckLimit         Int?
+  keywords          String?
+  strength          Int?
+  uniqueness        Boolean           @default(false)
+  quantity          Int?
+  position          Int
+  collectionEntries CollectionEntry[]
+  batchCards        BatchCard[]
+}
+
+model Collection {
+  id        Int               @id @default(autoincrement())
+  name      String
+  isDefault Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  entries   CollectionEntry[]
 }
 
 model CollectionEntry {
-  cardCode      String @id
-  card          Card   @relation(fields: [cardCode], references: [code])
-  quantityOwned Int    @default(0)
+  collectionId  Int
+  collection    Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  cardCode      String
+  card          Card       @relation(fields: [cardCode], references: [code])
+  quantityOwned Int        @default(0)
+
+  @@id([collectionId, cardCode])
 }
 
 model HiddenBuilderPack {
