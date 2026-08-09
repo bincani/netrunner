@@ -73,6 +73,9 @@ describe('reports', () => {
 
   it('counts partial ownership of a multi-copy card toward the percentage, not just whether you own any', async () => {
     const { id: collectionId } = await seedCollection(prisma)
+    // The set contains 3 copies of Card A; owning only 2 should count as
+    // 2/3 toward the total, not "1 card owned" the way distinct-card
+    // counting would treat it.
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1, quantity: 3 })
     await incrementOwned(prisma, collectionId, '01001', 2)
 
@@ -129,6 +132,7 @@ describe('reports', () => {
   })
 
   it('lists packs with no locally-downloaded cover image', async () => {
+    // 'sg' (System Gateway) has a real entry in setImages.ts; 'draft' does not.
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'draft', packSize: 1, position: 1 })
     await seedCard(prisma, {
       code: '02001',
@@ -164,6 +168,7 @@ describe('reports', () => {
 
     const totals = await computeCollectionTotals(prisma, collectionId)
 
+    // 2 of 3 copies of Card A, 0 of 1 copy of Card B: 2 owned out of 4 total.
     expect(totals).toEqual({ ownedCards: 2, totalCards: 4, percentOwned: 50 })
   })
 

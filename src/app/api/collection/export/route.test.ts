@@ -4,6 +4,10 @@ import { createTestDb } from '@/lib/testDb'
 import { seedCard, seedCollection } from '@/lib/testFixtures'
 import { incrementOwned } from '@/lib/collection'
 
+// route.ts imports a module-level `prisma` singleton from '@/lib/db'. To
+// exercise the real route handler against an isolated, seeded test
+// database (rather than the dev DB), swap that export for one backed by
+// createTestDb() before the route module is loaded.
 const dbHolder = vi.hoisted(() => ({ prisma: undefined as unknown as PrismaClient }))
 
 vi.mock('@/lib/db', () => ({

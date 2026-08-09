@@ -1,5 +1,15 @@
 import type { PrismaClient } from '@prisma/client'
 
+/**
+ * Bumps a collection's updatedAt. `data: {}` alone optimizes away to a
+ * no-op SELECT under this Prisma client version, so set it explicitly.
+ * Returns a Prisma promise — drop it into a $transaction array alongside
+ * the entry writes it should be atomic with.
+ */
+export function touchCollection(prisma: PrismaClient, collectionId: number) {
+  return prisma.collection.update({ where: { id: collectionId }, data: { updatedAt: new Date() } })
+}
+
 export interface CollectionSummary {
   id: number
   name: string
@@ -181,7 +191,7 @@ export async function importCollectionCsv(
     prisma.collectionEntry.createMany({
       data: toInsert.map((entry) => ({ collectionId, ...entry })),
     }),
-    prisma.collection.update({ where: { id: collectionId }, data: {} }),
+    touchCollection(prisma, collectionId),
   ])
 
   return { imported: toInsert.length, skipped }

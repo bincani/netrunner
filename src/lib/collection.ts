@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
+import { touchCollection } from './collections'
 
 export async function incrementOwned(
   prisma: PrismaClient,
@@ -16,11 +17,7 @@ export async function incrementOwned(
       create: { collectionId, cardCode, quantityOwned: amount },
       update: { quantityOwned: { increment: amount } },
     }),
-    // `data: {}` alone would optimize away to a no-op SELECT (this Prisma
-    // client version doesn't emit an UPDATE for an empty data object), so
-    // @updatedAt never fires — explicitly set updatedAt to force a real
-    // UPDATE and actually bump it.
-    prisma.collection.update({ where: { id: collectionId }, data: { updatedAt: new Date() } }),
+    touchCollection(prisma, collectionId),
   ])
 
   return entry.quantityOwned
@@ -42,8 +39,7 @@ export async function setOwned(
       create: { collectionId, cardCode, quantityOwned: quantity },
       update: { quantityOwned: quantity },
     }),
-    // See the matching comment in incrementOwned: data: {} is a no-op here.
-    prisma.collection.update({ where: { id: collectionId }, data: { updatedAt: new Date() } }),
+    touchCollection(prisma, collectionId),
   ])
 
   return entry.quantityOwned

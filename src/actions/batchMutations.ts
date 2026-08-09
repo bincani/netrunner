@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
+import { touchCollection } from '@/lib/collections'
 
 function formatBatchName(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -118,11 +119,7 @@ export async function approveBatch(prisma: PrismaClient, collectionId: number, b
       })
     ),
     prisma.batch.update({ where: { id: batchId }, data: { status: 'approved' } }),
-    // `data: {}` alone would optimize away to a no-op SELECT (this Prisma
-    // client version doesn't emit an UPDATE for an empty data object), so
-    // @updatedAt never fires — explicitly set updatedAt to force a real
-    // UPDATE and actually bump it.
-    prisma.collection.update({ where: { id: collectionId }, data: { updatedAt: new Date() } }),
+    touchCollection(prisma, collectionId),
   ])
 }
 

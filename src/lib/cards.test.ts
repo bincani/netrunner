@@ -111,6 +111,8 @@ describe('searchCards', () => {
     expect(card.typeName).toBe('program')
     expect(card.sideCode).toBe('runner')
     expect(card.uniqueness).toBe(false)
+    // seedCard doesn't set these — confirms they pass through as null
+    // rather than throwing or defaulting to something misleading.
     expect(card.cost).toBeNull()
     expect(card.factionCost).toBeNull()
     expect(card.strength).toBeNull()
@@ -160,6 +162,8 @@ describe('listCardsInPack', () => {
     expect(card.typeName).toBe('program')
     expect(card.sideCode).toBe('runner')
     expect(card.uniqueness).toBe(false)
+    // seedCard doesn't set these — confirms they pass through as null
+    // rather than throwing or defaulting to something misleading.
     expect(card.cost).toBeNull()
     expect(card.factionCost).toBeNull()
     expect(card.strength).toBeNull()

@@ -93,6 +93,11 @@ be able to build directly on this codebase.
 - `Setting` (`src/actions/settingsMutations.ts`) is a generic key/value
   table — it's the one place all future `/settings` additions should be
   persisted, not a new dedicated table per setting.
+- Every function that touches `CollectionEntry` takes an explicit
+  `collectionId` as an early parameter (immediately after `prisma`).
+  Callers resolve it via `getDefaultCollectionId(prisma)`
+  (`src/lib/collections.ts`) — never hardcode or inline a
+  default-collection lookup elsewhere in the data layer.
 
 ## Commands
 

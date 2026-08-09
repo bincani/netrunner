@@ -31,10 +31,17 @@ In scope:
   update to the `Collection` row itself — it does **not** cascade when a
   related `CollectionEntry` changes. So every function that writes a
   `CollectionEntry` (`incrementOwned`, `setOwned`, `approveBatch`'s merge,
-  `importCollectionCsv`) must also issue a no-op-data update to its
-  parent `Collection` row (`prisma.collection.update({ where: { id:
-  collectionId }, data: {} })`) in the same operation, purely to trigger
-  `@updatedAt` — needed by Phase 2's "date updated" column.
+  `importCollectionCsv`) must also issue an update to its parent
+  `Collection` row that explicitly sets `updatedAt`
+  (`prisma.collection.update({ where: { id: collectionId }, data: {
+  updatedAt: new Date() } })`) in the same operation, purely to trigger
+  the bump — needed by Phase 2's "date updated" column. `data: {}` alone
+  is *not* equivalent: under this codebase's Prisma client version it
+  optimizes away to a no-op `SELECT` that never touches `updatedAt`, so
+  the `updatedAt: new Date()` must be explicit. Use the
+  `touchCollection(prisma, collectionId)` helper in
+  `src/lib/collections.ts` at all 4 call sites rather than repeating this
+  inline.
 - `CollectionEntry` gains `collectionId`, and its identity becomes the
   composite `[collectionId, cardCode]` (replacing the current lone
   `cardCode @id`) — this is what allows the same card code to be owned

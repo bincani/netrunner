@@ -4,4 +4,5 @@ node_modules/
 data/*.db
 data/*.db-journal
 data/*.csv
+data/netrunner.db.*
 tsconfig.tsbuildinfo

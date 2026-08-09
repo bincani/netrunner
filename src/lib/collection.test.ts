@@ -95,6 +95,10 @@ describe('collection', () => {
 
     it('includes one row per owned card, with printed quantity', async () => {
       const { id: collectionId } = await seedCollection(prisma)
+      // packCode 'sg' (rather than the already-seeded-elsewhere-in-this-file
+      // 'core') so this test's packName isn't shadowed by an earlier test's
+      // seedCard call — pack.upsert's `update: {}` means only the FIRST
+      // seedCard call for a given packCode in this process sets its name.
       await seedCard(prisma, {
         code: '02001',
         title: 'Corroder',
