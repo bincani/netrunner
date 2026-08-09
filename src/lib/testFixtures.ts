@@ -64,3 +64,17 @@ export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): 
     },
   })
 }
+
+interface SeedCollectionOptions {
+  name?: string
+  isDefault?: boolean
+}
+
+export async function seedCollection(prisma: PrismaClient, options: SeedCollectionOptions = {}) {
+  return prisma.collection.create({
+    data: {
+      name: options.name ?? 'Test Collection',
+      isDefault: options.isDefault ?? true,
+    },
+  })
+}

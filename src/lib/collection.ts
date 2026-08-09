@@ -2,17 +2,36 @@ import type { PrismaClient } from '@prisma/client'
 
 export async function incrementOwned(
   prisma: PrismaClient,
-  cardCode: string,
-  amount: number
+  collectionIdOrCardCode: string | number,
+  cardCodeOrAmount?: string | number,
+  amount?: number
 ): Promise<number> {
-  if (!Number.isInteger(amount) || amount < 1) {
-    throw new Error(`amount must be a positive integer, got ${amount}`)
+  // Handle both old signature (prisma, cardCode, amount) and new signature (prisma, collectionId, cardCode, amount)
+  let collectionId: number | undefined
+  let cardCode: string
+  let finalAmount: number
+
+  if (typeof collectionIdOrCardCode === 'number') {
+    // New signature: (prisma, collectionId, cardCode, amount)
+    collectionId = collectionIdOrCardCode
+    cardCode = cardCodeOrAmount as string
+    finalAmount = amount!
+  } else {
+    // Old signature: (prisma, cardCode, amount)
+    cardCode = collectionIdOrCardCode as string
+    finalAmount = cardCodeOrAmount as number
   }
 
+  if (!Number.isInteger(finalAmount) || finalAmount < 1) {
+    throw new Error(`amount must be a positive integer, got ${finalAmount}`)
+  }
+
+  const where = collectionId !== undefined ? { collectionId_cardCode: { collectionId, cardCode } } : { cardCode }
+
   const entry = await prisma.collectionEntry.upsert({
-    where: { cardCode },
-    create: { cardCode, quantityOwned: amount },
-    update: { quantityOwned: { increment: amount } },
+    where,
+    create: { collectionId, cardCode, quantityOwned: finalAmount },
+    update: { quantityOwned: { increment: finalAmount } },
   })
 
   return entry.quantityOwned
@@ -49,8 +68,11 @@ function csvEscape(value: string): string {
 }
 
 /** CSV of every owned card: code, title, faction, set, owned quantity, and printed quantity. */
-export async function exportCollectionCsv(prisma: PrismaClient): Promise<string> {
+export async function exportCollectionCsv(prisma: PrismaClient, collectionId?: number): Promise<string> {
+  const where = collectionId !== undefined ? { collectionId } : undefined
+
   const entries = await prisma.collectionEntry.findMany({
+    where,
     include: { card: { include: { pack: true, faction: true } } },
     orderBy: [{ card: { packCode: 'asc' } }, { card: { position: 'asc' } }],
   })
