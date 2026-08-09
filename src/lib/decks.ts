@@ -29,12 +29,16 @@ interface DeckWithCards {
   cards: { cardCode: string; quantity: number }[]
 }
 
-async function computeDeckSummary(prisma: PrismaClient, deck: DeckWithCards): Promise<DeckSummary> {
+async function computeDeckSummary(
+  prisma: PrismaClient,
+  collectionId: number,
+  deck: DeckWithCards
+): Promise<DeckSummary> {
   const cardCodes = deck.cards.map((deckCard) => deckCard.cardCode)
 
   const [cards, collectionEntries] = await Promise.all([
     prisma.card.findMany({ where: { code: { in: cardCodes } }, include: { faction: true } }),
-    prisma.collectionEntry.findMany({ where: { cardCode: { in: cardCodes } } }),
+    prisma.collectionEntry.findMany({ where: { collectionId, cardCode: { in: cardCodes } } }),
   ])
 
   const cardByCode = new Map(cards.map((card) => [card.code, card]))
@@ -72,15 +76,19 @@ async function computeDeckSummary(prisma: PrismaClient, deck: DeckWithCards): Pr
   }
 }
 
-export async function getDecksWithOwnership(prisma: PrismaClient): Promise<DeckSummary[]> {
+export async function getDecksWithOwnership(prisma: PrismaClient, collectionId: number): Promise<DeckSummary[]> {
   const decks = await prisma.deck.findMany({
     include: { cards: { orderBy: { cardCode: 'asc' } } },
     orderBy: { importedAt: 'desc' },
   })
-  return Promise.all(decks.map((deck) => computeDeckSummary(prisma, deck)))
+  return Promise.all(decks.map((deck) => computeDeckSummary(prisma, collectionId, deck)))
 }
 
-export async function getDeckWithOwnership(prisma: PrismaClient, id: number): Promise<DeckSummary | null> {
+export async function getDeckWithOwnership(
+  prisma: PrismaClient,
+  collectionId: number,
+  id: number
+): Promise<DeckSummary | null> {
   const deck = await prisma.deck.findUnique({
     where: { id },
     include: { cards: { orderBy: { cardCode: 'asc' } } },
@@ -88,5 +96,5 @@ export async function getDeckWithOwnership(prisma: PrismaClient, id: number): Pr
   if (!deck) {
     return null
   }
-  return computeDeckSummary(prisma, deck)
+  return computeDeckSummary(prisma, collectionId, deck)
 }

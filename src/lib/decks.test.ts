@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
-import { seedCard } from './testFixtures'
+import { seedCard, seedCollection } from './testFixtures'
 import { incrementOwned } from './collection'
 import { getDecksWithOwnership, getDeckWithOwnership } from './decks'
 import type { PrismaClient } from '@prisma/client'
@@ -19,17 +19,19 @@ beforeEach(async () => {
   await prisma.deckCard.deleteMany()
   await prisma.deck.deleteMany()
   await prisma.collectionEntry.deleteMany()
+  await prisma.collection.deleteMany()
   await prisma.card.deleteMany()
 })
 
 describe('getDecksWithOwnership', () => {
   it('computes aggregate and per-card ownership', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', factionCode: 'anarch' })
-    await incrementOwned(prisma, '01001', 2)
+    await incrementOwned(prisma, collectionId, '01001', 2)
     await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma)
+    const [deck] = await getDecksWithOwnership(prisma, collectionId)
 
     expect(deck.name).toBe('Test Deck')
     expect(deck.totalCount).toBe(3)
@@ -41,22 +43,24 @@ describe('getDecksWithOwnership', () => {
   })
 
   it("caps a card's contribution at the needed quantity, not what is owned beyond it", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, '01001', 5)
+    await incrementOwned(prisma, collectionId, '01001', 5)
     await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma)
+    const [deck] = await getDecksWithOwnership(prisma, collectionId)
 
     expect(deck.ownedCount).toBe(3)
     expect(deck.cards[0].ownedQuantity).toBe(5)
   })
 
   it('flags a deck card whose code is not in the local card database, without crashing', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma)
+    const [deck] = await getDecksWithOwnership(prisma, collectionId)
 
     expect(deck.cards[0]).toEqual({
       code: 'unknown-code',
@@ -71,32 +75,51 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('orders decks by most recently imported first', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Older', importedAt: new Date('2026-01-01') } })
     await prisma.deck.create({ data: { id: 2, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') } })
 
-    const decks = await getDecksWithOwnership(prisma)
+    const decks = await getDecksWithOwnership(prisma, collectionId)
 
     expect(decks.map((d) => d.name)).toEqual(['Newer', 'Older'])
   })
 
   it('returns an empty list when no decks are imported', async () => {
-    expect(await getDecksWithOwnership(prisma)).toEqual([])
+    const { id: collectionId } = await seedCollection(prisma)
+    expect(await getDecksWithOwnership(prisma, collectionId)).toEqual([])
+  })
+
+  it('keeps ownership independent across two different collections', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await incrementOwned(prisma, a.id, '01001', 3)
+    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const [deckA] = await getDecksWithOwnership(prisma, a.id)
+    const [deckB] = await getDecksWithOwnership(prisma, b.id)
+
+    expect(deckA.ownedCount).toBe(3)
+    expect(deckB.ownedCount).toBe(0)
   })
 })
 
 describe('getDeckWithOwnership', () => {
   it('returns the ownership summary for a single deck', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 2 } })
 
-    const deck = await getDeckWithOwnership(prisma, 1)
+    const deck = await getDeckWithOwnership(prisma, collectionId, 1)
 
     expect(deck?.name).toBe('Test Deck')
     expect(deck?.totalCount).toBe(2)
   })
 
   it('returns null for a deck id that does not exist', async () => {
-    expect(await getDeckWithOwnership(prisma, 999)).toBeNull()
+    const { id: collectionId } = await seedCollection(prisma)
+    expect(await getDeckWithOwnership(prisma, collectionId, 999)).toBeNull()
   })
 })

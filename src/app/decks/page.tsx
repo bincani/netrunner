@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { getDecksWithOwnership } from '@/lib/decks'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { DeckSection } from './DeckSection'
 
 // Reflects live DB state (owned quantities, imported decks) — not
@@ -8,7 +9,8 @@ import { DeckSection } from './DeckSection'
 export const dynamic = 'force-dynamic'
 
 export default async function DecksPage() {
-  const decks = await getDecksWithOwnership(prisma)
+  const collectionId = await getDefaultCollectionId(prisma)
+  const decks = await getDecksWithOwnership(prisma, collectionId)
 
   return (
     <main className="p-8 max-w-3xl mx-auto">

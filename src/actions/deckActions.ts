@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { parseDecklistId, fetchDecklist } from '@/lib/netrunnerdb'
 import { getDeckWithOwnership, type DeckSummary } from '@/lib/decks'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { saveDeck, removeDeck } from './deckMutations'
 
 export async function importDeck(
@@ -19,7 +20,8 @@ export async function importDeck(
     await saveDeck(prisma, decklist.id, decklist.uuid, decklist.name, decklist.cards)
     revalidatePath('/decks')
 
-    const summary = await getDeckWithOwnership(prisma, decklist.id)
+    const collectionId = await getDefaultCollectionId(prisma)
+    const summary = await getDeckWithOwnership(prisma, collectionId, decklist.id)
     if (!summary) {
       return { ok: false, error: 'Failed to load the imported deck' }
     }
