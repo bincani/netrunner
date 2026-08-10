@@ -1,9 +1,25 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BatchHistoryList } from './BatchHistoryList'
 import type { BatchSummary } from '@/lib/batches'
+
+vi.mock('next/image', () => ({
+  default: (props: React.ComponentProps<'img'>) => <img {...props} />,
+}))
+
+vi.mock('next/link', () => ({
+  default: ({ onClick, ...props }: React.ComponentProps<'a'>) => (
+    <a
+      {...props}
+      onClick={(event) => {
+        event.preventDefault()
+        onClick?.(event)
+      }}
+    />
+  ),
+}))
 
 const batches: BatchSummary[] = [
   {
@@ -27,6 +43,20 @@ const batches: BatchSummary[] = [
 ]
 
 describe('BatchHistoryList', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => [] })) as unknown as typeof fetch
+  })
+
+  it('links each card to its detail popup', async () => {
+    const user = userEvent.setup()
+    render(<BatchHistoryList batches={batches} />)
+
+    await user.click(screen.getByRole('button', { name: /Batch A/ }))
+    await user.click(screen.getByRole('button', { name: 'Show details for Card A' }))
+
+    expect(screen.getByRole('heading', { name: /Card A/ })).toBeInTheDocument()
+  })
+
   it('renders each batch name and status, with card lists collapsed by default', () => {
     render(<BatchHistoryList batches={batches} />)
 

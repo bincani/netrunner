@@ -135,6 +135,45 @@ export interface PackCardEntry {
   quantity: number | null
 }
 
+/** A single card's full detail by code, for popups that only start with a code/title (batch and deck card lists). */
+export async function getCardDetail(
+  prisma: PrismaClient,
+  collectionId: number,
+  code: string
+): Promise<PackCardEntry | null> {
+  const card = await prisma.card.findUnique({
+    where: { code },
+    include: {
+      collectionEntries: { where: { collectionId } },
+      faction: true,
+      type: true,
+    },
+  })
+  if (!card) {
+    return null
+  }
+
+  return {
+    code: card.code,
+    title: card.title,
+    factionCode: card.factionCode,
+    factionName: card.faction.name,
+    typeCode: card.typeCode,
+    typeName: card.type.name,
+    sideCode: card.sideCode,
+    cost: card.cost,
+    factionCost: card.factionCost,
+    strength: card.strength,
+    deckLimit: card.deckLimit,
+    keywords: card.keywords,
+    text: card.text,
+    uniqueness: card.uniqueness,
+    position: card.position,
+    ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
+    quantity: card.quantity,
+  }
+}
+
 export async function listCardsInPack(
   prisma: PrismaClient,
   collectionId: number,

@@ -1,8 +1,24 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BatchReviewModal } from './BatchReviewModal'
+
+vi.mock('next/image', () => ({
+  default: (props: React.ComponentProps<'img'>) => <img {...props} />,
+}))
+
+vi.mock('next/link', () => ({
+  default: ({ onClick, ...props }: React.ComponentProps<'a'>) => (
+    <a
+      {...props}
+      onClick={(event) => {
+        event.preventDefault()
+        onClick?.(event)
+      }}
+    />
+  ),
+}))
 
 const cards = [
   { code: '01001', title: 'Card A', quantity: 3 },
@@ -10,6 +26,29 @@ const cards = [
 ]
 
 describe('BatchReviewModal', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => [] })) as unknown as typeof fetch
+  })
+
+  it('links each card to its detail popup', async () => {
+    const user = userEvent.setup()
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Card A' }))
+
+    expect(screen.getByRole('heading', { name: /Card A/ })).toBeInTheDocument()
+  })
+
   it('renders the batch name and its card list', () => {
     render(
       <BatchReviewModal

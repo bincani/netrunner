@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import type { BatchCardEntry } from '@/lib/batches'
+import { CardDetailPopup } from '@/components/CardDetailPopup'
 
 export function BatchReviewModal({
   batchName,
@@ -52,8 +53,9 @@ export function BatchReviewModal({
 
         <ul className="space-y-1 text-sm">
           {cards.map((card) => (
-            <li key={card.code} className="flex items-center justify-between gap-2">
-              <span>{card.title}</span>
+            <li key={card.code} className="flex items-center gap-3">
+              <CardDetailPopup card={{ code: card.code, title: card.title }} />
+              <span className="flex-1">{card.title}</span>
               <span className="flex shrink-0 items-center gap-2">
                 <span>{card.quantity}</span>
                 <button

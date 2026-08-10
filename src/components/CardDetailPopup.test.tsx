@@ -207,4 +207,62 @@ describe('CardDetailPopup', () => {
     expect(screen.getByText('0', { selector: 'strong', exact: false })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'credit' })).toBeInTheDocument()
   })
+
+  describe('with a minimal card (code + title only, e.g. from a batch or deck list)', () => {
+    function mockFetchByUrl(detail: PackCardEntry | null, printings: CardPrinting[] = []) {
+      global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/cards/detail')) {
+          return {
+            ok: detail !== null,
+            json: async () => (detail ?? { error: 'not found' }),
+          }
+        }
+        return { ok: true, json: async () => printings }
+      }) as unknown as typeof fetch
+    }
+
+    it('renders the trigger from just code/title, with no fetch until opened', () => {
+      mockFetchByUrl(fullCard)
+      render(<CardDetailPopup card={{ code: fullCard.code, title: fullCard.title }} />)
+
+      expect(screen.getByRole('button', { name: 'Show details for Zed 2.0' })).toBeInTheDocument()
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
+
+    it('shows a loading state, then the fetched detail once resolved', async () => {
+      let resolveDetailFetch!: (value: { ok: true; json: () => Promise<PackCardEntry> }) => void
+      global.fetch = vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/cards/detail')) {
+          return new Promise((resolve) => {
+            resolveDetailFetch = resolve
+          })
+        }
+        return Promise.resolve({ ok: true, json: async () => [] })
+      }) as unknown as typeof fetch
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={{ code: fullCard.code, title: fullCard.title }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(screen.getByText('Loading…')).toBeInTheDocument()
+
+      resolveDetailFetch({ ok: true, json: async () => fullCard })
+
+      expect(await screen.findByText('Haas-Bioroid · Ice · corp')).toBeInTheDocument()
+      expect(screen.getByText('Owned: 2')).toBeInTheDocument()
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/cards/detail?code=12010'))
+    })
+
+    it('shows an error message if the detail fetch fails', async () => {
+      mockFetchByUrl(null)
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={{ code: 'nonexistent', title: 'Ghost Card' }} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Ghost Card' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load card details.')
+    })
+  })
 })
