@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getActiveBatch, type BatchSummary } from '@/lib/batches'
-import { getDefaultCollectionId } from '@/lib/collections'
+import { getDefaultCollectionId, importCsvAsBatch } from '@/lib/collections'
 import {
   startBatch as startBatchMutation,
   addCardToBatch as addCardToBatchMutation,
@@ -90,6 +90,26 @@ export async function removeFromBatch(
 ): Promise<BatchActionResult> {
   const collectionId = await getDefaultCollectionId(prisma)
   return withActiveBatch(collectionId, () => removeFromBatchMutation(prisma, collectionId, batchId, cardCode, amount))
+}
+
+export type ImportCsvActionResult =
+  | { ok: true; batch: BatchSummary; skipped: { cardCode: string; reason: string }[] }
+  | { ok: false; error: string }
+
+export async function importCsv(csvText: string): Promise<ImportCsvActionResult> {
+  try {
+    const collectionId = await getDefaultCollectionId(prisma)
+    const { skipped } = await importCsvAsBatch(prisma, collectionId, csvText)
+    const batch = await getActiveBatch(prisma, collectionId)
+    if (!batch) {
+      return { ok: false, error: 'Failed to load the created batch' }
+    }
+    revalidatePath('/builder')
+    revalidatePath('/collections')
+    return { ok: true, batch, skipped }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
+  }
 }
 
 export async function revertApprovedBatch(batchId: number): Promise<SimpleActionResult> {

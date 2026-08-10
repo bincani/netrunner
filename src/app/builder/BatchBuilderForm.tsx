@@ -10,6 +10,7 @@ import {
   discardBatch,
   approveBatch,
   removeFromBatch,
+  importCsv,
 } from '@/actions/batchActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
 import { BatchStatusBar } from './BatchStatusBar'
@@ -22,6 +23,10 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
   const [expectedCountInput, setExpectedCountInput] = useState('')
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+
+  const [isImportingCsv, setIsImportingCsv] = useState(false)
+  const [importCsvError, setImportCsvError] = useState<string | null>(null)
+  const [skippedRows, setSkippedRows] = useState<{ cardCode: string; reason: string }[]>([])
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<CardSearchResult[]>([])
@@ -90,6 +95,24 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
       }
     } finally {
       setIsStarting(false)
+    }
+  }
+
+  async function handleImportCsv(file: File) {
+    setIsImportingCsv(true)
+    setImportCsvError(null)
+    try {
+      const csvText = await file.text()
+      const result = await importCsv(csvText)
+      if (result.ok) {
+        setBatch(result.batch)
+        setSkippedRows(result.skipped)
+        setIsReviewOpen(true)
+      } else {
+        setImportCsvError(result.error)
+      }
+    } finally {
+      setIsImportingCsv(false)
     }
   }
 
@@ -195,6 +218,7 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
     setPendingCodes({})
     setChromeError(null)
     setLastAdded(null)
+    setSkippedRows([])
   }
 
   async function handleDiscard() {
@@ -255,6 +279,31 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
             {startError}
           </p>
         )}
+
+        <div>
+          <label htmlFor="import-csv" className="block text-sm font-medium">
+            Or import a CSV
+          </label>
+          <input
+            id="import-csv"
+            type="file"
+            accept=".csv,text/csv"
+            disabled={isImportingCsv}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) handleImportCsv(file)
+              event.target.value = ''
+            }}
+            className="mt-1 text-sm"
+          />
+          {isImportingCsv && <p className="text-sm text-muted">Importing…</p>}
+        </div>
+        {importCsvError && (
+          <p className="text-sm text-danger" role="alert">
+            {importCsvError}
+          </p>
+        )}
+
         <div>
           <Link href="/builder/batches" className="text-sm text-faint underline hover:text-primary">
             Batch History
@@ -361,15 +410,29 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
       )}
 
       {isReviewOpen && (
-        <BatchReviewModal
-          batchName={batch.name}
-          cards={batch.cards}
-          isSubmitting={isSubmittingReview}
-          onDiscard={handleDiscard}
-          onApprove={handleApprove}
-          onRemoveCard={handleRemoveCard}
-          onClose={() => setIsReviewOpen(false)}
-        />
+        <>
+          {skippedRows.length > 0 && (
+            <div className="fixed inset-x-0 top-4 z-[60] mx-auto w-full max-w-md rounded border border-danger bg-surface p-3 text-sm shadow-lg">
+              <p className="font-medium text-danger">{skippedRows.length} row(s) skipped</p>
+              <ul className="mt-1 space-y-0.5 text-muted">
+                {skippedRows.map((row, index) => (
+                  <li key={`${row.cardCode}-${index}`}>
+                    {row.cardCode}: {row.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <BatchReviewModal
+            batchName={batch.name}
+            cards={batch.cards}
+            isSubmitting={isSubmittingReview}
+            onDiscard={handleDiscard}
+            onApprove={handleApprove}
+            onRemoveCard={handleRemoveCard}
+            onClose={() => setIsReviewOpen(false)}
+          />
+        </>
       )}
     </div>
   )

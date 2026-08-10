@@ -11,6 +11,7 @@ import {
   discardBatch,
   approveBatch,
   removeFromBatch,
+  importCsv,
 } from '@/actions/batchActions'
 import type { BatchSummary } from '@/lib/batches'
 
@@ -22,6 +23,7 @@ vi.mock('@/actions/batchActions', () => ({
   discardBatch: vi.fn(),
   approveBatch: vi.fn(),
   removeFromBatch: vi.fn(),
+  importCsv: vi.fn(),
 }))
 
 vi.mock('next/image', () => ({
@@ -95,6 +97,69 @@ describe('BatchBuilderForm', () => {
 
     await user.type(screen.getByLabelText('Expected card count'), '60')
     await user.click(screen.getByRole('button', { name: 'Start' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('A batch is already active')
+  })
+
+  it('importing a CSV opens the review modal with the returned batch', async () => {
+    const importedBatch: BatchSummary = {
+      id: 5,
+      name: 'Import 2026-03-05 10:00',
+      expectedCount: 3,
+      status: 'stopped',
+      currentCount: 3,
+      elapsedMs: 0,
+      cards: [{ code: '01007', title: 'Corroder', quantity: 3 }],
+    }
+    vi.mocked(importCsv).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={null} />)
+
+    const file = new File(['cardCode,quantityOwned\n01007,3\n'], 'collection.csv', { type: 'text/csv' })
+    await user.upload(screen.getByLabelText('Or import a CSV'), file)
+
+    await waitFor(() => expect(importCsv).toHaveBeenCalledWith('cardCode,quantityOwned\n01007,3\n'))
+    // The batch name legitimately appears twice once review is open — once
+    // in BatchStatusBar, once in the modal's own <h3> title.
+    await waitFor(() => expect(screen.getAllByText('Import 2026-03-05 10:00')).toHaveLength(2))
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
+    expect(screen.getByText('Corroder')).toBeInTheDocument()
+  })
+
+  it('shows a skipped-rows summary above the review modal after importing a CSV', async () => {
+    const importedBatch: BatchSummary = {
+      id: 5,
+      name: 'Import 2026-03-05 10:00',
+      expectedCount: 1,
+      status: 'stopped',
+      currentCount: 1,
+      elapsedMs: 0,
+      cards: [{ code: '01007', title: 'Corroder', quantity: 1 }],
+    }
+    vi.mocked(importCsv).mockResolvedValue({
+      ok: true,
+      batch: importedBatch,
+      skipped: [{ cardCode: 'nonexistent', reason: 'Unknown card code' }],
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={null} />)
+
+    const file = new File(['cardCode,quantityOwned\n01007,1\nnonexistent,2\n'], 'collection.csv', {
+      type: 'text/csv',
+    })
+    await user.upload(screen.getByLabelText('Or import a CSV'), file)
+
+    expect(await screen.findByText('1 row(s) skipped')).toBeInTheDocument()
+    expect(screen.getByText('nonexistent: Unknown card code')).toBeInTheDocument()
+  })
+
+  it('shows a visible error when importing a CSV fails', async () => {
+    vi.mocked(importCsv).mockResolvedValue({ ok: false, error: 'A batch is already active' })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={null} />)
+
+    const file = new File(['cardCode,quantityOwned\n01007,1\n'], 'collection.csv', { type: 'text/csv' })
+    await user.upload(screen.getByLabelText('Or import a CSV'), file)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('A batch is already active')
   })

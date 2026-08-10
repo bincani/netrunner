@@ -346,6 +346,7 @@ function CollectionRow({
                 type="button"
                 onClick={() => setIsConfirmingDelete(true)}
                 disabled={collection.isDefault}
+                title={collection.isDefault ? 'You cannot delete the current active collection' : undefined}
                 className="cursor-pointer rounded border border-red-800 bg-red-950/40 px-4 py-1.5 text-sm text-red-400 hover:bg-red-900/50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Delete
