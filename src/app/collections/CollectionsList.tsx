@@ -317,8 +317,11 @@ function CollectionRow({
           )}
 
           <div>
-            <label htmlFor={`import-${collection.id}`} className="block text-sm font-medium">
-              Import CSV
+            <label
+              htmlFor={`import-${collection.id}`}
+              className={`inline-block cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover ${isImporting ? 'pointer-events-none opacity-50' : ''}`}
+            >
+              {isImporting ? 'Importing…' : 'Import CSV'}
             </label>
             <input
               id={`import-${collection.id}`}
@@ -330,9 +333,8 @@ function CollectionRow({
                 if (file) handleImport(file)
                 event.target.value = ''
               }}
-              className="mt-1 text-sm"
+              className="sr-only"
             />
-            {isImporting && <p className="text-sm text-muted">Importing…</p>}
           </div>
           {importError && (
             <p className="text-sm text-danger" role="alert">

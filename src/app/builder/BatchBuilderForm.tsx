@@ -281,8 +281,11 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
         )}
 
         <div>
-          <label htmlFor="import-csv" className="block text-sm font-medium">
-            Or import a CSV
+          <label
+            htmlFor="import-csv"
+            className={`inline-block cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover ${isImportingCsv ? 'pointer-events-none opacity-50' : ''}`}
+          >
+            {isImportingCsv ? 'Importing…' : 'Or import a CSV'}
           </label>
           <input
             id="import-csv"
@@ -294,9 +297,8 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
               if (file) handleImportCsv(file)
               event.target.value = ''
             }}
-            className="mt-1 text-sm"
+            className="sr-only"
           />
-          {isImportingCsv && <p className="text-sm text-muted">Importing…</p>}
         </div>
         {importCsvError && (
           <p className="text-sm text-danger" role="alert">
