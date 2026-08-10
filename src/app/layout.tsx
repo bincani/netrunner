@@ -1,10 +1,10 @@
-import Link from 'next/link'
 import './globals.css'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
 import { getDefaultCollection } from '@/lib/collections'
 import { ReportsNavDropdown } from '@/components/ReportsNavDropdown'
 import { SettingsMenu } from '@/components/SettingsMenu'
+import { PrimaryNav } from '@/components/PrimaryNav'
 
 export const metadata: Metadata = {
   title: 'Netrunner Collection Tracker',
@@ -37,11 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <nav className="flex items-center justify-between border-b border-subtle px-8 py-4">
           <div className="flex items-center gap-6">
-            <Link href="/" className="font-semibold">
-              Dashboard
-            </Link>
-            <Link href="/builder">Builder</Link>
-            <Link href="/decks">Decks</Link>
+            <PrimaryNav />
             <ReportsNavDropdown />
           </div>
           <div className="flex items-center gap-3">

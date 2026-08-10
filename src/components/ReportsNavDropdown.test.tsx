@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReportsNavDropdown } from './ReportsNavDropdown'
+import { usePathname } from 'next/navigation'
 
 // jsdom doesn't implement real navigation — clicking any real <a href> (Next's
 // Link or otherwise) triggers it to log "Not implemented: navigation to
@@ -20,6 +21,10 @@ vi.mock('next/link', () => ({
       }}
     />
   ),
+}))
+
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(() => '/'),
 }))
 
 describe('ReportsNavDropdown', () => {
@@ -81,5 +86,25 @@ describe('ReportsNavDropdown', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Sets Missing Image' }))
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('highlights the trigger and the matching item when on a report page', async () => {
+    vi.mocked(usePathname).mockReturnValue('/reports/under-owned-cards')
+    const user = userEvent.setup()
+    render(<ReportsNavDropdown />)
+
+    expect(screen.getByRole('button', { name: /reports/i })).toHaveClass('text-accent')
+
+    await user.click(screen.getByRole('button', { name: /reports/i }))
+
+    expect(screen.getByRole('menuitem', { name: 'Under-Owned Cards' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('menuitem', { name: 'Sets Missing Image' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('does not highlight the trigger when on an unrelated page', () => {
+    vi.mocked(usePathname).mockReturnValue('/builder')
+    render(<ReportsNavDropdown />)
+
+    expect(screen.getByRole('button', { name: /reports/i })).not.toHaveClass('text-accent')
   })
 })
