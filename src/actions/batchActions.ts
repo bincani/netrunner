@@ -12,6 +12,7 @@ import {
   discardBatch as discardBatchMutation,
   approveBatch as approveBatchMutation,
   removeFromBatch as removeFromBatchMutation,
+  revertApprovedBatch as revertApprovedBatchMutation,
 } from './batchMutations'
 
 export type BatchActionResult = { ok: true; batch: BatchSummary } | { ok: false; error: string }
@@ -89,4 +90,18 @@ export async function removeFromBatch(
 ): Promise<BatchActionResult> {
   const collectionId = await getDefaultCollectionId(prisma)
   return withActiveBatch(collectionId, () => removeFromBatchMutation(prisma, collectionId, batchId, cardCode, amount))
+}
+
+export async function revertApprovedBatch(batchId: number): Promise<SimpleActionResult> {
+  try {
+    const collectionId = await getDefaultCollectionId(prisma)
+    await revertApprovedBatchMutation(prisma, collectionId, batchId)
+    revalidatePath('/')
+    revalidatePath('/sets/[packCode]', 'page')
+    revalidatePath('/builder/batches')
+    revalidatePath('/collections')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
+  }
 }

@@ -69,9 +69,9 @@ export async function getActiveBatch(prisma: PrismaClient, collectionId: number)
   return batch ? toSummary(batch) : null
 }
 
-export async function listArchivedBatches(prisma: PrismaClient): Promise<BatchSummary[]> {
+export async function listArchivedBatches(prisma: PrismaClient, collectionId: number): Promise<BatchSummary[]> {
   const batches = await prisma.batch.findMany({
-    where: { status: { in: ['approved', 'discarded'] } },
+    where: { collectionId, status: { in: ['approved', 'discarded'] } },
     include: BATCH_CARDS_INCLUDE,
     orderBy: { startedAt: 'desc' },
   })

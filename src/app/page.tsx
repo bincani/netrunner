@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
-import { getDefaultCollectionId } from '@/lib/collections'
+import { getDefaultCollection, listCollections } from '@/lib/collections'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetProgressList } from './SetProgressList'
+import { CollectionSwitcher } from './CollectionSwitcher'
 
 // This page's entire content is "how much of my current collection do I
 // own right now" — it must reflect live database state on every request,
@@ -12,18 +13,22 @@ import { SetProgressList } from './SetProgressList'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const collectionId = await getDefaultCollectionId(prisma)
-  const [sets, totals, unsizedPacks] = await Promise.all([
-    computeAllSetsCompletion(prisma, collectionId),
-    computeCollectionTotals(prisma, collectionId),
+  const collection = await getDefaultCollection(prisma)
+  const [sets, totals, unsizedPacks, collections] = await Promise.all([
+    computeAllSetsCompletion(prisma, collection.id),
+    computeCollectionTotals(prisma, collection.id),
     listUnsizedPacks(prisma),
+    listCollections(prisma),
   ])
 
   return (
     <main className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold">Collection Overview</h1>
+          <div className="flex items-center gap-2">
+            <CollectionSwitcher current={collection} collections={collections} />
+            <h1 className="text-2xl font-bold">Collection: {collection.name}</h1>
+          </div>
           <a
             href="/api/collection/export"
             className="shrink-0 cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover"

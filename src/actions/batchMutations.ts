@@ -98,7 +98,11 @@ export async function approveBatch(prisma: PrismaClient, collectionId: number, b
     where: { id: batchId, collectionId },
     include: { cards: true },
   })
-  if (batch.status !== 'paused' && batch.status !== 'stopped') {
+  // 'discarded' is allowed here too — it's how a previously-reverted batch
+  // (via revertApprovedBatch) gets re-applied. The merge logic below is
+  // identical either way, since a reverted batch's BatchCard rows are
+  // never deleted, only its status flips.
+  if (batch.status !== 'paused' && batch.status !== 'stopped' && batch.status !== 'discarded') {
     throw new Error(`Cannot approve a batch with status "${batch.status}"`)
   }
 
@@ -114,6 +118,43 @@ export async function approveBatch(prisma: PrismaClient, collectionId: number, b
       })
     ),
     prisma.batch.update({ where: { id: batchId }, data: { status: 'approved' } }),
+    touchCollection(prisma, collectionId),
+  ])
+}
+
+/**
+ * Reverses an already-approved batch: subtracts its cards' quantities back
+ * out of the collection (floored at 0 per card, in case the collection was
+ * independently edited since approval) and marks the batch discarded.
+ * Unlike discardBatch (which only ever archives a batch that never
+ * touched the collection), this is the one path that un-applies a merge.
+ * Symmetric with approveBatch, which now also accepts a 'discarded' batch
+ * to re-apply it.
+ */
+export async function revertApprovedBatch(prisma: PrismaClient, collectionId: number, batchId: number): Promise<void> {
+  const batch = await prisma.batch.findFirstOrThrow({
+    where: { id: batchId, collectionId },
+    include: { cards: true },
+  })
+  if (batch.status !== 'approved') {
+    throw new Error(`Cannot discard a batch with status "${batch.status}"`)
+  }
+
+  const entries = await prisma.collectionEntry.findMany({
+    where: { collectionId, cardCode: { in: batch.cards.map((card) => card.cardCode) } },
+  })
+  const ownedByCode = new Map(entries.map((entry) => [entry.cardCode, entry.quantityOwned]))
+
+  await prisma.$transaction([
+    ...batch.cards.map((batchCard) => {
+      const currentlyOwned = ownedByCode.get(batchCard.cardCode) ?? 0
+      const quantityOwned = Math.max(0, currentlyOwned - batchCard.quantity)
+      return prisma.collectionEntry.update({
+        where: { collectionId_cardCode: { collectionId, cardCode: batchCard.cardCode } },
+        data: { quantityOwned },
+      })
+    }),
+    prisma.batch.update({ where: { id: batchId }, data: { status: 'discarded' } }),
     touchCollection(prisma, collectionId),
   ])
 }

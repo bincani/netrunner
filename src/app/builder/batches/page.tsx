@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { listArchivedBatches } from '@/lib/batches'
+import { getDefaultCollectionId } from '@/lib/collections'
 import { BatchHistoryList } from './BatchHistoryList'
 
 // Reflects live DB state (archived batches) — not something to freeze
@@ -7,7 +8,8 @@ import { BatchHistoryList } from './BatchHistoryList'
 export const dynamic = 'force-dynamic'
 
 export default async function BatchHistoryPage() {
-  const batches = await listArchivedBatches(prisma)
+  const collectionId = await getDefaultCollectionId(prisma)
+  const batches = await listArchivedBatches(prisma, collectionId)
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-8">

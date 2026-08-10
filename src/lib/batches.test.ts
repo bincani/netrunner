@@ -100,7 +100,8 @@ describe('getActiveBatch', () => {
 
 describe('listArchivedBatches', () => {
   it('returns an empty list when nothing is archived', async () => {
-    expect(await listArchivedBatches(prisma)).toEqual([])
+    const { id: collectionId } = await seedCollection(prisma)
+    expect(await listArchivedBatches(prisma, collectionId)).toEqual([])
   })
 
   it('returns approved and discarded batches, most recent first', async () => {
@@ -126,7 +127,7 @@ describe('listArchivedBatches', () => {
       },
     })
 
-    const archived = await listArchivedBatches(prisma)
+    const archived = await listArchivedBatches(prisma, collectionId)
 
     expect(archived.map((b) => b.name)).toEqual(['Newer', 'Older'])
   })
@@ -137,10 +138,10 @@ describe('listArchivedBatches', () => {
       data: { collectionId, name: 'Active', expectedCount: 10, status: 'running', elapsedMs: 0 },
     })
 
-    expect(await listArchivedBatches(prisma)).toEqual([])
+    expect(await listArchivedBatches(prisma, collectionId)).toEqual([])
   })
 
-  it('includes archived batches from every collection, not just one', async () => {
+  it("only returns the given collection's archived batches, not another collection's", async () => {
     const a = await seedCollection(prisma, { name: 'A' })
     const b = await seedCollection(prisma, { name: 'B', isDefault: false })
     await prisma.batch.create({
@@ -150,9 +151,8 @@ describe('listArchivedBatches', () => {
       data: { collectionId: b.id, name: 'From B', expectedCount: 10, status: 'discarded', elapsedMs: 0 },
     })
 
-    const archived = await listArchivedBatches(prisma)
-
-    expect(archived.map((batch) => batch.name).sort()).toEqual(['From A', 'From B'])
+    expect((await listArchivedBatches(prisma, a.id)).map((batch) => batch.name)).toEqual(['From A'])
+    expect((await listArchivedBatches(prisma, b.id)).map((batch) => batch.name)).toEqual(['From B'])
   })
 })
 

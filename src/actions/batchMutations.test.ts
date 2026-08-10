@@ -10,6 +10,7 @@ import {
   discardBatch,
   approveBatch,
   removeFromBatch,
+  revertApprovedBatch,
 } from './batchMutations'
 import type { PrismaClient } from '@prisma/client'
 
@@ -286,6 +287,23 @@ describe('approveBatch', () => {
     await expect(approveBatch(prisma, collectionId, batchId)).rejects.toThrow('status "running"')
   })
 
+  it('allows re-approving a reverted (discarded) batch, re-merging its cards', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+    await revertApprovedBatch(prisma, collectionId, batchId)
+    expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(0)
+
+    await approveBatch(prisma, collectionId, batchId)
+
+    expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(3)
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('approved')
+  })
+
   it('rejects approving a batch into a collection it does not belong to', async () => {
     const a = await seedCollection(prisma, { name: 'A' })
     const b = await seedCollection(prisma, { name: 'B', isDefault: false })
@@ -427,5 +445,104 @@ describe('removeFromBatch', () => {
       where: { batchId_cardCode: { batchId, cardCode: '01001' } },
     })
     expect(card.quantity).toBe(3)
+  })
+})
+
+describe('revertApprovedBatch', () => {
+  it("subtracts every card's quantity back out of the collection and marks the batch discarded", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await addCardToBatch(prisma, batchId, '01002', 2)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+
+    await revertApprovedBatch(prisma, collectionId, batchId)
+
+    expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(0)
+    expect(await getOwnedQuantity(prisma, collectionId, '01002')).toBe(0)
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.status).toBe('discarded')
+  })
+
+  it('subtracts only the batch\'s contribution, leaving quantity owned before the batch intact', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await prisma.collectionEntry.create({ data: { collectionId, cardCode: '01001', quantityOwned: 5 } })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+    expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(8)
+
+    await revertApprovedBatch(prisma, collectionId, batchId)
+
+    expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(5)
+  })
+
+  it('floors at 0 rather than going negative if the collection was independently reduced since approval', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+    await prisma.collectionEntry.update({
+      where: { collectionId_cardCode: { collectionId, cardCode: '01001' } },
+      data: { quantityOwned: 1 },
+    })
+
+    await revertApprovedBatch(prisma, collectionId, batchId)
+
+    expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(0)
+  })
+
+  it("bumps the collection's updatedAt", async () => {
+    const { id: collectionId, updatedAt: originalUpdatedAt } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+
+    await revertApprovedBatch(prisma, collectionId, batchId)
+
+    const collection = await prisma.collection.findUniqueOrThrow({ where: { id: collectionId } })
+    expect(collection.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime())
+  })
+
+  it('rejects reverting a batch that is not approved', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
+
+    await expect(revertApprovedBatch(prisma, collectionId, batchId)).rejects.toThrow('status "running"')
+  })
+
+  it('rejects reverting an already-reverted (discarded) batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+    await revertApprovedBatch(prisma, collectionId, batchId)
+
+    await expect(revertApprovedBatch(prisma, collectionId, batchId)).rejects.toThrow('status "discarded"')
+  })
+
+  it('rejects reverting a batch that does not belong to the given collection', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    const batchId = await startBatch(prisma, a.id, 60)
+    await addCardToBatch(prisma, batchId, '01001', 3)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, a.id, batchId)
+
+    await expect(revertApprovedBatch(prisma, b.id, batchId)).rejects.toThrow()
+
+    expect(await getOwnedQuantity(prisma, a.id, '01001')).toBe(3)
   })
 })
