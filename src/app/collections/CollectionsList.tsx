@@ -282,7 +282,7 @@ function CollectionRow({
             </button>
             <a
               href={`/api/collection/export?collectionId=${collection.id}`}
-              className="rounded border border-default px-3 py-1 text-sm hover:bg-surface-hover"
+              className="cursor-pointer text-sm text-accent hover:underline"
             >
               Export CSV
             </a>

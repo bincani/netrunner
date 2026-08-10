@@ -29,10 +29,7 @@ export default async function DashboardPage() {
             <CollectionSwitcher current={collection} collections={collections} />
             <h1 className="text-2xl font-bold">Collection: {collection.name}</h1>
           </div>
-          <a
-            href="/api/collection/export"
-            className="shrink-0 cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover"
-          >
+          <a href="/api/collection/export" className="shrink-0 cursor-pointer text-sm text-accent hover:underline">
             Export CSV
           </a>
         </div>
