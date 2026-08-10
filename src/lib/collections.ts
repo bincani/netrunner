@@ -218,10 +218,15 @@ export async function importCsvAsBatch(
     }
 
     const quantity = Number(rawQuantity)
-    if (!Number.isInteger(quantity) || quantity <= 0) {
+    if (!Number.isInteger(quantity) || quantity < 0) {
       skipped.push({ cardCode, reason: `Invalid quantity "${rawQuantity}"` })
       continue
     }
+    // A quantity of exactly 0 is a legitimate export value (a tracked
+    // CollectionEntry you currently own none of) — nothing to add for
+    // this card, not an error. Silently omit it rather than reporting a
+    // spurious skip, so re-importing your own export never complains.
+    if (quantity === 0) continue
 
     toInsert.push({ cardCode, quantity })
   }
