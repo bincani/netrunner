@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard, seedCollection } from './testFixtures'
 import {
+  getDefaultCollection,
   getDefaultCollectionId,
   listCollections,
   createCollection,
@@ -43,6 +44,27 @@ describe('getDefaultCollectionId', () => {
 
   it('throws when no default collection exists', async () => {
     await expect(getDefaultCollectionId(prisma)).rejects.toThrow('No default collection exists')
+  })
+})
+
+describe('getDefaultCollection', () => {
+  it('returns the collection marked default', async () => {
+    await seedCollection(prisma, { name: 'Not Default', isDefault: false })
+    const { id } = await seedCollection(prisma, { name: 'The Default', isDefault: true })
+
+    const collection = await getDefaultCollection(prisma)
+
+    expect(collection).toEqual({
+      id,
+      name: 'The Default',
+      isDefault: true,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    })
+  })
+
+  it('throws when no default collection exists', async () => {
+    await expect(getDefaultCollection(prisma)).rejects.toThrow('No default collection exists')
   })
 })
 
@@ -339,6 +361,17 @@ describe('listCollectionsWithStats', () => {
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
     const { batchId } = await importCsvAsBatch(prisma, collectionId, csv)
     await approveBatch(prisma, collectionId, batchId)
+
+    const [entry] = await listCollectionsWithStats(prisma)
+
+    expect(entry.pendingBatch).toBeNull()
+  })
+
+  it('reports pendingBatch as null for an actively-running batch — it is not awaiting review', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.batch.create({
+      data: { collectionId, name: 'x', expectedCount: 1, status: 'running', elapsedMs: 0 },
+    })
 
     const [entry] = await listCollectionsWithStats(prisma)
 

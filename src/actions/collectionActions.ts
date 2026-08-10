@@ -122,7 +122,7 @@ export async function removeFromImportBatch(
   amount: number
 ): Promise<{ ok: true; batch: BatchSummary } | { ok: false; error: string }> {
   try {
-    await removeFromBatchMutation(prisma, batchId, cardCode, amount)
+    await removeFromBatchMutation(prisma, collectionId, batchId, cardCode, amount)
     const batch = await getActiveBatch(prisma, collectionId)
     if (!batch) {
       return { ok: false, error: 'Failed to load the updated batch' }

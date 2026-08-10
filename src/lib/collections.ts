@@ -36,11 +36,16 @@ function toSummary(collection: {
   }
 }
 
-export async function getDefaultCollectionId(prisma: PrismaClient): Promise<number> {
+export async function getDefaultCollection(prisma: PrismaClient): Promise<CollectionSummary> {
   const collection = await prisma.collection.findFirst({ where: { isDefault: true } })
   if (!collection) {
     throw new Error('No default collection exists')
   }
+  return toSummary(collection)
+}
+
+export async function getDefaultCollectionId(prisma: PrismaClient): Promise<number> {
+  const collection = await getDefaultCollection(prisma)
   return collection.id
 }
 
@@ -60,10 +65,11 @@ export async function listCollectionsWithStats(prisma: PrismaClient): Promise<Co
   const collections = await listCollections(prisma)
   return Promise.all(
     collections.map(async (collection) => {
-      const [totals, pendingBatch] = await Promise.all([
+      const [totals, activeBatch] = await Promise.all([
         computeCollectionTotals(prisma, collection.id),
         getActiveBatch(prisma, collection.id),
       ])
+      const pendingBatch = activeBatch?.status === 'running' ? null : activeBatch
       return { ...collection, ...totals, pendingBatch }
     })
   )

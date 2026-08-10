@@ -2,7 +2,7 @@ import Link from 'next/link'
 import './globals.css'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
-import { getDefaultCollectionId } from '@/lib/collections'
+import { getDefaultCollection } from '@/lib/collections'
 import { ReportsNavDropdown } from '@/components/ReportsNavDropdown'
 import { SettingsMenu } from '@/components/SettingsMenu'
 
@@ -29,8 +29,7 @@ try {
 `
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const collectionId = await getDefaultCollectionId(prisma)
-  const collection = await prisma.collection.findUniqueOrThrow({ where: { id: collectionId } })
+  const collection = await getDefaultCollection(prisma)
 
   return (
     <html lang="en" suppressHydrationWarning>

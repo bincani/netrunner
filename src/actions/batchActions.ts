@@ -88,5 +88,5 @@ export async function removeFromBatch(
   amount: number
 ): Promise<BatchActionResult> {
   const collectionId = await getDefaultCollectionId(prisma)
-  return withActiveBatch(collectionId, () => removeFromBatchMutation(prisma, batchId, cardCode, amount))
+  return withActiveBatch(collectionId, () => removeFromBatchMutation(prisma, collectionId, batchId, cardCode, amount))
 }

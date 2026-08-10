@@ -44,7 +44,7 @@ describe('GET /api/collection/export', () => {
     const response = await GET(request)
 
     expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8')
-    expect(response.headers.get('Content-Disposition')).toBe('attachment; filename="netrunner-collection.csv"')
+    expect(response.headers.get('Content-Disposition')).toBe('attachment; filename="netrunner-test-collection.csv"')
   })
 
   it('returns the default collection as CSV when no collectionId param is given', async () => {
@@ -79,5 +79,25 @@ describe('GET /api/collection/export', () => {
     const response = await GET(request)
 
     expect(response.status).toBe(400)
+  })
+
+  it('falls back to the default collection when collectionId param is an empty string', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
+    await incrementOwned(prisma, collectionId, '01007', 2)
+
+    const request = new NextRequest('http://localhost/api/collection/export?collectionId=')
+    const response = await GET(request)
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(body).toContain('01007,Corroder,anarch,core,core,2,3')
+  })
+
+  it('returns a 404 error when collectionId param does not match an existing collection', async () => {
+    const request = new NextRequest('http://localhost/api/collection/export?collectionId=999999')
+    const response = await GET(request)
+
+    expect(response.status).toBe(404)
   })
 })

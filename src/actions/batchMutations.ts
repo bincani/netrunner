@@ -94,8 +94,8 @@ export async function discardBatch(prisma: PrismaClient, batchId: number): Promi
 }
 
 export async function approveBatch(prisma: PrismaClient, collectionId: number, batchId: number): Promise<void> {
-  const batch = await prisma.batch.findUniqueOrThrow({
-    where: { id: batchId },
+  const batch = await prisma.batch.findFirstOrThrow({
+    where: { id: batchId, collectionId },
     include: { cards: true },
   })
   if (batch.status !== 'paused' && batch.status !== 'stopped') {
@@ -120,6 +120,7 @@ export async function approveBatch(prisma: PrismaClient, collectionId: number, b
 
 export async function removeFromBatch(
   prisma: PrismaClient,
+  collectionId: number,
   batchId: number,
   cardCode: string,
   amount: number
@@ -128,7 +129,7 @@ export async function removeFromBatch(
     throw new Error(`amount must be a positive integer, got ${amount}`)
   }
 
-  const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+  const batch = await prisma.batch.findFirstOrThrow({ where: { id: batchId, collectionId } })
   if (batch.status !== 'running' && batch.status !== 'paused' && batch.status !== 'stopped') {
     throw new Error(`Cannot remove a card from a batch with status "${batch.status}"`)
   }

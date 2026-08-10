@@ -39,11 +39,18 @@ In scope:
   (backup first, dry-run against a copy, verify row counts, apply to the
   real database only after the dry-run checks pass).
 - `startBatch` and `getActiveBatch` gain a `collectionId` parameter.
-  Every other `Batch`/`BatchCard` function (`addCardToBatch`,
-  `pauseBatch`, `continueBatch`, `discardBatch`, `approveBatch`,
-  `removeFromBatch`) is unchanged — they all already operate on a known
-  `batchId` (or, for `approveBatch`, already take an explicit
-  `collectionId` from Phase 1).
+  `addCardToBatch`, `pauseBatch`, `continueBatch`, and `discardBatch`
+  are unchanged — they operate on a known `batchId` and don't merge
+  data into a collection, so cross-collection mixups aren't a concern
+  for them. `approveBatch` and `removeFromBatch` are different: a known
+  `batchId` alone is *not* a sufficient safety guarantee once `Batch`
+  became collection-scoped, since either could otherwise be pointed at
+  a `batchId` belonging to some other collection while merging into (or
+  mutating on behalf of) a caller-supplied `collectionId`. Both now
+  verify `batch.collectionId` matches the given `collectionId` (via
+  `findFirstOrThrow({ where: { id: batchId, collectionId } })`) before
+  mutating anything, and `removeFromBatch` gained a `collectionId`
+  parameter to make that check possible.
 - The Builder page's own behavior is **unchanged**: it always resolves
   `getDefaultCollectionId(prisma)` and passes that into `startBatch`/
   `getActiveBatch`, so with one collection nothing about today's Builder

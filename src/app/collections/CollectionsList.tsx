@@ -123,6 +123,7 @@ function CollectionRow({
   const [reviewBatch, setReviewBatch] = useState<BatchSummary | null>(null)
   const [skipped, setSkipped] = useState<{ cardCode: string; reason: string }[]>([])
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
 
   async function handleSaveName() {
     setIsSavingName(true)
@@ -190,12 +191,15 @@ function CollectionRow({
   async function handleApproveBatch() {
     if (!reviewBatch) return
     setIsSubmittingReview(true)
+    setReviewError(null)
     try {
       const result = await approveImportBatch(collection.id, reviewBatch.id)
       if (result.ok) {
         setReviewBatch(null)
         setSkipped([])
         onUpdate({ pendingBatch: null })
+      } else {
+        setReviewError(result.error)
       }
     } finally {
       setIsSubmittingReview(false)
@@ -205,12 +209,15 @@ function CollectionRow({
   async function handleDiscardBatch() {
     if (!reviewBatch) return
     setIsSubmittingReview(true)
+    setReviewError(null)
     try {
       const result = await discardBatch(reviewBatch.id)
       if (result.ok) {
         setReviewBatch(null)
         setSkipped([])
         onUpdate({ pendingBatch: null })
+      } else {
+        setReviewError(result.error)
       }
     } finally {
       setIsSubmittingReview(false)
@@ -221,10 +228,13 @@ function CollectionRow({
     if (!reviewBatch) return
     const card = reviewBatch.cards.find((c) => c.code === code)
     if (!card) return
+    setReviewError(null)
     const result = await removeFromImportBatch(collection.id, reviewBatch.id, code, card.quantity)
     if (result.ok) {
       setReviewBatch(result.batch)
       onUpdate({ pendingBatch: result.batch })
+    } else {
+      setReviewError(result.error)
     }
   }
 
@@ -371,6 +381,11 @@ function CollectionRow({
 
       {reviewBatch && (
         <div>
+          {reviewError && (
+            <p className="text-sm text-danger" role="alert">
+              {reviewError}
+            </p>
+          )}
           {skipped.length > 0 && (
             <div className="fixed inset-x-0 top-4 z-[60] mx-auto w-full max-w-md rounded border border-danger bg-surface p-3 text-sm shadow-lg">
               <p className="font-medium text-danger">{skipped.length} row(s) skipped</p>
