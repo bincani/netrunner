@@ -121,9 +121,8 @@ export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSu
               <ul className="space-y-1 border-t border-subtle p-3 text-sm">
                 {batch.cards.map((card) => (
                   <li key={card.code} className="flex items-center gap-3 text-muted">
-                    <CardDetailPopup card={{ code: card.code, title: card.title }} />
-                    <span className="flex-1">{card.title}</span>
-                    <span className="shrink-0">{card.quantity}</span>
+                    <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
+                    <span className="shrink-0 ml-auto">{card.quantity}</span>
                   </li>
                 ))}
                 {batch.cards.length === 0 && <li className="text-faint">No cards were added to this batch.</li>}

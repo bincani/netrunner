@@ -137,9 +137,12 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
                             card.ownedQuantity < card.neededQuantity ? 'text-danger' : 'text-muted'
                           }`}
                         >
-                          {card.found && card.title && <CardDetailPopup card={{ code: card.code, title: card.title }} />}
-                          <span className="flex-1">{card.found ? card.title : `Unknown card (${card.code})`}</span>
-                          <span className="shrink-0">
+                          {card.found && card.title ? (
+                            <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
+                          ) : (
+                            <span>Unknown card ({card.code})</span>
+                          )}
+                          <span className="ml-auto shrink-0">
                             {card.ownedQuantity}/{card.neededQuantity}
                           </span>
                         </li>

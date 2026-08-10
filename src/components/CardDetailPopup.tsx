@@ -16,13 +16,19 @@ function isFullCard(card: PackCardEntry | MinimalCard): card is PackCardEntry {
   return 'factionCode' in card
 }
 
-// Wraps a card's small thumbnail so clicking it opens a popup with the
-// larger image plus whatever stats/text/faction info the card has. Accepts
-// either the full detail (already available to set/search list callers) or
-// just a code+title (batch/deck card lists) — in the latter case, the full
-// detail is fetched on open, the same lazy pattern already used below for
-// "Other Printings".
-export function CardDetailPopup({ card }: { card: PackCardEntry | MinimalCard }) {
+// Wraps a card's small thumbnail (or, with trigger="text", just its title)
+// so clicking it opens a popup with the larger image plus whatever
+// stats/text/faction info the card has. Accepts either the full detail
+// (already available to set/search list callers) or just a code+title
+// (batch/deck card lists) — in the latter case, the full detail is fetched
+// on open, the same lazy pattern already used below for "Other Printings".
+export function CardDetailPopup({
+  card,
+  trigger = 'thumbnail',
+}: {
+  card: PackCardEntry | MinimalCard
+  trigger?: 'thumbnail' | 'text'
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [printings, setPrintings] = useState<CardPrinting[]>([])
   const [fetchedDetail, setFetchedDetail] = useState<PackCardEntry | null>(null)
@@ -84,14 +90,25 @@ export function CardDetailPopup({ card }: { card: PackCardEntry | MinimalCard })
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        aria-label={`Show details for ${card.title}`}
-        className="cursor-pointer"
-      >
-        <CardThumbnail code={card.code} title={card.title} />
-      </button>
+      {trigger === 'thumbnail' ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          aria-label={`Show details for ${card.title}`}
+          className="cursor-pointer"
+        >
+          <CardThumbnail code={card.code} title={card.title} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          aria-label={`Show details for ${card.title}`}
+          className="cursor-pointer text-left underline hover:text-primary"
+        >
+          {card.title}
+        </button>
+      )}
 
       {isOpen &&
         // Portalled to document.body: this card's row may sit inside a

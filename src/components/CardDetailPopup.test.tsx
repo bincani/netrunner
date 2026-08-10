@@ -208,6 +208,17 @@ describe('CardDetailPopup', () => {
     expect(screen.getByRole('img', { name: 'credit' })).toBeInTheDocument()
   })
 
+  it('trigger="text" renders the title as the clickable trigger instead of a thumbnail', async () => {
+    const user = userEvent.setup()
+    render(<CardDetailPopup card={fullCard} trigger="text" />)
+
+    expect(screen.queryByRole('button', { name: 'Show details for Zed 2.0' })).toHaveTextContent('Zed 2.0')
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+    expect(screen.getByRole('heading', { name: /Zed 2\.0/ })).toBeInTheDocument()
+  })
+
   describe('with a minimal card (code + title only, e.g. from a batch or deck list)', () => {
     function mockFetchByUrl(detail: PackCardEntry | null, printings: CardPrinting[] = []) {
       global.fetch = vi.fn(async (input: RequestInfo | URL) => {
