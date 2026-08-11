@@ -9,6 +9,7 @@ import {
   importCsvToCollection,
   approveImportBatch,
   removeFromImportBatch,
+  reorderCollections,
 } from '@/actions/collectionActions'
 import { discardBatch } from '@/actions/batchActions'
 import { BatchReviewModal } from '@/app/builder/BatchReviewModal'
@@ -21,6 +22,9 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [openId, setOpenId] = useState<number | null>(null)
+  const [draggedId, setDraggedId] = useState<number | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null)
+  const [reorderError, setReorderError] = useState<string | null>(null)
 
   function toggle(id: number) {
     setOpenId((prev) => (prev === id ? null : id))
@@ -44,6 +48,27 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
     } finally {
       setIsCreating(false)
     }
+  }
+
+  function handleDrop(targetId: number) {
+    const sourceId = draggedId
+    setDraggedId(null)
+    setDropTargetId(null)
+    if (sourceId === null || sourceId === targetId) return
+
+    const fromIndex = collections.findIndex((c) => c.id === sourceId)
+    const toIndex = collections.findIndex((c) => c.id === targetId)
+    if (fromIndex === -1 || toIndex === -1) return
+
+    const reordered = [...collections]
+    const [moved] = reordered.splice(fromIndex, 1)
+    reordered.splice(toIndex, 0, moved)
+    setCollections(reordered)
+    setReorderError(null)
+
+    reorderCollections(reordered.map((c) => c.id)).then((result) => {
+      if (!result.ok) setReorderError(result.error)
+    })
   }
 
   return (
@@ -76,6 +101,11 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
           {createError}
         </p>
       )}
+      {reorderError && (
+        <p className="text-sm text-danger" role="alert">
+          {reorderError}
+        </p>
+      )}
 
       <ul className="space-y-4">
         {collections.map((collection) => (
@@ -89,6 +119,15 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
               setCollections((prev) => prev.map((c) => ({ ...c, isDefault: c.id === collection.id })))
             }
             onRemove={() => setCollections((prev) => prev.filter((c) => c.id !== collection.id))}
+            isDragging={draggedId === collection.id}
+            isDropTarget={dropTargetId === collection.id}
+            onDragStart={() => setDraggedId(collection.id)}
+            onDragOver={() => setDropTargetId(collection.id)}
+            onDrop={() => handleDrop(collection.id)}
+            onDragEnd={() => {
+              setDraggedId(null)
+              setDropTargetId(null)
+            }}
           />
         ))}
       </ul>
@@ -103,6 +142,12 @@ function CollectionRow({
   onUpdate,
   onSetDefault,
   onRemove,
+  isDragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   collection: CollectionListEntry
   isOpen: boolean
@@ -110,6 +155,12 @@ function CollectionRow({
   onUpdate: (patch: Partial<CollectionListEntry>) => void
   onSetDefault: () => void
   onRemove: () => void
+  isDragging: boolean
+  isDropTarget: boolean
+  onDragStart: () => void
+  onDragOver: () => void
+  onDrop: () => void
+  onDragEnd: () => void
 }) {
   const [nameInput, setNameInput] = useState(collection.name)
   const [isSavingName, setIsSavingName] = useState(false)
@@ -239,26 +290,48 @@ function CollectionRow({
   }
 
   return (
-    <li className="rounded border border-default">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        className="flex w-full cursor-pointer items-center justify-between gap-2 p-3 text-left hover:bg-surface-hover"
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{collection.name}</span>
-            {collection.isDefault && <span className="text-sm text-accent">Default</span>}
-          </div>
-          <p className="text-sm text-muted">
-            {collection.ownedCards} / {collection.totalCards} owned ({collection.percentOwned}%)
-          </p>
-        </div>
-        <span className="shrink-0 text-faint" aria-hidden="true">
-          {isOpen ? '▲' : '▼'}
+    <li
+      className={`rounded border border-default ${isDropTarget ? 'border-t-2 border-t-accent' : ''}`}
+      onDragOver={(event) => {
+        event.preventDefault()
+        onDragOver()
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        onDrop()
+      }}
+    >
+      <div className={`flex items-center gap-1 ${isDragging ? 'opacity-50' : ''}`}>
+        <span
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          role="button"
+          aria-label={`Reorder ${collection.name}`}
+          className="shrink-0 cursor-grab px-2 text-faint select-none hover:text-primary"
+        >
+          ⠿
         </span>
-      </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className="flex w-full cursor-pointer items-center justify-between gap-2 p-3 text-left hover:bg-surface-hover"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{collection.name}</span>
+              {collection.isDefault && <span className="text-sm text-accent">Default</span>}
+            </div>
+            <p className="text-sm text-muted">
+              {collection.ownedCards} / {collection.totalCards} owned ({collection.percentOwned}%)
+            </p>
+          </div>
+          <span className="shrink-0 text-faint" aria-hidden="true">
+            {isOpen ? '▲' : '▼'}
+          </span>
+        </button>
+      </div>
 
       {isOpen && (
         <div className="space-y-4 border-t border-subtle p-3">

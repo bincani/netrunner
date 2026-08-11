@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CollectionsList } from './CollectionsList'
 import {
@@ -11,6 +11,7 @@ import {
   importCsvToCollection,
   approveImportBatch,
   removeFromImportBatch,
+  reorderCollections,
 } from '@/actions/collectionActions'
 import { discardBatch } from '@/actions/batchActions'
 import type { CollectionListEntry } from '@/lib/collections'
@@ -24,6 +25,7 @@ vi.mock('@/actions/collectionActions', () => ({
   importCsvToCollection: vi.fn(),
   approveImportBatch: vi.fn(),
   removeFromImportBatch: vi.fn(),
+  reorderCollections: vi.fn(),
 }))
 
 vi.mock('@/actions/batchActions', () => ({
@@ -341,5 +343,59 @@ describe('CollectionsList', () => {
       'href',
       '/api/collection/export?collectionId=2'
     )
+  })
+
+  describe('drag-and-drop reorder', () => {
+    it('dragging a handle onto another row reorders the list and persists the new order', async () => {
+      vi.mocked(reorderCollections).mockResolvedValue({ ok: true })
+      const { container } = render(<CollectionsList initialCollections={[defaultCollection, secondCollection]} />)
+
+      const handle = screen.getByRole('button', { name: 'Reorder My Collection' })
+      const targetRow = screen.getByRole('button', { name: 'Reorder Trade Binder' }).closest('li')
+      if (!targetRow) throw new Error('target row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(targetRow)
+      fireEvent.drop(targetRow)
+
+      const names = Array.from(container.querySelectorAll('li')).map(
+        (li) => li.querySelector('.font-medium')?.textContent
+      )
+      expect(names).toEqual(['Trade Binder', 'My Collection'])
+      expect(reorderCollections).toHaveBeenCalledWith([2, 1])
+    })
+
+    it('shows an error and keeps the reordered list if persisting fails', async () => {
+      vi.mocked(reorderCollections).mockResolvedValue({ ok: false, error: 'Something went wrong' })
+      const { container } = render(<CollectionsList initialCollections={[defaultCollection, secondCollection]} />)
+
+      const handle = screen.getByRole('button', { name: 'Reorder My Collection' })
+      const targetRow = screen.getByRole('button', { name: 'Reorder Trade Binder' }).closest('li')
+      if (!targetRow) throw new Error('target row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(targetRow)
+      fireEvent.drop(targetRow)
+
+      expect(await screen.findByText('Something went wrong')).toBeInTheDocument()
+      const names = Array.from(container.querySelectorAll('li')).map(
+        (li) => li.querySelector('.font-medium')?.textContent
+      )
+      expect(names).toEqual(['Trade Binder', 'My Collection'])
+    })
+
+    it('dropping a handle on its own row does not reorder or call reorderCollections', () => {
+      render(<CollectionsList initialCollections={[defaultCollection, secondCollection]} />)
+
+      const handle = screen.getByRole('button', { name: 'Reorder My Collection' })
+      const ownRow = handle.closest('li')
+      if (!ownRow) throw new Error('own row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(ownRow)
+      fireEvent.drop(ownRow)
+
+      expect(reorderCollections).not.toHaveBeenCalled()
+    })
   })
 })
