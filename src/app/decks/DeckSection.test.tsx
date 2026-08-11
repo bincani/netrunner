@@ -35,6 +35,7 @@ const sampleDeck: DeckSummary = {
   ownedCount: 2,
   totalCount: 3,
   percentOwned: 67,
+  factionCode: 'anarch',
   cards: [
     { code: '01001', title: 'Card A', factionName: 'Anarch', neededQuantity: 3, ownedQuantity: 2, found: true },
   ],
@@ -62,6 +63,21 @@ describe('DeckSection', () => {
     )
     expect(screen.getByText('2/3 owned (67%)')).toBeInTheDocument()
     expect(screen.queryByText('Card A')).not.toBeInTheDocument()
+  })
+
+  it("links the faction logo to that faction's NetrunnerDB page, opening in a new tab", () => {
+    render(<DeckSection initialDecks={[sampleDeck]} />)
+
+    const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
+    expect(link).toHaveAttribute('href', 'https://netrunnerdb.com/en/faction/anarch')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('shows no faction logo when the deck has no identity card locally', () => {
+    const deckWithoutFaction: DeckSummary = { ...sampleDeck, factionCode: null }
+    render(<DeckSection initialDecks={[deckWithoutFaction]} />)
+
+    expect(screen.queryByRole('link', { name: /faction on NetrunnerDB/ })).not.toBeInTheDocument()
   })
 
   it('clicking the deck header expands its card list', async () => {

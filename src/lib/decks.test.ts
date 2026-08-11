@@ -89,6 +89,36 @@ describe('getDecksWithOwnership', () => {
     expect(await getDecksWithOwnership(prisma, collectionId)).toEqual([])
   })
 
+  it("derives factionCode from the deck's identity card", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', typeCode: 'program', factionCode: 'anarch' })
+    await seedCard(prisma, {
+      code: '01002',
+      title: 'Az McCaffrey',
+      packCode: 'core',
+      typeCode: 'identity',
+      factionCode: 'anarch',
+    })
+    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+    await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
+
+    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+
+    expect(deck.factionCode).toBe('anarch')
+  })
+
+  it('reports factionCode as null when the deck has no identity card locally', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+
+    expect(deck.factionCode).toBeNull()
+  })
+
   it('keeps ownership independent across two different collections', async () => {
     const a = await seedCollection(prisma, { name: 'A' })
     const b = await seedCollection(prisma, { name: 'B', isDefault: false })

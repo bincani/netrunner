@@ -102,6 +102,19 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
                       {isOpen ? '▲' : '▼'}
                     </span>
                   </button>
+                  {deck.factionCode && (
+                    <a
+                      href={`https://netrunnerdb.com/en/faction/${deck.factionCode}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View ${deck.factionCode} faction on NetrunnerDB`}
+                      className="shrink-0 text-faint hover:text-primary"
+                    >
+                      <svg width="18" height="18" fill="currentColor" aria-hidden="true">
+                        <use href={`/images/icons.svg#faction-${deck.factionCode}`} />
+                      </svg>
+                    </a>
+                  )}
                   <a
                     href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
                     target="_blank"

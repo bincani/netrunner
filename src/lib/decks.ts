@@ -18,6 +18,7 @@ export interface DeckSummary {
   ownedCount: number
   totalCount: number
   percentOwned: number
+  factionCode: string | null
   cards: DeckCardOwnership[]
 }
 
@@ -43,6 +44,7 @@ async function computeDeckSummary(
 
   const cardByCode = new Map(cards.map((card) => [card.code, card]))
   const ownedByCode = new Map(collectionEntries.map((entry) => [entry.cardCode, entry.quantityOwned]))
+  const identityCard = cards.find((card) => card.typeCode === 'identity')
 
   let ownedCount = 0
   let totalCount = 0
@@ -72,6 +74,7 @@ async function computeDeckSummary(
     ownedCount,
     totalCount,
     percentOwned: totalCount === 0 ? 0 : Math.round((ownedCount / totalCount) * 100),
+    factionCode: identityCard?.factionCode ?? null,
     cards: cardOwnership,
   }
 }
