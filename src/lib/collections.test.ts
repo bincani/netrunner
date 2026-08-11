@@ -83,7 +83,7 @@ describe('listCollections', () => {
     expect(collections.map((c) => c.name)).toEqual(['First', 'Second'])
   })
 
-  it('orders by sortOrder ascending once reordered, breaking ties by createdAt for anything not yet touched', async () => {
+  it('orders by sortOrder ascending once collections have been reordered', async () => {
     const a = await seedCollection(prisma, { name: 'A' })
     const b = await seedCollection(prisma, { name: 'B', isDefault: false })
     const c = await seedCollection(prisma, { name: 'C', isDefault: false })

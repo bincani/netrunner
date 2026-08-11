@@ -56,6 +56,18 @@ const secondCollection: CollectionListEntry = {
   pendingBatch: null,
 }
 
+const thirdCollection: CollectionListEntry = {
+  id: 3,
+  name: 'Third Collection',
+  isDefault: false,
+  createdAt: new Date('2026-03-01'),
+  updatedAt: new Date('2026-03-01'),
+  ownedCards: 0,
+  totalCards: 100,
+  percentOwned: 0,
+  pendingBatch: null,
+}
+
 describe('CollectionsList', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -382,6 +394,27 @@ describe('CollectionsList', () => {
         (li) => li.querySelector('.font-medium')?.textContent
       )
       expect(names).toEqual(['Trade Binder', 'My Collection'])
+    })
+
+    it('dragging the first row onto the last row (a downward drag) places it last, reflected in the persisted order', async () => {
+      vi.mocked(reorderCollections).mockResolvedValue({ ok: true })
+      const { container } = render(
+        <CollectionsList initialCollections={[defaultCollection, secondCollection, thirdCollection]} />
+      )
+
+      const handle = screen.getByRole('button', { name: 'Reorder My Collection' })
+      const targetRow = screen.getByRole('button', { name: 'Reorder Third Collection' }).closest('li')
+      if (!targetRow) throw new Error('target row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(targetRow)
+      fireEvent.drop(targetRow)
+
+      const names = Array.from(container.querySelectorAll('li')).map(
+        (li) => li.querySelector('.font-medium')?.textContent
+      )
+      expect(names).toEqual(['Trade Binder', 'Third Collection', 'My Collection'])
+      expect(reorderCollections).toHaveBeenCalledWith([2, 3, 1])
     })
 
     it('dropping a handle on its own row does not reorder or call reorderCollections', () => {

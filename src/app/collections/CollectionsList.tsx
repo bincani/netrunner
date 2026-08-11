@@ -71,6 +71,8 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
     })
   }
 
+  const draggedIndex = draggedId === null ? -1 : collections.findIndex((c) => c.id === draggedId)
+
   return (
     <div className="space-y-6">
       <div className="flex items-end gap-2">
@@ -108,7 +110,7 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
       )}
 
       <ul className="space-y-4">
-        {collections.map((collection) => (
+        {collections.map((collection, index) => (
           <CollectionRow
             key={collection.id}
             collection={collection}
@@ -121,6 +123,7 @@ export function CollectionsList({ initialCollections }: { initialCollections: Co
             onRemove={() => setCollections((prev) => prev.filter((c) => c.id !== collection.id))}
             isDragging={draggedId === collection.id}
             isDropTarget={dropTargetId === collection.id}
+            dropIndicatorBelow={draggedIndex !== -1 && index > draggedIndex}
             onDragStart={() => setDraggedId(collection.id)}
             onDragOver={() => setDropTargetId(collection.id)}
             onDrop={() => handleDrop(collection.id)}
@@ -144,6 +147,7 @@ function CollectionRow({
   onRemove,
   isDragging,
   isDropTarget,
+  dropIndicatorBelow,
   onDragStart,
   onDragOver,
   onDrop,
@@ -157,6 +161,7 @@ function CollectionRow({
   onRemove: () => void
   isDragging: boolean
   isDropTarget: boolean
+  dropIndicatorBelow: boolean
   onDragStart: () => void
   onDragOver: () => void
   onDrop: () => void
@@ -291,7 +296,9 @@ function CollectionRow({
 
   return (
     <li
-      className={`rounded border border-default ${isDropTarget ? 'border-t-2 border-t-accent' : ''}`}
+      className={`rounded border border-default ${
+        isDropTarget ? (dropIndicatorBelow ? 'border-b-2 border-b-accent' : 'border-t-2 border-t-accent') : ''
+      }`}
       onDragOver={(event) => {
         event.preventDefault()
         onDragOver()
@@ -304,7 +311,10 @@ function CollectionRow({
       <div className={`flex items-center gap-1 ${isDragging ? 'opacity-50' : ''}`}>
         <span
           draggable
-          onDragStart={onDragStart}
+          onDragStart={(event) => {
+            event.dataTransfer?.setData('text/plain', String(collection.id))
+            onDragStart()
+          }}
           onDragEnd={onDragEnd}
           role="button"
           aria-label={`Reorder ${collection.name}`}
