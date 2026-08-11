@@ -152,9 +152,9 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`View ${deck.factionCode} faction on NetrunnerDB`}
-                      className="shrink-0 text-faint hover:text-primary"
+                      className="shrink-0 pr-2 text-faint hover:text-primary"
                     >
-                      <svg width="18" height="18" fill="currentColor" aria-hidden="true">
+                      <svg width="36" height="36" fill="currentColor" aria-hidden="true">
                         <use href={`/images/icons.svg#faction-${deck.factionCode}`} />
                       </svg>
                     </a>
