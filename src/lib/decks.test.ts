@@ -3,6 +3,7 @@ import { createTestDb } from './testDb'
 import { seedCard, seedCollection } from './testFixtures'
 import { incrementOwned } from './collection'
 import { getDecksWithOwnership, getDeckWithOwnership } from './decks'
+import { reorderDecks } from '@/actions/deckMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -82,6 +83,17 @@ describe('getDecksWithOwnership', () => {
     const decks = await getDecksWithOwnership(prisma, collectionId)
 
     expect(decks.map((d) => d.name)).toEqual(['Newer', 'Older'])
+  })
+
+  it('orders by sortOrder ascending once decks have been manually reordered', async () => {
+    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Older', importedAt: new Date('2026-01-01') } })
+    await prisma.deck.create({ data: { id: 2, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') } })
+
+    await reorderDecks(prisma, [1, 2])
+    const { id: collectionId } = await seedCollection(prisma)
+
+    const decks = await getDecksWithOwnership(prisma, collectionId)
+    expect(decks.map((d) => d.name)).toEqual(['Older', 'Newer'])
   })
 
   it('returns an empty list when no decks are imported', async () => {

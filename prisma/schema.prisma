@@ -96,6 +96,7 @@ model Deck {
   uuid       String
   name       String
   importedAt DateTime   @default(now())
+  sortOrder  Int        @default(0)
   cards      DeckCard[]
 }
 

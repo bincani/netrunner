@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from '@/lib/testDb'
-import { saveDeck, removeDeck } from './deckMutations'
+import { saveDeck, removeDeck, reorderDecks } from './deckMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -38,6 +38,38 @@ describe('saveDeck', () => {
     const deck = await prisma.deck.findUnique({ where: { id: 1 }, include: { cards: true } })
     expect(deck?.name).toBe('Test Deck (updated)')
     expect(deck?.cards.map((c) => c.cardCode)).toEqual(['01002'])
+  })
+
+  it('prepends each newly created deck, so it sorts before every existing one', async () => {
+    await saveDeck(prisma, 1, 'uuid-1', 'First', { '01001': 1 })
+
+    await saveDeck(prisma, 2, 'uuid-2', 'Second', { '01001': 1 })
+
+    const decks = await prisma.deck.findMany({ orderBy: { sortOrder: 'asc' } })
+    expect(decks.map((d) => d.id)).toEqual([2, 1])
+  })
+
+  it('leaves sortOrder untouched on re-import, so the deck does not move', async () => {
+    await saveDeck(prisma, 1, 'uuid-1', 'First', { '01001': 1 })
+    await saveDeck(prisma, 2, 'uuid-2', 'Second', { '01001': 1 })
+    const before = await prisma.deck.findUniqueOrThrow({ where: { id: 1 } })
+
+    await saveDeck(prisma, 1, 'uuid-1', 'First (updated)', { '01001': 2 })
+
+    const after = await prisma.deck.findUniqueOrThrow({ where: { id: 1 } })
+    expect(after.sortOrder).toBe(before.sortOrder)
+  })
+})
+
+describe('reorderDecks', () => {
+  it('persists the given order', async () => {
+    await saveDeck(prisma, 1, 'uuid-1', 'A', { '01001': 1 })
+    await saveDeck(prisma, 2, 'uuid-2', 'B', { '01001': 1 })
+
+    await reorderDecks(prisma, [1, 2])
+
+    const decks = await prisma.deck.findMany({ orderBy: { sortOrder: 'asc' } })
+    expect(decks.map((d) => d.id)).toEqual([1, 2])
   })
 })
 

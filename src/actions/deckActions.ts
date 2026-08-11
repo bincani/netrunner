@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { parseDecklistId, fetchDecklist } from '@/lib/netrunnerdb'
 import { getDeckWithOwnership, type DeckSummary } from '@/lib/decks'
 import { getDefaultCollectionId } from '@/lib/collections'
-import { saveDeck, removeDeck } from './deckMutations'
+import { saveDeck, removeDeck, reorderDecks as reorderDecksMutation } from './deckMutations'
 
 export async function importDeck(
   input: string
@@ -34,4 +34,16 @@ export async function importDeck(
 export async function deleteDeck(id: number): Promise<void> {
   await removeDeck(prisma, id)
   revalidatePath('/decks')
+}
+
+export type SimpleActionResult = { ok: true } | { ok: false; error: string }
+
+export async function reorderDecks(orderedIds: number[]): Promise<SimpleActionResult> {
+  try {
+    await reorderDecksMutation(prisma, orderedIds)
+    revalidatePath('/decks')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
+  }
 }
