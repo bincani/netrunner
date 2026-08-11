@@ -11,6 +11,7 @@ import {
   setDefaultCollection,
   importCsvAsBatch,
   listCollectionsWithStats,
+  reorderCollections,
 } from './collections'
 import { exportCollectionCsv, incrementOwned } from './collection'
 import { approveBatch } from '@/actions/batchMutations'
@@ -81,6 +82,17 @@ describe('listCollections', () => {
 
     expect(collections.map((c) => c.name)).toEqual(['First', 'Second'])
   })
+
+  it('orders by sortOrder ascending once reordered, breaking ties by createdAt for anything not yet touched', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const c = await seedCollection(prisma, { name: 'C', isDefault: false })
+
+    await reorderCollections(prisma, [c.id, a.id, b.id])
+
+    const collections = await listCollections(prisma)
+    expect(collections.map((coll) => coll.name)).toEqual(['C', 'A', 'B'])
+  })
 })
 
 describe('createCollection', () => {
@@ -105,6 +117,18 @@ describe('createCollection', () => {
 
     const collection = await prisma.collection.findUniqueOrThrow({ where: { id } })
     expect(collection.name).toBe('Trimmed')
+  })
+
+  it('appends after every existing collection, even ones already reordered ahead of it', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await reorderCollections(prisma, [b.id, a.id])
+
+    const id = await createCollection(prisma, 'C')
+
+    const collections = await listCollections(prisma)
+    expect(collections.map((coll) => coll.name)).toEqual(['B', 'A', 'C'])
+    expect(collections[2].id).toBe(id)
   })
 })
 
@@ -403,5 +427,27 @@ describe('listCollectionsWithStats', () => {
     const [entry] = await listCollectionsWithStats(prisma)
 
     expect(entry.pendingBatch).toBeNull()
+  })
+})
+
+describe('reorderCollections', () => {
+  it('persists the given order', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+
+    await reorderCollections(prisma, [b.id, a.id])
+
+    const collections = await listCollections(prisma)
+    expect(collections.map((coll) => coll.name)).toEqual(['B', 'A'])
+  })
+
+  it('is reflected by listCollectionsWithStats too', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+
+    await reorderCollections(prisma, [b.id, a.id])
+
+    const list = await listCollectionsWithStats(prisma)
+    expect(list.map((coll) => coll.name)).toEqual(['B', 'A'])
   })
 })

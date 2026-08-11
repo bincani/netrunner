@@ -8,6 +8,7 @@ import {
   renameCollection as renameCollectionMutation,
   deleteCollection as deleteCollectionMutation,
   setDefaultCollection as setDefaultCollectionMutation,
+  reorderCollections as reorderCollectionsMutation,
   importCsvAsBatch,
   type CollectionListEntry,
 } from '@/lib/collections'
@@ -88,6 +89,17 @@ export async function deleteCollection(collectionId: number): Promise<SimpleActi
 export async function setDefaultCollection(collectionId: number): Promise<SimpleActionResult> {
   try {
     await setDefaultCollectionMutation(prisma, collectionId)
+    revalidatePath('/collections')
+    revalidatePath('/', 'layout')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
+  }
+}
+
+export async function reorderCollections(orderedIds: number[]): Promise<SimpleActionResult> {
+  try {
+    await reorderCollectionsMutation(prisma, orderedIds)
     revalidatePath('/collections')
     revalidatePath('/', 'layout')
     return { ok: true }

@@ -50,7 +50,9 @@ export async function getDefaultCollectionId(prisma: PrismaClient): Promise<numb
 }
 
 export async function listCollections(prisma: PrismaClient): Promise<CollectionSummary[]> {
-  const collections = await prisma.collection.findMany({ orderBy: { createdAt: 'asc' } })
+  const collections = await prisma.collection.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  })
   return collections.map(toSummary)
 }
 
@@ -84,7 +86,10 @@ function validateName(name: string): string {
 }
 
 export async function createCollection(prisma: PrismaClient, name: string): Promise<number> {
-  const collection = await prisma.collection.create({ data: { name: validateName(name), isDefault: false } })
+  const maxSortOrder = await prisma.collection.aggregate({ _max: { sortOrder: true } })
+  const collection = await prisma.collection.create({
+    data: { name: validateName(name), isDefault: false, sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1 },
+  })
   return collection.id
 }
 
@@ -105,6 +110,12 @@ export async function setDefaultCollection(prisma: PrismaClient, collectionId: n
     prisma.collection.updateMany({ where: { isDefault: true }, data: { isDefault: false } }),
     prisma.collection.update({ where: { id: collectionId }, data: { isDefault: true } }),
   ])
+}
+
+export async function reorderCollections(prisma: PrismaClient, orderedIds: number[]): Promise<void> {
+  await prisma.$transaction(
+    orderedIds.map((id, index) => prisma.collection.update({ where: { id }, data: { sortOrder: index } }))
+  )
 }
 
 /** Parses CSV text (quoted fields, embedded commas/quotes/newlines) into rows of raw string cells. */
