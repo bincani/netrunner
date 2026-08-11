@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { importDeck, deleteDeck } from '@/actions/deckActions'
+import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
 import type { DeckSummary } from '@/lib/decks'
 
@@ -13,6 +13,9 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
   const [openDeckId, setOpenDeckId] = useState<number | null>(null)
   const [confirmingId, setConfirmingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [draggedId, setDraggedId] = useState<number | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null)
+  const [reorderError, setReorderError] = useState<string | null>(null)
 
   async function handleImport() {
     setIsImporting(true)
@@ -44,6 +47,29 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
     }
   }
 
+  function handleDrop(targetId: number) {
+    const sourceId = draggedId
+    setDraggedId(null)
+    setDropTargetId(null)
+    if (sourceId === null || sourceId === targetId) return
+
+    const fromIndex = decks.findIndex((deck) => deck.id === sourceId)
+    const toIndex = decks.findIndex((deck) => deck.id === targetId)
+    if (fromIndex === -1 || toIndex === -1) return
+
+    const reordered = [...decks]
+    const [moved] = reordered.splice(fromIndex, 1)
+    reordered.splice(toIndex, 0, moved)
+    setDecks(reordered)
+    setReorderError(null)
+
+    reorderDecks(reordered.map((deck) => deck.id)).then((result) => {
+      if (!result.ok) setReorderError(result.error)
+    })
+  }
+
+  const draggedIndex = draggedId === null ? -1 : decks.findIndex((deck) => deck.id === draggedId)
+
   return (
     <div className="w-full space-y-6">
       <div className="space-y-2">
@@ -69,20 +95,70 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
             {error}
           </p>
         )}
+        {reorderError && (
+          <p className="text-sm text-danger" role="alert">
+            {reorderError}
+          </p>
+        )}
       </div>
 
       {decks.length === 0 ? (
         <p className="text-sm text-faint">No decks imported yet.</p>
       ) : (
         <ul className="space-y-4">
-          {decks.map((deck) => {
+          {decks.map((deck, index) => {
             const isOpen = openDeckId === deck.id
             const isConfirming = confirmingId === deck.id
             const isDeleting = deletingId === deck.id
+            const isDragging = draggedId === deck.id
+            const isDropTarget = dropTargetId === deck.id
+            const dropIndicatorBelow = draggedIndex !== -1 && index > draggedIndex
 
             return (
-              <li key={deck.id} className="rounded border border-default">
-                <div className="flex items-center gap-2 p-3">
+              <li
+                key={deck.id}
+                className={`rounded border border-default ${
+                  isDropTarget ? (dropIndicatorBelow ? 'border-b-2 border-b-accent' : 'border-t-2 border-t-accent') : ''
+                }`}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  setDropTargetId(deck.id)
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  handleDrop(deck.id)
+                }}
+              >
+                <div className={`flex items-center gap-1 p-3 ${isDragging ? 'opacity-50' : ''}`}>
+                  <span
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer?.setData('text/plain', String(deck.id))
+                      setDraggedId(deck.id)
+                    }}
+                    onDragEnd={() => {
+                      setDraggedId(null)
+                      setDropTargetId(null)
+                    }}
+                    role="button"
+                    aria-label={`Reorder ${deck.name}`}
+                    className="shrink-0 cursor-grab px-1 text-faint select-none hover:text-primary"
+                  >
+                    ⠿
+                  </span>
+                  {deck.factionCode && (
+                    <a
+                      href={`https://netrunnerdb.com/en/faction/${deck.factionCode}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View ${deck.factionCode} faction on NetrunnerDB`}
+                      className="shrink-0 text-faint hover:text-primary"
+                    >
+                      <svg width="18" height="18" fill="currentColor" aria-hidden="true">
+                        <use href={`/images/icons.svg#faction-${deck.factionCode}`} />
+                      </svg>
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={() => toggle(deck.id)}
@@ -102,19 +178,6 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
                       {isOpen ? '▲' : '▼'}
                     </span>
                   </button>
-                  {deck.factionCode && (
-                    <a
-                      href={`https://netrunnerdb.com/en/faction/${deck.factionCode}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`View ${deck.factionCode} faction on NetrunnerDB`}
-                      className="shrink-0 text-faint hover:text-primary"
-                    >
-                      <svg width="18" height="18" fill="currentColor" aria-hidden="true">
-                        <use href={`/images/icons.svg#faction-${deck.factionCode}`} />
-                      </svg>
-                    </a>
-                  )}
                   <a
                     href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
                     target="_blank"

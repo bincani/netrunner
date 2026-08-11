@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DeckSection } from './DeckSection'
-import { importDeck, deleteDeck } from '@/actions/deckActions'
+import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
 import type { DeckSummary } from '@/lib/decks'
 
 vi.mock('@/actions/deckActions', () => ({
   importDeck: vi.fn(),
   deleteDeck: vi.fn(),
+  reorderDecks: vi.fn(),
 }))
 
 vi.mock('next/image', () => ({
@@ -39,6 +40,13 @@ const sampleDeck: DeckSummary = {
   cards: [
     { code: '01001', title: 'Card A', factionName: 'Anarch', neededQuantity: 3, ownedQuantity: 2, found: true },
   ],
+}
+
+const secondDeck: DeckSummary = {
+  ...sampleDeck,
+  id: 2,
+  uuid: 'uuid-2',
+  name: 'Second Deck',
 }
 
 describe('DeckSection', () => {
@@ -73,6 +81,17 @@ describe('DeckSection', () => {
     expect(link).toHaveAttribute('target', '_blank')
   })
 
+  it('places the faction logo to the left of the deck title', () => {
+    render(<DeckSection initialDecks={[sampleDeck]} />)
+
+    const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
+    const title = screen.getByText('Test Deck')
+    // DOCUMENT_POSITION_FOLLOWING on `title` (from the faction link's
+    // perspective) means the link comes first in DOM order — visually to
+    // the left in this left-to-right, non-reversed flex row.
+    expect(link.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('shows no faction logo when the deck has no identity card locally', () => {
     const deckWithoutFaction: DeckSummary = { ...sampleDeck, factionCode: null }
     render(<DeckSection initialDecks={[deckWithoutFaction]} />)
@@ -84,7 +103,7 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[sampleDeck]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
     expect(screen.getByText('Card A')).toBeInTheDocument()
   })
@@ -93,7 +112,7 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[sampleDeck]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
     await user.click(screen.getByRole('button', { name: 'Show details for Card A' }))
 
     expect(screen.getByRole('heading', { name: /Card A/ })).toBeInTheDocument()
@@ -103,7 +122,7 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[sampleDeck]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
     const row = screen.getByText('Card A').closest('li')
     expect(row?.className).toContain('text-danger')
@@ -117,7 +136,7 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[fullyOwnedDeck]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
     const row = screen.getByText('Card A').closest('li')
     expect(row?.className).not.toContain('text-danger')
@@ -131,7 +150,7 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[deckWithUnknown]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
     expect(screen.getByText('Unknown card (zzzzz)')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Show details for/ })).not.toBeInTheDocument()
@@ -185,7 +204,7 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[sampleDeck]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(deleteDeck).not.toHaveBeenCalled()
@@ -201,12 +220,62 @@ describe('DeckSection', () => {
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[sampleDeck]} />)
 
-    await user.click(screen.getByRole('button', { name: /Test Deck/ }))
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(deleteDeck).not.toHaveBeenCalled()
     expect(screen.queryByText('Are you sure?')).not.toBeInTheDocument()
     expect(screen.getByText('Test Deck')).toBeInTheDocument()
+  })
+
+  describe('drag-and-drop reorder', () => {
+    it('dragging a handle onto another row reorders the list and persists the new order', async () => {
+      vi.mocked(reorderDecks).mockResolvedValue({ ok: true })
+      const { container } = render(<DeckSection initialDecks={[sampleDeck, secondDeck]} />)
+
+      const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
+      const targetRow = screen.getByRole('button', { name: 'Reorder Second Deck' }).closest('li')
+      if (!targetRow) throw new Error('target row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(targetRow)
+      fireEvent.drop(targetRow)
+
+      const names = Array.from(container.querySelectorAll('li')).map(
+        (li) => li.querySelector('.font-medium')?.textContent
+      )
+      expect(names).toEqual(['Second Deck', 'Test Deck'])
+      expect(reorderDecks).toHaveBeenCalledWith([2, 1])
+    })
+
+    it('shows an error and keeps the reordered list if persisting fails', async () => {
+      vi.mocked(reorderDecks).mockResolvedValue({ ok: false, error: 'Something went wrong' })
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} />)
+
+      const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
+      const targetRow = screen.getByRole('button', { name: 'Reorder Second Deck' }).closest('li')
+      if (!targetRow) throw new Error('target row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(targetRow)
+      fireEvent.drop(targetRow)
+
+      expect(await screen.findByText('Something went wrong')).toBeInTheDocument()
+    })
+
+    it('dropping a handle on its own row does not reorder or call reorderDecks', () => {
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} />)
+
+      const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
+      const ownRow = handle.closest('li')
+      if (!ownRow) throw new Error('own row not found')
+
+      fireEvent.dragStart(handle)
+      fireEvent.dragOver(ownRow)
+      fireEvent.drop(ownRow)
+
+      expect(reorderDecks).not.toHaveBeenCalled()
+    })
   })
 })
