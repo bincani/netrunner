@@ -164,14 +164,43 @@ describe('SetCardGrid', () => {
     expect(screen.getByText('Card B')).toBeInTheDocument()
   })
 
-  it('the "Owned" filter hides cards with 0 owned quantity', async () => {
+  it('the "Owned" filter shows only cards owned to their full printed quantity', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    const mixedCards: PackCardEntry[] = [
+      makeCard({ code: '01001', title: 'Fully Owned Card', ownedQuantity: 3, quantity: 3 }),
+      makeCard({ code: '01002', title: 'Partially Owned Card', ownedQuantity: 1, quantity: 3 }),
+      makeCard({ code: '01003', title: 'Unowned Card', ownedQuantity: 0, quantity: 3 }),
+    ]
+    render(<SetCardGrid cards={mixedCards} />)
 
     await user.click(screen.getByRole('button', { name: 'Owned' }))
 
+    expect(screen.getByText('Fully Owned Card')).toBeInTheDocument()
+    expect(screen.queryByText('Partially Owned Card')).not.toBeInTheDocument()
+    expect(screen.queryByText('Unowned Card')).not.toBeInTheDocument()
+  })
+
+  it('the "Partial" filter shows only cards owned but short of their printed quantity', async () => {
+    const user = userEvent.setup()
+    render(<SetCardGrid cards={cards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Partial' }))
+
+    // Card A: owned 2 of 3 (partial). Card B: owned 0 (missing, not partial).
     expect(screen.getByText('Card A')).toBeInTheDocument()
     expect(screen.queryByText('Card B')).not.toBeInTheDocument()
+  })
+
+  it('a card with no declared printed quantity is never "Partial", only "Owned" once it has any', async () => {
+    const user = userEvent.setup()
+    const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 1, quantity: null })]
+    render(<SetCardGrid cards={mixedCards} />)
+
+    await user.click(screen.getByRole('button', { name: 'Partial' }))
+    expect(screen.queryByText('Card A')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+    expect(screen.getByText('Card A')).toBeInTheDocument()
   })
 
   it('the "Missing" filter hides cards with a positive owned quantity', async () => {
@@ -195,19 +224,19 @@ describe('SetCardGrid', () => {
     expect(screen.getByText('Card B')).toBeInTheDocument()
   })
 
-  it('the "Owned" filter follows live edits, not just the initial quantity', async () => {
-    vi.mocked(updateCollectionQuantity).mockResolvedValue(4)
+  it('the "Partial" filter follows live edits, not just the initial quantity', async () => {
+    vi.mocked(updateCollectionQuantity).mockResolvedValue(1)
     const user = userEvent.setup()
     render(<SetCardGrid cards={cards} />)
 
-    // Card B starts at 0 (missing); bump it up so it should now count as owned.
+    // Card B starts at 0 (missing); bump it up to 1 of 3 so it should now count as partial.
     const inputB = screen.getByLabelText('Card B owned quantity')
     await user.clear(inputB)
-    await user.type(inputB, '4')
+    await user.type(inputB, '1')
     await user.tab()
-    await screen.findByDisplayValue('4')
+    await screen.findByDisplayValue('1')
 
-    await user.click(screen.getByRole('button', { name: 'Owned' }))
+    await user.click(screen.getByRole('button', { name: 'Partial' }))
 
     expect(screen.getByText('Card A')).toBeInTheDocument()
     expect(screen.getByText('Card B')).toBeInTheDocument()
@@ -245,8 +274,8 @@ describe('SetCardGrid', () => {
     const user = userEvent.setup()
     const mixedCards: PackCardEntry[] = [
       makeCard({ code: '01001', title: 'Card A', factionCode: 'anarch', factionName: 'Anarch', ownedQuantity: 0 }),
-      makeCard({ code: '01002', title: 'Card B', factionCode: 'anarch', factionName: 'Anarch', ownedQuantity: 2 }),
-      makeCard({ code: '01003', title: 'Card C', factionCode: 'shaper', factionName: 'Shaper', ownedQuantity: 2 }),
+      makeCard({ code: '01002', title: 'Card B', factionCode: 'anarch', factionName: 'Anarch', ownedQuantity: 3 }),
+      makeCard({ code: '01003', title: 'Card C', factionCode: 'shaper', factionName: 'Shaper', ownedQuantity: 3 }),
     ]
     render(<SetCardGrid cards={mixedCards} />)
 
@@ -268,7 +297,7 @@ describe('SetCardGrid', () => {
     const user = userEvent.setup()
     render(<SetCardGrid cards={cards} />)
 
-    await user.click(screen.getByRole('button', { name: 'Owned' }))
+    await user.click(screen.getByRole('button', { name: 'Partial' }))
 
     expect(screen.getByText('1 of 2 cards')).toBeInTheDocument()
   })

@@ -6,9 +6,10 @@ import { groupSetsByCycle, releaseYear, type SetCompletion } from '@/lib/reports
 import { SetThumbnail } from '@/components/SetThumbnail'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SET_TYPES } from '@/lib/setTypes'
+import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
 
 export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
-  const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all')
+  const [filter, setFilter] = useState<OwnershipFilter>('all')
   const [typeFilter, setTypeFilter] = useState<string | 'all'>('all')
   const [nameQuery, setNameQuery] = useState('')
 
@@ -20,8 +21,7 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
   const trimmedQuery = nameQuery.trim().toLowerCase()
 
   const visibleSets = sets.filter((set) => {
-    if (filter === 'owned' && set.ownedCount === 0) return false
-    if (filter === 'missing' && set.ownedCount > 0) return false
+    if (!matchesOwnershipFilter(set.ownedCount, set.totalCount, filter)) return false
     if (typeFilter !== 'all' && set.setType !== typeFilter) return false
     if (trimmedQuery !== '' && !set.packName.toLowerCase().includes(trimmedQuery)) return false
     return true
@@ -69,17 +69,17 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {(['all', 'owned', 'missing'] as const).map((option) => (
+          {OWNERSHIP_FILTER_OPTIONS.map((option) => (
             <button
-              key={option}
-              onClick={() => setFilter(option)}
+              key={option.value}
+              onClick={() => setFilter(option.value)}
               className={`cursor-pointer rounded border px-3 py-1 text-sm ${
-                filter === option
+                filter === option.value
                   ? 'border-accent bg-accent/20 text-accent'
                   : 'border-default hover:bg-surface-hover'
               }`}
             >
-              {option === 'all' ? 'All' : option === 'owned' ? 'Owned' : 'Missing'}
+              {option.label}
             </button>
           ))}
 

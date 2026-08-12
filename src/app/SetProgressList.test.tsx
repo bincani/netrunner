@@ -78,11 +78,27 @@ describe('SetProgressList', () => {
     expect(container.querySelector('#cycle-genesis')).not.toBeNull()
   })
 
-  it('the "Owned" filter hides sets with no owned cards', async () => {
+  it('the "Owned" filter shows only fully-owned sets, excluding partial and missing', async () => {
+    const user = userEvent.setup()
+    const mixedSets: SetCompletion[] = [
+      { ...sets[0], packCode: 'full', packName: 'Full Set', ownedCount: 10, totalCount: 10, percentOwned: 100 },
+      sets[0],
+      sets[1],
+    ]
+    render(<SetProgressList sets={mixedSets} />)
+
+    await user.click(screen.getByRole('button', { name: 'Owned' }))
+
+    expect(screen.getByText('Full Set', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText('Core Set', { selector: 'span' })).not.toBeInTheDocument()
+    expect(screen.queryByText('A Study in Static')).not.toBeInTheDocument()
+  })
+
+  it('the "Partial" filter shows only sets owned but short of the full total', async () => {
     const user = userEvent.setup()
     render(<SetProgressList sets={sets} />)
 
-    await user.click(screen.getByRole('button', { name: 'Owned' }))
+    await user.click(screen.getByRole('button', { name: 'Partial' }))
 
     expect(screen.getByText('Core Set', { selector: 'span' })).toBeInTheDocument()
     expect(screen.queryByText('A Study in Static')).not.toBeInTheDocument()

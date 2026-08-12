@@ -4,12 +4,8 @@ import { useState } from 'react'
 import { updateCollectionQuantity } from '@/actions/collectionActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
 import { SetCardFilterSidebar } from './SetCardFilterSidebar'
-import {
-  createEmptyAttributeFilters,
-  matchesAttributeFilters,
-  type AttributeFilters,
-  type OwnershipFilter,
-} from './attributeFilters'
+import { createEmptyAttributeFilters, matchesAttributeFilters, type AttributeFilters } from './attributeFilters'
+import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
 import type { PackCardEntry } from '@/lib/cards'
 
 function parseQuantity(raw: string): number | null {
@@ -18,12 +14,6 @@ function parseQuantity(raw: string): number | null {
   if (!Number.isInteger(value) || value < 0) return null
   return value
 }
-
-const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'owned', label: 'Owned' },
-  { value: 'missing', label: 'Missing' },
-]
 
 export function SetCardGrid({
   cards,
@@ -98,8 +88,7 @@ export function SetCardGrid({
 
   const visibleCards = cards.filter((card) => {
     const owned = savedQuantities[card.code]
-    if (ownership === 'owned' && owned === 0) return false
-    if (ownership === 'missing' && owned > 0) return false
+    if (!matchesOwnershipFilter(owned, card.quantity, ownership)) return false
     return matchesAttributeFilters(card, attributeFilters)
   })
 
@@ -116,7 +105,7 @@ export function SetCardGrid({
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
-            {OWNERSHIP_OPTIONS.map((option) => (
+            {OWNERSHIP_FILTER_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 type="button"

@@ -1,12 +1,12 @@
 'use client'
 
 import type { PackCardEntry } from '@/lib/cards'
+import type { OwnershipFilter } from '@/lib/ownershipFilter'
 import {
   computeCardFacets,
   createEmptyAttributeFilters,
   isAttributeFiltersEmpty,
   type AttributeFilters,
-  type OwnershipFilter,
 } from './attributeFilters'
 
 interface SetCardFilterSidebarProps {

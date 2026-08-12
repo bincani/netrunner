@@ -1,7 +1,5 @@
 import type { PackCardEntry } from '@/lib/cards'
 
-export type OwnershipFilter = 'all' | 'owned' | 'missing'
-
 export interface AttributeFilters {
   factionCodes: Set<string>
   typeCodes: Set<string>
