@@ -109,6 +109,25 @@ model DeckCard {
   @@id([deckId, cardCode])
 }
 
+model TournamentDeck {
+  id           Int                  @id // NetrunnerDB's own decklist id, reused directly
+  uuid         String
+  name         String
+  dateCreation DateTime
+  userName     String
+  factionCode  String?
+  cards        TournamentDeckCard[]
+}
+
+model TournamentDeckCard {
+  deckId   Int
+  deck     TournamentDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  cardCode String
+  quantity Int
+
+  @@id([deckId, cardCode])
+}
+
 model Setting {
   key   String @id
   value String
