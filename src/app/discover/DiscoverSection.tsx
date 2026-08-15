@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { fetchDiscoverDecks, saveDiscoveredDeck } from '@/actions/discoverActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
@@ -8,6 +8,7 @@ import type { DiscoverDeck, DiscoverFilters } from '@/lib/discover'
 
 const PAGE_SIZE = 25
 const DEFAULT_NEAR_BUILDABLE_THRESHOLD = 3
+const MAX_MISSING_CARDS_DEBOUNCE_MS = 300
 
 interface FilterState {
   faction: string
@@ -29,7 +30,17 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
   const [openDeckId, setOpenDeckId] = useState<number | null>(null)
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set(savedDeckIds))
   const [savingId, setSavingId] = useState<number | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const maxMissingCardsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (maxMissingCardsDebounceRef.current) {
+        clearTimeout(maxMissingCardsDebounceRef.current)
+      }
+    }
+  }, [])
 
   function toApiFilters(next: FilterState, offset: number): DiscoverFilters {
     return {
@@ -51,6 +62,25 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
     })
   }
 
+  function handleMaxMissingCardsChange(rawValue: string) {
+    const value = Number(rawValue)
+    if (!Number.isInteger(value) || value < 1) return
+
+    const next = { ...filters, maxMissingCards: value }
+    setFilters(next)
+
+    if (maxMissingCardsDebounceRef.current) {
+      clearTimeout(maxMissingCardsDebounceRef.current)
+    }
+    maxMissingCardsDebounceRef.current = setTimeout(() => {
+      startTransition(async () => {
+        const result = await fetchDiscoverDecks(toApiFilters(next, 0))
+        setDecks(result.decks)
+        setTotal(result.total)
+      })
+    }, MAX_MISSING_CARDS_DEBOUNCE_MS)
+  }
+
   function loadMore() {
     startTransition(async () => {
       const result = await fetchDiscoverDecks(toApiFilters(filters, decks.length))
@@ -61,11 +91,17 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
 
   async function handleSave(id: number) {
     setSavingId(id)
-    const result = await saveDiscoveredDeck(id)
-    if (result.ok) {
-      setSavedIds((prev) => new Set(prev).add(id))
+    setSaveError(null)
+    try {
+      const result = await saveDiscoveredDeck(id)
+      if (result.ok) {
+        setSavedIds((prev) => new Set(prev).add(id))
+      } else {
+        setSaveError(result.error)
+      }
+    } finally {
+      setSavingId(null)
     }
-    setSavingId(null)
   }
 
   return (
@@ -106,7 +142,7 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
               type="number"
               min={1}
               value={filters.maxMissingCards}
-              onChange={(event) => updateFilters({ maxMissingCards: Number(event.target.value) })}
+              onChange={(event) => handleMaxMissingCardsChange(event.target.value)}
               className="w-16 rounded border border-default bg-surface px-2 py-1"
             />
             cards
@@ -127,6 +163,12 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
           </select>
         </label>
       </div>
+
+      {saveError && (
+        <p className="text-sm text-danger" role="alert">
+          {saveError}
+        </p>
+      )}
 
       {decks.length === 0 ? (
         <p className="text-sm text-faint">No decks match these filters.</p>

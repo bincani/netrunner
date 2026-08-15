@@ -53,6 +53,12 @@ Other useful commands:
 - `npm test` — run the test suite.
 - `npm run build` — production build.
 - `npm start` — serve a production build (run `npm run build` first).
+- `npm run sync-decks` — crawls NetrunnerDB for tournament decklists into
+  the local pool the `/discover` page reads from. Must run after `npm run
+  import-cards` (it looks up each deck's identity card's faction from the
+  locally-imported card pool). A first full run walks NetrunnerDB's entire
+  decklist history day-by-day — roughly 5,000 requests, ~15 minutes — and
+  is safe to interrupt and re-run; it resumes from where it left off.
 
 ## Local dev through nginx (optional)
 

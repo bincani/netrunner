@@ -129,6 +129,11 @@ Other commands:
   so `next build` itself doesn't touch `data/netrunner.db` and will
   succeed even without `npm run setup`/`npm run import-cards` having run —
   but the app won't be useful at runtime until they have.
+- `npm run sync-decks` — crawls NetrunnerDB for tournament decklists into
+  the pool `/discover` reads from. Run after `npm run import-cards`
+  (resolves each deck's faction from the local card pool). First full run
+  is ~5,000 requests (~15 min); safe to interrupt/re-run, resumes from
+  its checkpoint.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

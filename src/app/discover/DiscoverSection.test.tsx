@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DiscoverSection } from './DiscoverSection'
 import { fetchDiscoverDecks, saveDiscoveredDeck } from '@/actions/discoverActions'
@@ -132,5 +132,110 @@ describe('DiscoverSection', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Saved' })).toBeDisabled()
+  })
+
+  it('shows an error and re-enables the button when saving fails', async () => {
+    vi.mocked(saveDiscoveredDeck).mockResolvedValue({ ok: false, error: 'Could not save deck' })
+    const user = userEvent.setup()
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Save to My Decks' }))
+
+    await waitFor(() => expect(screen.getByText('Could not save deck')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Save to My Decks' })).not.toBeDisabled()
+  })
+
+  it('clears a prior save error on a subsequent successful save', async () => {
+    vi.mocked(saveDiscoveredDeck)
+      .mockResolvedValueOnce({ ok: false, error: 'Could not save deck' })
+      .mockResolvedValueOnce({ ok: true })
+    const user = userEvent.setup()
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Save to My Decks' }))
+    await waitFor(() => expect(screen.getByText('Could not save deck')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Save to My Decks' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Saved' })).toBeDisabled())
+    expect(screen.queryByText('Could not save deck')).not.toBeInTheDocument()
+  })
+})
+
+describe('DiscoverSection missing-cards filter input', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('does not refetch on an invalid value (empty, zero, or negative)', async () => {
+    vi.mocked(fetchDiscoverDecks).mockResolvedValue({ decks: [], total: 0 })
+    const user = userEvent.setup()
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    await user.click(screen.getByLabelText('Show near-buildable decks'))
+    await waitFor(() =>
+      expect(fetchDiscoverDecks).toHaveBeenCalledWith(expect.objectContaining({ maxMissingCards: 3 }))
+    )
+    vi.mocked(fetchDiscoverDecks).mockClear()
+
+    vi.useFakeTimers()
+    try {
+      const input = screen.getByRole('spinbutton')
+
+      fireEvent.change(input, { target: { value: '' } })
+      fireEvent.change(input, { target: { value: '0' } })
+      fireEvent.change(input, { target: { value: '-5' } })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+
+      expect(fetchDiscoverDecks).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('debounces the refetch after a valid change, updating the visible value immediately', async () => {
+    vi.mocked(fetchDiscoverDecks).mockResolvedValue({ decks: [], total: 0 })
+    const user = userEvent.setup()
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    await user.click(screen.getByLabelText('Show near-buildable decks'))
+    await waitFor(() =>
+      expect(fetchDiscoverDecks).toHaveBeenCalledWith(expect.objectContaining({ maxMissingCards: 3 }))
+    )
+    vi.mocked(fetchDiscoverDecks).mockClear()
+
+    vi.useFakeTimers()
+    try {
+      const input = screen.getByRole('spinbutton')
+
+      fireEvent.change(input, { target: { value: '7' } })
+
+      expect(input).toHaveValue(7)
+      expect(fetchDiscoverDecks).not.toHaveBeenCalled()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(299)
+      })
+      expect(fetchDiscoverDecks).not.toHaveBeenCalled()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      expect(fetchDiscoverDecks).toHaveBeenCalledTimes(1)
+      expect(fetchDiscoverDecks).toHaveBeenCalledWith(expect.objectContaining({ maxMissingCards: 7 }))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

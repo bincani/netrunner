@@ -18,8 +18,12 @@ export async function saveDiscoveredDeck(id: number): Promise<SimpleActionResult
     return { ok: false, error: 'Deck not found' }
   }
 
-  const cards = Object.fromEntries(deck.cards.map((card) => [card.cardCode, card.quantity]))
-  await saveDeck(prisma, deck.id, deck.uuid, deck.name, cards)
-  revalidatePath('/decks')
-  return { ok: true }
+  try {
+    const cards = Object.fromEntries(deck.cards.map((card) => [card.cardCode, card.quantity]))
+    await saveDeck(prisma, deck.id, deck.uuid, deck.name, cards)
+    revalidatePath('/decks')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to save deck' }
+  }
 }

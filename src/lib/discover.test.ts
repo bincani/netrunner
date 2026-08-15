@@ -95,6 +95,20 @@ describe('getDiscoverDecks', () => {
     })
   })
 
+  it("returns a deck's cards in cardCode order", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01003', quantity: 1 } })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 1 } })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    expect(decks[0].cards.map((c) => c.code)).toEqual(['01001', '01002', '01003'])
+  })
+
   it('filters by faction', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await prisma.tournamentDeck.create({

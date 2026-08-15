@@ -30,7 +30,7 @@ export async function getDiscoverDecks(
   filters: DiscoverFilters
 ): Promise<{ decks: DiscoverDeck[]; total: number }> {
   const [tournamentDecks, collectionEntries, knownCards] = await Promise.all([
-    prisma.tournamentDeck.findMany({ include: { cards: true } }),
+    prisma.tournamentDeck.findMany({ include: { cards: { orderBy: { cardCode: 'asc' } } }, orderBy: { id: 'asc' } }),
     prisma.collectionEntry.findMany({ where: { collectionId } }),
     prisma.card.findMany({ select: { code: true, title: true, faction: { select: { name: true } } } }),
   ])
