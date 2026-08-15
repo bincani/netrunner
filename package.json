@@ -12,7 +12,8 @@
     "start": "next start",
     "test": "vitest run",
     "setup": "prisma migrate deploy",
-    "import-cards": "tsx scripts/import-cards.ts"
+    "import-cards": "tsx scripts/import-cards.ts",
+    "sync-decks": "tsx scripts/syncDecks.ts"
   },
   "keywords": [],
   "author": "",
