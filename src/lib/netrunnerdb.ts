@@ -66,3 +66,48 @@ export async function fetchDecklist(decklistId: string): Promise<NetrunnerDbDeck
     cards: decklist.cards,
   }
 }
+
+export interface NetrunnerDbDailyDecklist {
+  id: number
+  uuid: string
+  name: string
+  dateCreation: string
+  userName: string
+  tournamentBadge: boolean
+  cards: Record<string, number>
+}
+
+/** Fetches every published decklist for one calendar date ("YYYY-MM-DD") from NetrunnerDB's public API (no auth required). */
+export async function fetchDecklistsByDate(date: string): Promise<NetrunnerDbDailyDecklist[]> {
+  const response = await fetch(`https://netrunnerdb.com/api/2.0/public/decklists/by_date/${date}`)
+
+  if (!response.ok) {
+    throw new Error(`NetrunnerDB returned ${response.status}`)
+  }
+
+  const body = await response.json()
+
+  if (!body.success || !Array.isArray(body.data)) {
+    throw new Error('Unexpected response fetching decklists by date')
+  }
+
+  return body.data.map(
+    (entry: {
+      id: number
+      uuid: string
+      name: string
+      date_creation: string
+      user_name: string
+      tournament_badge: boolean
+      cards: Record<string, number>
+    }) => ({
+      id: entry.id,
+      uuid: entry.uuid,
+      name: entry.name,
+      dateCreation: entry.date_creation,
+      userName: entry.user_name,
+      tournamentBadge: entry.tournament_badge === true,
+      cards: entry.cards,
+    })
+  )
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { parseDecklistId, fetchDecklist } from './netrunnerdb'
+import { parseDecklistId, fetchDecklist, fetchDecklistsByDate } from './netrunnerdb'
 
 describe('parseDecklistId', () => {
   it('parses a raw numeric id', () => {
@@ -129,5 +129,90 @@ describe('fetchDecklist', () => {
     })) as unknown as typeof fetch
 
     await expect(fetchDecklist('1')).rejects.toThrow('Decklist not found')
+  })
+})
+
+describe('fetchDecklistsByDate', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('fetches from the exact expected NetrunnerDB URL', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: [] }),
+    })) as unknown as typeof fetch
+
+    await fetchDecklistsByDate('2022-05-07')
+
+    expect(global.fetch).toHaveBeenCalledWith('https://netrunnerdb.com/api/2.0/public/decklists/by_date/2022-05-07')
+  })
+
+  it('normalizes each decklist, including the tournament badge and creation date', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: [
+          {
+            id: 69743,
+            uuid: 'abc-123',
+            name: 'virus garbo',
+            date_creation: '2022-05-07T04:53:59+00:00',
+            user_name: 'momar',
+            tournament_badge: true,
+            cards: { '01001': 1 },
+          },
+        ],
+      }),
+    })) as unknown as typeof fetch
+
+    const result = await fetchDecklistsByDate('2022-05-07')
+
+    expect(result).toEqual([
+      {
+        id: 69743,
+        uuid: 'abc-123',
+        name: 'virus garbo',
+        dateCreation: '2022-05-07T04:53:59+00:00',
+        userName: 'momar',
+        tournamentBadge: true,
+        cards: { '01001': 1 },
+      },
+    ])
+  })
+
+  it('returns an empty array for a date with no published decklists', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: [], total: 0 }),
+    })) as unknown as typeof fetch
+
+    expect(await fetchDecklistsByDate('2013-09-01')).toEqual([])
+  })
+
+  it('throws when the response is not ok', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    })) as unknown as typeof fetch
+
+    await expect(fetchDecklistsByDate('2022-05-07')).rejects.toThrow('NetrunnerDB returned 500')
+  })
+
+  it('throws when the response reports failure', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: false }),
+    })) as unknown as typeof fetch
+
+    await expect(fetchDecklistsByDate('2022-05-07')).rejects.toThrow(
+      'Unexpected response fetching decklists by date'
+    )
   })
 })
