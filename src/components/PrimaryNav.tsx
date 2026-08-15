@@ -7,6 +7,7 @@ const LINKS = [
   { href: '/', label: 'Dashboard', exact: true },
   { href: '/builder', label: 'Builder', exact: false },
   { href: '/decks', label: 'Decks', exact: false },
+  { href: '/discover', label: 'Discover', exact: false },
 ]
 
 export function PrimaryNav() {
