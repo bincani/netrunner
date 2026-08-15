@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
-import { CardDetailPopup } from '@/components/CardDetailPopup'
+import { DeckCompletionBar } from '@/components/DeckCompletionBar'
+import { DeckCardList } from '@/components/DeckCardList'
 import type { DeckSummary } from '@/lib/decks'
 
 export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
@@ -167,12 +168,11 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
                   >
                     <div className="flex-1 space-y-1">
                       <span className="font-medium">{deck.name}</span>
-                      <p className="text-sm text-muted">
-                        {deck.ownedCount}/{deck.totalCount} owned ({deck.percentOwned}%)
-                      </p>
-                      <div className="h-2 rounded bg-subtle">
-                        <div className="h-2 rounded bg-blue-600" style={{ width: `${deck.percentOwned}%` }} />
-                      </div>
+                      <DeckCompletionBar
+                        ownedCount={deck.ownedCount}
+                        totalCount={deck.totalCount}
+                        percentOwned={deck.percentOwned}
+                      />
                     </div>
                     <span className="shrink-0 text-faint" aria-hidden="true">
                       {isOpen ? '▲' : '▼'}
@@ -205,25 +205,7 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
 
                 {isOpen && (
                   <div className="space-y-3 border-t border-subtle p-3">
-                    <ul className="space-y-1 text-sm">
-                      {deck.cards.map((card) => (
-                        <li
-                          key={card.code}
-                          className={`flex items-center gap-3 ${
-                            card.ownedQuantity < card.neededQuantity ? 'text-danger' : 'text-muted'
-                          }`}
-                        >
-                          {card.found && card.title ? (
-                            <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
-                          ) : (
-                            <span>Unknown card ({card.code})</span>
-                          )}
-                          <span className="ml-auto shrink-0">
-                            {card.ownedQuantity}/{card.neededQuantity}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    <DeckCardList cards={deck.cards} />
 
                     <div>
                       {!isConfirming ? (
