@@ -1,0 +1,202 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { createTestDb } from './testDb'
+import { seedCard, seedCollection } from './testFixtures'
+import { incrementOwned } from './collection'
+import { getDiscoverDecks } from './discover'
+import type { PrismaClient } from '@prisma/client'
+
+let prisma: PrismaClient
+
+beforeAll(() => {
+  prisma = createTestDb()
+})
+
+afterAll(async () => {
+  await prisma.$disconnect()
+})
+
+beforeEach(async () => {
+  await prisma.tournamentDeckCard.deleteMany()
+  await prisma.tournamentDeck.deleteMany()
+  await prisma.collectionEntry.deleteMany()
+  await prisma.collection.deleteMany()
+  await prisma.card.deleteMany()
+})
+
+const defaultFilters = { sort: 'percentOwned' as const, limit: 25, offset: 0 }
+
+describe('getDiscoverDecks', () => {
+  it('computes aggregate and per-card ownership', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', factionCode: 'anarch' })
+    await incrementOwned(prisma, collectionId, '01001', 2)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const { decks, total } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    expect(total).toBe(1)
+    expect(decks[0].totalCount).toBe(3)
+    expect(decks[0].ownedCount).toBe(2)
+    expect(decks[0].percentOwned).toBe(67)
+    expect(decks[0].missingCopies).toBe(1)
+    expect(decks[0].cards).toEqual([
+      { code: '01001', title: 'Card A', factionName: 'anarch', neededQuantity: 3, ownedQuantity: 2, found: true },
+    ])
+  })
+
+  it('excludes a deck with missing copies when the fully-buildable default applies', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await incrementOwned(prisma, collectionId, '01001', 2)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Partial', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const { decks, total } = await getDiscoverDecks(prisma, collectionId, defaultFilters)
+
+    expect(total).toBe(0)
+    expect(decks).toEqual([])
+  })
+
+  it('includes a fully-buildable deck under the default (unset maxMissingCards) filter', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await incrementOwned(prisma, collectionId, '01001', 3)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Full', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, defaultFilters)
+
+    expect(decks.map((d) => d.name)).toEqual(['Full'])
+  })
+
+  it('flags a deck card whose code is not in the local card database, without crashing', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    expect(decks[0].cards[0]).toEqual({
+      code: 'unknown-code',
+      title: null,
+      factionName: null,
+      neededQuantity: 3,
+      ownedQuantity: 0,
+      found: false,
+    })
+  })
+
+  it('filters by faction', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: {
+        id: 1,
+        uuid: 'uuid-1',
+        name: 'Anarch Deck',
+        dateCreation: new Date('2020-01-01'),
+        userName: 'alice',
+        factionCode: 'anarch',
+      },
+    })
+    await prisma.tournamentDeck.create({
+      data: {
+        id: 2,
+        uuid: 'uuid-2',
+        name: 'Shaper Deck',
+        dateCreation: new Date('2020-01-01'),
+        userName: 'alice',
+        factionCode: 'shaper',
+      },
+    })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, {
+      ...defaultFilters,
+      maxMissingCards: 5,
+      faction: 'shaper',
+    })
+
+    expect(decks.map((d) => d.name)).toEqual(['Shaper Deck'])
+  })
+
+  it('sorts by percent owned descending', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await incrementOwned(prisma, collectionId, '01001', 1)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Low', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 4 } })
+    await prisma.tournamentDeck.create({
+      data: { id: 2, uuid: 'uuid-2', name: 'High', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 2, cardCode: '01001', quantity: 1 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    expect(decks.map((d) => d.name)).toEqual(['High', 'Low'])
+  })
+
+  it('sorts by newest', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Older', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeck.create({
+      data: { id: 2, uuid: 'uuid-2', name: 'Newer', dateCreation: new Date('2021-01-01'), userName: 'alice' },
+    })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, {
+      ...defaultFilters,
+      sort: 'newest',
+      maxMissingCards: 5,
+    })
+
+    expect(decks.map((d) => d.name)).toEqual(['Newer', 'Older'])
+  })
+
+  it('sorts by name', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Zebra', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeck.create({
+      data: { id: 2, uuid: 'uuid-2', name: 'Anteater', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, {
+      ...defaultFilters,
+      sort: 'name',
+      maxMissingCards: 5,
+    })
+
+    expect(decks.map((d) => d.name)).toEqual(['Anteater', 'Zebra'])
+  })
+
+  it('paginates with limit/offset while total reflects the full filtered count', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    for (let i = 1; i <= 3; i++) {
+      await prisma.tournamentDeck.create({
+        data: { id: i, uuid: `uuid-${i}`, name: `Deck ${i}`, dateCreation: new Date('2020-01-01'), userName: 'a' },
+      })
+    }
+
+    const { decks, total } = await getDiscoverDecks(prisma, collectionId, {
+      sort: 'name',
+      limit: 2,
+      offset: 0,
+      maxMissingCards: 5,
+    })
+
+    expect(total).toBe(3)
+    expect(decks).toHaveLength(2)
+  })
+})
