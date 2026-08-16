@@ -12,7 +12,7 @@ export function DeckCardList({ cards }: { cards: DeckCardOwnership[] }) {
           }`}
         >
           {card.found && card.title ? (
-            <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
+            <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" showAllPrintings />
           ) : (
             <span>Unknown card ({card.code})</span>
           )}

@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import { NextRequest } from 'next/server'
 import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
-import { seedCard } from '@/lib/testFixtures'
+import { seedCard, seedCollection } from '@/lib/testFixtures'
+import { incrementOwned } from '@/lib/collection'
 
 // route.ts imports a module-level `prisma` singleton from '@/lib/db'. To
 // exercise the real route handler against an isolated, seeded test
@@ -32,6 +33,7 @@ describe('GET /api/cards/printings', () => {
 
   beforeEach(async () => {
     await prisma.collectionEntry.deleteMany()
+    await prisma.collection.deleteMany()
     await prisma.card.deleteMany()
     await prisma.pack.deleteMany()
     await prisma.cycle.deleteMany()
@@ -70,5 +72,21 @@ describe('GET /api/cards/printings', () => {
     const response = await GET(request)
 
     expect(await response.json()).toEqual([])
+  })
+
+  it('includes the queried printing itself, with owned quantities, when includeSelf=true', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', packName: 'Core Set' })
+    await seedCard(prisma, { code: '31006', title: 'Corroder', packCode: 'su21', packName: 'System Update 2021' })
+    await incrementOwned(prisma, collectionId, '31006', 1)
+
+    const request = new NextRequest('http://localhost/api/cards/printings?code=01007&includeSelf=true')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(body).toEqual([
+      { code: '01007', packCode: 'core', packName: 'Core Set', ownedQuantity: 0 },
+      { code: '31006', packCode: 'su21', packName: 'System Update 2021', ownedQuantity: 1 },
+    ])
   })
 })

@@ -92,6 +92,8 @@ export interface CardPrinting {
   code: string
   packCode: string
   packName: string
+  /** Only populated by getAllPrintings — how many of this specific printing the collection owns. */
+  ownedQuantity?: number
 }
 
 /** Every OTHER printing of the same card title — cards are stored per-printing, so a reprinted card has one row per set. */
@@ -111,6 +113,37 @@ export async function getOtherPrintings(prisma: PrismaClient, cardCode: string):
     code: printing.code,
     packCode: printing.packCode,
     packName: printing.pack.name,
+  }))
+}
+
+/**
+ * Every printing of the same card title, including the one named by
+ * `cardCode` itself, each with how many copies of that specific printing
+ * the collection owns — a decklist references one arbitrary printing, so
+ * "which printing do I actually have" is the useful question from there,
+ * not "is this the one being viewed."
+ */
+export async function getAllPrintings(
+  prisma: PrismaClient,
+  collectionId: number,
+  cardCode: string
+): Promise<CardPrinting[]> {
+  const card = await prisma.card.findUnique({ where: { code: cardCode }, select: { title: true } })
+  if (!card) {
+    return []
+  }
+
+  const printings = await prisma.card.findMany({
+    where: { title: card.title },
+    include: { pack: true, collectionEntries: { where: { collectionId } } },
+    orderBy: { pack: { dateRelease: 'asc' } },
+  })
+
+  return printings.map((printing) => ({
+    code: printing.code,
+    packCode: printing.packCode,
+    packName: printing.pack.name,
+    ownedQuantity: printing.collectionEntries[0]?.quantityOwned ?? 0,
   }))
 }
 

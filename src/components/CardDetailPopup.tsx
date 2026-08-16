@@ -25,9 +25,12 @@ function isFullCard(card: PackCardEntry | MinimalCard): card is PackCardEntry {
 export function CardDetailPopup({
   card,
   trigger = 'thumbnail',
+  showAllPrintings = false,
 }: {
   card: PackCardEntry | MinimalCard
   trigger?: 'thumbnail' | 'text'
+  /** List every printing (including the one being viewed), each labeled "(owned)" if the collection has copies of that specific printing — useful from a deck list, where the printing shown is whatever the decklist happened to reference, not necessarily the one you own. */
+  showAllPrintings?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [printings, setPrintings] = useState<CardPrinting[]>([])
@@ -50,7 +53,8 @@ export function CardDetailPopup({
     if (!isOpen) return
     let cancelled = false
 
-    fetch(`/api/cards/printings?code=${encodeURIComponent(card.code)}`)
+    const includeSelfParam = showAllPrintings ? '&includeSelf=true' : ''
+    fetch(`/api/cards/printings?code=${encodeURIComponent(card.code)}${includeSelfParam}`)
       .then((response) => response.json())
       .then((data: CardPrinting[]) => {
         if (!cancelled) setPrintings(data)
@@ -62,7 +66,7 @@ export function CardDetailPopup({
     return () => {
       cancelled = true
     }
-  }, [isOpen, card.code])
+  }, [isOpen, card.code, showAllPrintings])
 
   useEffect(() => {
     if (!isOpen || isFullCard(card)) return
@@ -198,7 +202,9 @@ export function CardDetailPopup({
 
                     {printings.length > 0 && (
                       <div className="pt-2">
-                        <div className="text-sm font-semibold text-primary">Other Printings</div>
+                        <div className="text-sm font-semibold text-primary">
+                          {showAllPrintings ? 'Printings' : 'Other Printings'}
+                        </div>
                         <ul className="text-sm text-muted">
                           {printings.map((printing) => (
                             <li key={printing.code}>
@@ -209,6 +215,9 @@ export function CardDetailPopup({
                               >
                                 {printing.packName}
                               </Link>
+                              {showAllPrintings && (printing.ownedQuantity ?? 0) > 0 && (
+                                <span className="text-faint"> (owned)</span>
+                              )}
                             </li>
                           ))}
                         </ul>

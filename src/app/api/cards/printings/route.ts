@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getOtherPrintings } from '@/lib/cards'
+import { getOtherPrintings, getAllPrintings } from '@/lib/cards'
+import { getDefaultCollectionId } from '@/lib/collections'
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
@@ -9,7 +10,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([])
   }
 
-  const printings = await getOtherPrintings(prisma, code)
+  const includeSelf = request.nextUrl.searchParams.get('includeSelf') === 'true'
+  if (!includeSelf) {
+    return NextResponse.json(await getOtherPrintings(prisma, code))
+  }
 
-  return NextResponse.json(printings)
+  const collectionId = await getDefaultCollectionId(prisma)
+  return NextResponse.json(await getAllPrintings(prisma, collectionId, code))
 }

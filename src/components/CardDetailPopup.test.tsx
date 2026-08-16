@@ -188,6 +188,86 @@ describe('CardDetailPopup', () => {
     expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
   })
 
+  it('fetches without includeSelf by default', async () => {
+    mockPrintingsFetch([{ code: '01079', packCode: 'core', packName: 'Core Set' }])
+    const user = userEvent.setup()
+    render(<CardDetailPopup card={fullCard} />)
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith('/api/cards/printings?code=12010')
+    )
+  })
+
+  describe('showAllPrintings', () => {
+    it('fetches with includeSelf=true', async () => {
+      mockPrintingsFetch([{ code: '12010', packCode: 'core', packName: 'Core Set' }])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} showAllPrintings />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      await waitFor(() =>
+        expect(global.fetch).toHaveBeenCalledWith('/api/cards/printings?code=12010&includeSelf=true')
+      )
+    })
+
+    it('labels the heading "Printings" instead of "Other Printings"', async () => {
+      mockPrintingsFetch([
+        { code: '12010', packCode: 'core', packName: 'Core Set' },
+        { code: '31013', packCode: 'su21', packName: 'System Update 2021' },
+      ])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} showAllPrintings />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(await screen.findByText('Printings')).toBeInTheDocument()
+      expect(screen.queryByText('Other Printings')).not.toBeInTheDocument()
+    })
+
+    it('labels a printing "(owned)" when the collection has copies of that specific printing', async () => {
+      mockPrintingsFetch([
+        { code: '12010', packCode: 'core', packName: 'Core Set', ownedQuantity: 0 },
+        { code: '31013', packCode: 'su21', packName: 'System Update 2021', ownedQuantity: 2 },
+      ])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} showAllPrintings />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      const ownedLink = await screen.findByRole('link', { name: 'System Update 2021' })
+      expect(ownedLink.closest('li')).toHaveTextContent('System Update 2021 (owned)')
+      expect(screen.getByRole('link', { name: 'Core Set' }).closest('li')).not.toHaveTextContent('owned')
+    })
+
+    it('shows no "(owned)" label when the collection has zero copies of every printing', async () => {
+      mockPrintingsFetch([
+        { code: '12010', packCode: 'core', packName: 'Core Set', ownedQuantity: 0 },
+        { code: '31013', packCode: 'su21', packName: 'System Update 2021', ownedQuantity: 0 },
+      ])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} showAllPrintings />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      await screen.findByText('Printings')
+      expect(screen.queryByText(/\(owned\)/)).not.toBeInTheDocument()
+    })
+
+    it('still shows the section for a card with no reprints (itself only)', async () => {
+      mockPrintingsFetch([{ code: '12010', packCode: 'core', packName: 'Core Set', ownedQuantity: 1 }])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} showAllPrintings />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(await screen.findByText('Printings')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Core Set' }).closest('li')).toHaveTextContent('(owned)')
+    })
+  })
+
   it("renders the card text's formatting tags and icon tokens instead of showing them as literal characters", async () => {
     const demolitionRun: PackCardEntry = {
       ...fullCard,

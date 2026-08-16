@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard, seedCollection } from './testFixtures'
 import { incrementOwned } from './collection'
-import { searchCards, listCardsInPack, getOtherPrintings } from './cards'
+import { searchCards, listCardsInPack, getOtherPrintings, getAllPrintings } from './cards'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -212,6 +212,64 @@ describe('getOtherPrintings', () => {
 
   it('returns an empty list for a card code that does not exist', async () => {
     const printings = await getOtherPrintings(prisma, 'nonexistent')
+
+    expect(printings).toEqual([])
+  })
+})
+
+describe('getAllPrintings', () => {
+  it('includes the queried printing alongside its other printings, each with its own owned quantity', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, {
+      code: 'allp-1',
+      title: 'Corroder Allp',
+      packCode: 'allp-core',
+      packName: 'Allp Core Set',
+    })
+    await seedCard(prisma, {
+      code: 'allp-2',
+      title: 'Corroder Allp',
+      packCode: 'allp-su21',
+      packName: 'Allp System Update',
+    })
+    await incrementOwned(prisma, collectionId, 'allp-2', 3)
+
+    const printings = await getAllPrintings(prisma, collectionId, 'allp-1')
+
+    expect(printings).toEqual([
+      { code: 'allp-1', packCode: 'allp-core', packName: 'Allp Core Set', ownedQuantity: 0 },
+      { code: 'allp-2', packCode: 'allp-su21', packName: 'Allp System Update', ownedQuantity: 3 },
+    ])
+  })
+
+  it('returns just the one printing for a card with no reprints', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: 'allp-3', title: 'Mimic Allp', packCode: 'allp-core2', packName: 'Allp Core 2' })
+
+    const printings = await getAllPrintings(prisma, collectionId, 'allp-3')
+
+    expect(printings).toEqual([
+      { code: 'allp-3', packCode: 'allp-core2', packName: 'Allp Core 2', ownedQuantity: 0 },
+    ])
+  })
+
+  it('keeps ownership scoped to the given collection, not any other collection', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: 'allp-4', title: 'Scoped Allp', packCode: 'allp-core3', packName: 'Allp Core 3' })
+    await incrementOwned(prisma, a.id, 'allp-4', 2)
+
+    const printingsForA = await getAllPrintings(prisma, a.id, 'allp-4')
+    const printingsForB = await getAllPrintings(prisma, b.id, 'allp-4')
+
+    expect(printingsForA[0].ownedQuantity).toBe(2)
+    expect(printingsForB[0].ownedQuantity).toBe(0)
+  })
+
+  it('returns an empty list for a card code that does not exist', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+
+    const printings = await getAllPrintings(prisma, collectionId, 'nonexistent')
 
     expect(printings).toEqual([])
   })
