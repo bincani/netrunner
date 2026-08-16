@@ -7,11 +7,23 @@ import { SetThumbnail } from '@/components/SetThumbnail'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SET_TYPES } from '@/lib/setTypes'
 import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
+import { QuickAddSetModal } from '@/components/QuickAddSetModal'
+import { undoQuickSetChange } from '@/actions/quickSetActions'
+import type { QuickSetChange } from '@/lib/quickSet'
 
-export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
+export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[]; collectionId: number }) {
   const [filter, setFilter] = useState<OwnershipFilter>('all')
   const [typeFilter, setTypeFilter] = useState<string | 'all'>('all')
   const [nameQuery, setNameQuery] = useState('')
+
+  const [quickAddPackCode, setQuickAddPackCode] = useState<string | null>(null)
+  const [lastAction, setLastAction] = useState<{
+    packCode: string
+    verb: 'Added' | 'Cleared'
+    changes: QuickSetChange[]
+  } | null>(null)
+  const [isUndoing, setIsUndoing] = useState(false)
+  const [undoError, setUndoError] = useState<string | null>(null)
 
   // Only offer a button for a type that's actually present in this data,
   // in the same order SET_TYPES declares them (not the order sets happen
@@ -29,6 +41,24 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
 
   const setsByCycle = groupSetsByCycle(visibleSets)
   const cycles = [...setsByCycle.entries()]
+
+  const quickAddTarget = sets.find((set) => set.packCode === quickAddPackCode) ?? null
+
+  async function handleUndo() {
+    if (!lastAction) return
+    setIsUndoing(true)
+    setUndoError(null)
+    try {
+      const result = await undoQuickSetChange(collectionId, lastAction.changes)
+      if (result.ok) {
+        setLastAction(null)
+      } else {
+        setUndoError(result.error)
+      }
+    } finally {
+      setIsUndoing(false)
+    }
+  }
 
   return (
     <div className="flex gap-8">
@@ -110,28 +140,56 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
               {cycleSets.map((set) => {
                 const year = releaseYear(set.dateRelease)
                 return (
-                  <li key={set.packCode}>
-                    <Link
-                      href={`/sets/${set.packCode}`}
-                      className="flex items-center gap-3 rounded border border-subtle p-3 hover:border-default"
-                    >
-                      <SetThumbnail packCode={set.packCode} packName={set.packName} />
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                          <span className="flex items-center gap-2">
-                            <SetTypeBadge setType={set.setType} />
-                            {set.packName}
-                            {year && <span className="text-faint"> ({year})</span>}
-                          </span>
-                          <span>
-                            {set.ownedCount}/{set.totalCount} ({set.percentOwned}%)
-                          </span>
+                  <li key={set.packCode} className="space-y-1">
+                    <div className="flex items-center gap-2 rounded border border-subtle p-3 hover:border-default">
+                      <Link href={`/sets/${set.packCode}`} className="flex min-w-0 flex-1 items-center gap-3">
+                        <SetThumbnail packCode={set.packCode} packName={set.packName} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex justify-between">
+                            <span className="flex items-center gap-2">
+                              <SetTypeBadge setType={set.setType} />
+                              {set.packName}
+                              {year && <span className="text-faint"> ({year})</span>}
+                            </span>
+                            <span>
+                              {set.ownedCount}/{set.totalCount} ({set.percentOwned}%)
+                            </span>
+                          </div>
+                          <div className="mt-2 h-2 rounded bg-subtle">
+                            <div className="h-2 rounded bg-blue-600" style={{ width: `${set.percentOwned}%` }} />
+                          </div>
                         </div>
-                        <div className="mt-2 h-2 rounded bg-subtle">
-                          <div className="h-2 rounded bg-blue-600" style={{ width: `${set.percentOwned}%` }} />
-                        </div>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setQuickAddPackCode(set.packCode)}
+                        aria-label={`Quick add ${set.packName}`}
+                        className="shrink-0 cursor-pointer rounded p-1.5 text-faint hover:bg-surface-hover hover:text-primary"
+                      >
+                        ⚡
+                      </button>
+                    </div>
+                    {lastAction?.packCode === set.packCode && (
+                      <div className="px-3">
+                        <p className="text-sm text-muted">
+                          {lastAction.verb} {lastAction.changes.length} card
+                          {lastAction.changes.length === 1 ? '' : 's'}{' '}
+                          <button
+                            type="button"
+                            onClick={handleUndo}
+                            disabled={isUndoing}
+                            className="cursor-pointer text-accent underline hover:text-accent/80 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isUndoing ? 'Undoing…' : 'Undo'}
+                          </button>
+                        </p>
+                        {undoError && (
+                          <p className="text-sm text-danger" role="alert">
+                            {undoError}
+                          </p>
+                        )}
                       </div>
-                    </Link>
+                    )}
                   </li>
                 )
               })}
@@ -141,6 +199,19 @@ export function SetProgressList({ sets }: { sets: SetCompletion[] }) {
 
         {visibleSets.length === 0 && <p className="text-sm text-faint">No sets match this filter.</p>}
       </div>
+
+      {quickAddTarget && (
+        <QuickAddSetModal
+          set={quickAddTarget}
+          collectionId={collectionId}
+          onClose={() => setQuickAddPackCode(null)}
+          onDone={(verb, changes) => {
+            setLastAction({ packCode: quickAddTarget.packCode, verb, changes })
+            setUndoError(null)
+            setQuickAddPackCode(null)
+          }}
+        />
+      )}
     </div>
   )
 }

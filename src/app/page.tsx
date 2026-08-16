@@ -38,7 +38,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <SetProgressList sets={sets} />
+      <SetProgressList sets={sets} collectionId={collection.id} />
 
       {unsizedPacks.length > 0 && (
         <div>
