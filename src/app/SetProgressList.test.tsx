@@ -260,4 +260,57 @@ describe('SetProgressList', () => {
     const undoLines = await screen.findAllByText(/Added 1 card/)
     expect(undoLines).toHaveLength(1)
   })
+
+  it('scopes the Undo line to the collection it was captured in — switching collections hides it and it cannot be triggered', async () => {
+    vi.mocked(quickAddSet).mockResolvedValue({ ok: true, changes: [{ cardCode: '01001', previousQuantity: 0 }] })
+    const user = userEvent.setup()
+    const { rerender } = render(<SetProgressList sets={sets} collectionId={1} />)
+
+    await user.click(screen.getByRole('button', { name: 'Quick add A Study in Static' }))
+    await user.click(screen.getByRole('button', { name: 'Quick Add All Cards' }))
+    expect(await screen.findByText(/Added 1 card/)).toBeInTheDocument()
+
+    // Simulate switching the current collection via CollectionSwitcher, which
+    // triggers router.refresh() and re-renders this component with a new
+    // collectionId while its useState (including lastAction) is preserved.
+    rerender(<SetProgressList sets={sets} collectionId={2} />)
+
+    expect(screen.queryByText(/Added 1 card/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+    expect(undoQuickSetChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Undo line (and its row) visible under a filter the set no longer matches once the change lands', async () => {
+    vi.mocked(quickAddSet).mockResolvedValue({ ok: true, changes: [{ cardCode: '01001', previousQuantity: 0 }] })
+    const user = userEvent.setup()
+    const { rerender } = render(<SetProgressList sets={sets} collectionId={1} />)
+
+    await user.click(screen.getByRole('button', { name: 'Missing' }))
+    expect(screen.getByText('A Study in Static')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Quick add A Study in Static' }))
+    await user.click(screen.getByRole('button', { name: 'Quick Add All Cards' }))
+    expect(await screen.findByText(/Added 1 card/)).toBeInTheDocument()
+
+    // Simulate the revalidated data landing: the set is now fully owned,
+    // which the still-active "Missing" filter would otherwise exclude.
+    const updatedSets: SetCompletion[] = [sets[0], { ...sets[1], ownedCount: 20, percentOwned: 100 }]
+    rerender(<SetProgressList sets={updatedSets} collectionId={1} />)
+
+    expect(screen.getByText('A Study in Static')).toBeInTheDocument()
+    expect(screen.getByText(/Added 1 card/)).toBeInTheDocument()
+  })
+
+  it('does not show an Undo line when the reported changes are empty', async () => {
+    vi.mocked(quickAddSet).mockResolvedValue({ ok: true, changes: [] })
+    const user = userEvent.setup()
+    render(<SetProgressList sets={sets} collectionId={1} />)
+
+    await user.click(screen.getByRole('button', { name: 'Quick add A Study in Static' }))
+    await user.click(screen.getByRole('button', { name: 'Quick Add All Cards' }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Quick Add All Cards' })).not.toBeInTheDocument())
+    expect(screen.queryByText(/Added 0 card/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
 })

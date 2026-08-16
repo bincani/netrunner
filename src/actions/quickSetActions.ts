@@ -13,23 +13,25 @@ export type QuickSetResult = { ok: true; changes: QuickSetChange[] } | { ok: fal
 export type SimpleActionResult = { ok: true } | { ok: false; error: string }
 
 export async function quickAddSet(collectionId: number, packCode: string): Promise<QuickSetResult> {
+  let changes: QuickSetChange[]
   try {
-    const changes = await quickAddSetMutation(prisma, collectionId, packCode)
-    revalidatePath('/')
-    return { ok: true, changes }
+    changes = await quickAddSetMutation(prisma, collectionId, packCode)
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to quick add set' }
   }
+  revalidatePath('/')
+  return { ok: true, changes }
 }
 
 export async function clearSet(collectionId: number, packCode: string): Promise<QuickSetResult> {
+  let changes: QuickSetChange[]
   try {
-    const changes = await clearSetMutation(prisma, collectionId, packCode)
-    revalidatePath('/')
-    return { ok: true, changes }
+    changes = await clearSetMutation(prisma, collectionId, packCode)
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to clear set' }
   }
+  revalidatePath('/')
+  return { ok: true, changes }
 }
 
 export async function undoQuickSetChange(
@@ -38,9 +40,9 @@ export async function undoQuickSetChange(
 ): Promise<SimpleActionResult> {
   try {
     await undoQuickSetChangeMutation(prisma, collectionId, changes)
-    revalidatePath('/')
-    return { ok: true }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to undo' }
   }
+  revalidatePath('/')
+  return { ok: true }
 }

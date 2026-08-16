@@ -34,8 +34,9 @@ disposable.
 (in-app deck editing, MWL/legality checking) and multi-user accounts or
 auth (single user, no login — this holds even when deployed behind nginx,
 see below). `importCsvToCollection`, `approveImportBatch`,
-`removeFromImportBatch`, `removeFromBatch`, `approveBatch`, and the CSV
-export route's `?collectionId=` param all currently accept a
+`removeFromImportBatch`, `removeFromBatch`, `approveBatch`,
+`quickAddSet`/`clearSet`/`undoQuickSetChange` (`src/actions/quickSetActions.ts`),
+and the CSV export route's `?collectionId=` param all currently accept a
 client-supplied `collectionId`/`batchId` with only a batch-to-collection
 ownership check (a batch must belong to the given collection) and no
 user/access-control check — correct for today's single-user no-auth

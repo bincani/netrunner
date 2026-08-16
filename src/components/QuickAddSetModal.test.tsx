@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QuickAddSetModal } from './QuickAddSetModal'
 import { quickAddSet, clearSet } from '@/actions/quickSetActions'
@@ -129,5 +129,40 @@ describe('QuickAddSetModal', () => {
     await user.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('pressing Escape calls onClose', async () => {
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<QuickAddSetModal set={partialSet} collectionId={1} onClose={onClose} onDone={vi.fn()} />)
+
+    await user.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores backdrop clicks, the close button, Cancel, and Escape while a submission is in flight', async () => {
+    let resolveQuickAdd!: (value: Awaited<ReturnType<typeof quickAddSet>>) => void
+    vi.mocked(quickAddSet).mockReturnValue(
+      new Promise((resolve) => {
+        resolveQuickAdd = resolve
+      })
+    )
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<QuickAddSetModal set={partialSet} collectionId={1} onClose={onClose} onDone={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Quick Add All Cards' }))
+
+    // Still mid-flight: dismissal attempts should all be inert.
+    await user.click(screen.getByRole('presentation'))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.keyboard('{Escape}')
+
+    expect(onClose).not.toHaveBeenCalled()
+
+    resolveQuickAdd({ ok: true, changes: [] })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Quick Add All Cards' })).not.toBeDisabled())
   })
 })

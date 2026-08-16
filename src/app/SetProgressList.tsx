@@ -18,6 +18,7 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
 
   const [quickAddPackCode, setQuickAddPackCode] = useState<string | null>(null)
   const [lastAction, setLastAction] = useState<{
+    collectionId: number
     packCode: string
     verb: 'Added' | 'Cleared'
     changes: QuickSetChange[]
@@ -33,6 +34,7 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
   const trimmedQuery = nameQuery.trim().toLowerCase()
 
   const visibleSets = sets.filter((set) => {
+    if (lastAction?.collectionId === collectionId && lastAction.packCode === set.packCode) return true
     if (!matchesOwnershipFilter(set.ownedCount, set.totalCount, filter)) return false
     if (typeFilter !== 'all' && set.setType !== typeFilter) return false
     if (trimmedQuery !== '' && !set.packName.toLowerCase().includes(trimmedQuery)) return false
@@ -45,11 +47,11 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
   const quickAddTarget = sets.find((set) => set.packCode === quickAddPackCode) ?? null
 
   async function handleUndo() {
-    if (!lastAction) return
+    if (!lastAction || lastAction.collectionId !== collectionId) return
     setIsUndoing(true)
     setUndoError(null)
     try {
-      const result = await undoQuickSetChange(collectionId, lastAction.changes)
+      const result = await undoQuickSetChange(lastAction.collectionId, lastAction.changes)
       if (result.ok) {
         setLastAction(null)
       } else {
@@ -169,10 +171,10 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
                         ⚡
                       </button>
                     </div>
-                    {lastAction?.packCode === set.packCode && (
+                    {lastAction?.collectionId === collectionId && lastAction.packCode === set.packCode && (
                       <div className="px-3">
                         <p className="text-sm text-muted">
-                          {lastAction.verb} {lastAction.changes.length} card
+                          {lastAction.verb} {lastAction.changes.length} card printing
                           {lastAction.changes.length === 1 ? '' : 's'}{' '}
                           <button
                             type="button"
@@ -206,8 +208,10 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
           collectionId={collectionId}
           onClose={() => setQuickAddPackCode(null)}
           onDone={(verb, changes) => {
-            setLastAction({ packCode: quickAddTarget.packCode, verb, changes })
-            setUndoError(null)
+            if (changes.length > 0) {
+              setLastAction({ collectionId, packCode: quickAddTarget.packCode, verb, changes })
+              setUndoError(null)
+            }
             setQuickAddPackCode(null)
           }}
         />

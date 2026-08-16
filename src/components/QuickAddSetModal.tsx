@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { quickAddSet, clearSet } from '@/actions/quickSetActions'
 import type { QuickSetChange } from '@/lib/quickSet'
@@ -24,11 +24,20 @@ export function QuickAddSetModal({
   const isFullyOwned = set.ownedCount === set.totalCount
   const hasNothingOwned = set.ownedCount === 0
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !isSubmitting) onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose, isSubmitting])
+
   async function handleQuickAdd() {
     setIsSubmitting(true)
     setError(null)
     const result = await quickAddSet(collectionId, set.packCode)
     if (result.ok) {
+      setIsSubmitting(false)
       onDone('Added', result.changes)
     } else {
       setError(result.error)
@@ -41,6 +50,7 @@ export function QuickAddSetModal({
     setError(null)
     const result = await clearSet(collectionId, set.packCode)
     if (result.ok) {
+      setIsSubmitting(false)
       onDone('Cleared', result.changes)
     } else {
       setError(result.error)
@@ -54,13 +64,13 @@ export function QuickAddSetModal({
   } else if (hasNothingOwned) {
     bodyText = `Add all ${set.totalCount} cards from ${set.packName} to your collection?`
   } else {
-    bodyText = `You already own ${set.ownedCount} of ${set.totalCount} cards in ${set.packName}. Quick Add will bring every card up to a full playset — it won't reduce anything you already own. Continue?`
+    bodyText = `You already own ${set.ownedCount} of ${set.totalCount} cards in ${set.packName}. Quick Add will bring every card up to its full printed quantity — it won't reduce anything you already own. Continue?`
   }
 
   return createPortal(
     <div
       role="presentation"
-      onClick={onClose}
+      onClick={isSubmitting ? undefined : onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
     >
       <div onClick={(event) => event.stopPropagation()} className="w-full max-w-md space-y-4 rounded-lg bg-surface p-4">
@@ -71,8 +81,9 @@ export function QuickAddSetModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={isSubmitting}
             aria-label="Close"
-            className="shrink-0 cursor-pointer rounded bg-surface-hover px-2 py-1 text-sm hover:bg-default"
+            className="shrink-0 cursor-pointer rounded bg-surface-hover px-2 py-1 text-sm hover:bg-default disabled:cursor-not-allowed disabled:opacity-50"
           >
             ✕
           </button>
@@ -107,7 +118,8 @@ export function QuickAddSetModal({
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover"
+              disabled={isSubmitting}
+              className="cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>

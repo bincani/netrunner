@@ -14,6 +14,11 @@ async function applyChanges(
   if (updates.length === 0) {
     return
   }
+  for (const update of updates) {
+    if (!Number.isInteger(update.newQuantity) || update.newQuantity < 0) {
+      throw new Error(`newQuantity must be a non-negative integer, got ${update.newQuantity}`)
+    }
+  }
   await prisma.$transaction([
     ...updates.map((update) =>
       prisma.collectionEntry.upsert({

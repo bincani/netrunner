@@ -152,4 +152,22 @@ describe('undoQuickSetChange', () => {
     })
     expect(entry?.quantityOwned).toBe(0)
   })
+
+  it('rejects a negative previousQuantity instead of writing it', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', quantity: 3 })
+
+    await expect(
+      undoQuickSetChange(prisma, collectionId, [{ cardCode: '01001', previousQuantity: -1 }])
+    ).rejects.toThrow('newQuantity must be a non-negative integer')
+  })
+
+  it('rejects a non-integer previousQuantity instead of writing it', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', quantity: 3 })
+
+    await expect(
+      undoQuickSetChange(prisma, collectionId, [{ cardCode: '01001', previousQuantity: 1.5 }])
+    ).rejects.toThrow('newQuantity must be a non-negative integer')
+  })
 })
