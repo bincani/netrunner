@@ -195,6 +195,18 @@ describe('getDiscoverDecks', () => {
     expect(decks.map((d) => d.name)).toEqual(['Anteater', 'Zebra'])
   })
 
+  it('treats a deck with zero cards as fully buildable at 0% owned, not a crash or an omission', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Empty Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+
+    const { decks, total } = await getDiscoverDecks(prisma, collectionId, defaultFilters)
+
+    expect(total).toBe(1)
+    expect(decks[0]).toMatchObject({ name: 'Empty Deck', totalCount: 0, ownedCount: 0, percentOwned: 0, missingCopies: 0, cards: [] })
+  })
+
   it('paginates with limit/offset while total reflects the full filtered count', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     for (let i = 1; i <= 3; i++) {
