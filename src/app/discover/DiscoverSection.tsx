@@ -264,7 +264,7 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
                 </div>
 
                 {isOpen && (
-                  <div className="border-t border-subtle p-3">
+                  <div className="space-y-3 border-t border-subtle p-3">
                     <DeckCardList cards={deck.cards} />
 
                     <FormatLegalityBadges formatLegality={deck.formatLegality} />
