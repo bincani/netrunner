@@ -143,10 +143,10 @@ export async function importFormatLegalityData(
     })
 
     await prisma.$transaction(
-      [
-        prisma.cardFormatLegality.deleteMany({ where: { formatCode } }),
-        prisma.cardFormatLegality.createMany({ data: rows }),
-      ],
+      async (tx) => {
+        await tx.cardFormatLegality.deleteMany({ where: { formatCode } })
+        await tx.cardFormatLegality.createMany({ data: rows })
+      },
       { timeout: 60_000 }
     )
     legalityRows += rows.length
