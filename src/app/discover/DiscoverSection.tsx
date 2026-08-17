@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { fetchDiscoverDecks, saveDiscoveredDeck } from '@/actions/discoverActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
+import { groupFactionsBySide, type FactionOption } from '@/lib/factionGroups'
 import type { DiscoverDeck, DiscoverFilters } from '@/lib/discover'
 
 const PAGE_SIZE = 25
@@ -21,10 +22,11 @@ interface DiscoverSectionProps {
   initialDecks: DiscoverDeck[]
   initialTotal: number
   savedDeckIds: number[]
-  factionOptions: { code: string; name: string }[]
+  factionOptions: FactionOption[]
 }
 
 export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, factionOptions }: DiscoverSectionProps) {
+  const factionGroups = groupFactionsBySide(factionOptions)
   const [decks, setDecks] = useState(initialDecks)
   const [total, setTotal] = useState(initialTotal)
   const [filters, setFilters] = useState<FilterState>({
@@ -159,10 +161,14 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
             className="rounded border border-default bg-surface px-2 py-1"
           >
             <option value="">All</option>
-            {factionOptions.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.name}
-              </option>
+            {factionGroups.map((group) => (
+              <optgroup key={group.sideCode} label={group.label}>
+                {group.options.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>

@@ -25,7 +25,7 @@ export default async function DiscoverPage() {
         initialDecks={decks}
         initialTotal={total}
         savedDeckIds={savedDecks.map((deck) => deck.id)}
-        factionOptions={factions.map((faction) => ({ code: faction.code, name: faction.name }))}
+        factionOptions={factions.map((faction) => ({ code: faction.code, name: faction.name, sideCode: faction.sideCode }))}
       />
     </main>
   )

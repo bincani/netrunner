@@ -20,7 +20,7 @@ export default async function DecksPage() {
       <h1 className="text-2xl font-bold mb-6">Decks</h1>
       <DeckSection
         initialDecks={decks}
-        factionOptions={factions.map((faction) => ({ code: faction.code, name: faction.name }))}
+        factionOptions={factions.map((faction) => ({ code: faction.code, name: faction.name, sideCode: faction.sideCode }))}
       />
     </main>
   )

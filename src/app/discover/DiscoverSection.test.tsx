@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { render, screen, within, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DiscoverSection } from './DiscoverSection'
 import { fetchDiscoverDecks, saveDiscoveredDeck } from '@/actions/discoverActions'
@@ -27,7 +27,10 @@ const sampleDeck: DiscoverDeck = {
   ],
 }
 
-const factionOptions = [{ code: 'anarch', name: 'Anarch' }]
+const factionOptions = [
+  { code: 'anarch', name: 'Anarch', sideCode: 'runner' },
+  { code: 'jinteki', name: 'Jinteki', sideCode: 'corp' },
+]
 
 describe('DiscoverSection', () => {
   beforeEach(() => {
@@ -80,6 +83,17 @@ describe('DiscoverSection', () => {
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
     expect(screen.getByText('Card A')).toBeInTheDocument()
+  })
+
+  it('groups faction options into Corp/Runner optgroups', () => {
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    const corpGroup = screen.getByRole('group', { name: 'Corp' }) as HTMLOptGroupElement
+    const runnerGroup = screen.getByRole('group', { name: 'Runner' }) as HTMLOptGroupElement
+    expect(within(corpGroup).getByRole('option', { name: 'Jinteki' })).toBeInTheDocument()
+    expect(within(runnerGroup).getByRole('option', { name: 'Anarch' })).toBeInTheDocument()
   })
 
   it('changing the faction filter refetches with the selected faction', async () => {

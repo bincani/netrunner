@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DeckSection } from './DeckSection'
 import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
@@ -29,8 +29,9 @@ vi.mock('next/link', () => ({
 }))
 
 const factionOptions = [
-  { code: 'anarch', name: 'Anarch' },
-  { code: 'shaper', name: 'Shaper' },
+  { code: 'anarch', name: 'Anarch', sideCode: 'runner' },
+  { code: 'shaper', name: 'Shaper', sideCode: 'runner' },
+  { code: 'jinteki', name: 'Jinteki', sideCode: 'corp' },
 ]
 
 const sampleDeck: DeckSummary = {
@@ -380,6 +381,16 @@ describe('DeckSection', () => {
       expect(select).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Anarch' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Shaper' })).toBeInTheDocument()
+    })
+
+    it('groups the faction dropdown into Corp/Runner optgroups', () => {
+      const jintekiDeck: DeckSummary = { ...secondDeck, factionCode: 'jinteki' }
+      render(<DeckSection initialDecks={[sampleDeck, jintekiDeck]} factionOptions={factionOptions} />)
+
+      const corpGroup = screen.getByRole('group', { name: 'Corp' }) as HTMLOptGroupElement
+      const runnerGroup = screen.getByRole('group', { name: 'Runner' }) as HTMLOptGroupElement
+      expect(within(corpGroup).getByRole('option', { name: 'Jinteki' })).toBeInTheDocument()
+      expect(within(runnerGroup).getByRole('option', { name: 'Anarch' })).toBeInTheDocument()
     })
 
     it('combines filters using AND', async () => {

@@ -5,6 +5,7 @@ import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
 import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
+import { groupFactionsBySide, type FactionOption } from '@/lib/factionGroups'
 import type { DeckSummary } from '@/lib/decks'
 
 export function DeckSection({
@@ -12,7 +13,7 @@ export function DeckSection({
   factionOptions,
 }: {
   initialDecks: DeckSummary[]
-  factionOptions: { code: string; name: string }[]
+  factionOptions: FactionOption[]
 }) {
   const [decks, setDecks] = useState<DeckSummary[]>(initialDecks)
   const [input, setInput] = useState('')
@@ -34,6 +35,7 @@ export function DeckSection({
 
   const presentFactionCodes = new Set(decks.map((deck) => deck.factionCode).filter((code) => code !== null))
   const presentFactionOptions = factionOptions.filter((option) => presentFactionCodes.has(option.code))
+  const presentFactionGroups = groupFactionsBySide(presentFactionOptions)
 
   const visibleDecks = decks.filter((deck) => {
     if (!matchesOwnershipFilter(deck.ownedCount, deck.totalCount, ownershipFilter)) return false
@@ -172,10 +174,14 @@ export function DeckSection({
                 className="cursor-pointer rounded border border-default bg-surface px-2 py-1 hover:bg-surface-hover"
               >
                 <option value="">All</option>
-                {presentFactionOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.name}
-                  </option>
+                {presentFactionGroups.map((group) => (
+                  <optgroup key={group.sideCode} label={group.label}>
+                    {group.options.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
