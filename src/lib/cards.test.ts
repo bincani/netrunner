@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard, seedCollection } from './testFixtures'
 import { incrementOwned } from './collection'
-import { searchCards, listCardsInPack, getOtherPrintings, getAllPrintings } from './cards'
+import { searchCards, listCardsInPack, getOtherPrintings, getAllPrintings, getCardDetail } from './cards'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -19,6 +19,8 @@ beforeEach(async () => {
   await prisma.hiddenBuilderPack.deleteMany()
   await prisma.collectionEntry.deleteMany()
   await prisma.collection.deleteMany()
+  await prisma.cardFormatLegality.deleteMany()
+  await prisma.format.deleteMany()
   await prisma.card.deleteMany()
 })
 
@@ -272,5 +274,48 @@ describe('getAllPrintings', () => {
     const printings = await getAllPrintings(prisma, collectionId, 'nonexistent')
 
     expect(printings).toEqual([])
+  })
+})
+
+describe('formatLegalities', () => {
+  it('getCardDetail includes each format the card has a legality row for', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core' })
+    await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
+    await prisma.cardFormatLegality.create({
+      data: { cardCode: '01001', formatCode: 'standard', status: 'legal', detail: null },
+    })
+
+    const detail = await getCardDetail(prisma, collectionId, '01001')
+
+    expect(detail?.formatLegalities).toEqual([
+      { formatCode: 'standard', formatName: 'Standard', status: 'legal', detail: null },
+    ])
+  })
+
+  it('getCardDetail returns an empty array for a card with no legality data', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core' })
+
+    const detail = await getCardDetail(prisma, collectionId, '01001')
+
+    expect(detail?.formatLegalities).toEqual([])
+  })
+
+  it('listCardsInPack attaches formatLegalities per card without an N+1 query per card', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core', position: 1 })
+    await seedCard(prisma, { code: '01002', title: 'Easy Mark', packCode: 'core', position: 2 })
+    await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
+    await prisma.cardFormatLegality.create({
+      data: { cardCode: '01001', formatCode: 'standard', status: 'banned', detail: null },
+    })
+
+    const cards = await listCardsInPack(prisma, collectionId, 'core')
+
+    expect(cards[0].formatLegalities).toEqual([
+      { formatCode: 'standard', formatName: 'Standard', status: 'banned', detail: null },
+    ])
+    expect(cards[1].formatLegalities).toEqual([])
   })
 })

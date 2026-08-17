@@ -50,6 +50,7 @@ const fullCard: PackCardEntry = {
   position: 10,
   ownedQuantity: 2,
   quantity: 3,
+  formatLegalities: [],
 }
 
 const sparseCard: PackCardEntry = {
@@ -70,6 +71,7 @@ const sparseCard: PackCardEntry = {
   position: 1,
   ownedQuantity: 0,
   quantity: 1,
+  formatLegalities: [],
 }
 
 describe('CardDetailPopup', () => {

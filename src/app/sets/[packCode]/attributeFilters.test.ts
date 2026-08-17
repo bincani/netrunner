@@ -24,6 +24,7 @@ function makeCard(overrides: Partial<PackCardEntry> & Pick<PackCardEntry, 'code'
     position: 1,
     ownedQuantity: 0,
     quantity: 3,
+    formatLegalities: [],
     ...overrides,
   }
 }

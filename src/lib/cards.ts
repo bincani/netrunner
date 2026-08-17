@@ -1,5 +1,33 @@
 import type { PrismaClient } from '@prisma/client'
 
+export interface FormatLegalityEntry {
+  formatCode: string
+  formatName: string
+  status: string
+  detail: string | null
+}
+
+/** Bulk-attaches each entry's formatLegalities in one query, keyed by its `code` — avoids an N+1 query per card in a list. */
+async function attachFormatLegalities<T extends { code: string }>(
+  prisma: PrismaClient,
+  entries: T[]
+): Promise<(T & { formatLegalities: FormatLegalityEntry[] })[]> {
+  const codes = entries.map((entry) => entry.code)
+  const rows = await prisma.cardFormatLegality.findMany({
+    where: { cardCode: { in: codes } },
+    include: { format: true },
+  })
+
+  const byCode = new Map<string, FormatLegalityEntry[]>()
+  for (const row of rows) {
+    const list = byCode.get(row.cardCode) ?? []
+    list.push({ formatCode: row.formatCode, formatName: row.format.name, status: row.status, detail: row.detail })
+    byCode.set(row.cardCode, list)
+  }
+
+  return entries.map((entry) => ({ ...entry, formatLegalities: byCode.get(entry.code) ?? [] }))
+}
+
 export interface CardSearchFilters {
   query: string
   factionCode?: string
@@ -29,6 +57,7 @@ export interface CardSearchResult {
   ownedQuantity: number
   /** How many copies of this specific card are printed in one copy of the set — the same field as PackCardEntry.quantity. */
   quantity: number | null
+  formatLegalities: FormatLegalityEntry[]
 }
 
 export async function searchCards(
@@ -65,7 +94,7 @@ export async function searchCards(
     take: 50,
   })
 
-  return cards.map((card) => ({
+  const entries = cards.map((card) => ({
     code: card.code,
     title: card.title,
     factionCode: card.factionCode,
@@ -86,6 +115,8 @@ export async function searchCards(
     ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
     quantity: card.quantity,
   }))
+
+  return attachFormatLegalities(prisma, entries)
 }
 
 export interface CardPrinting {
@@ -166,6 +197,7 @@ export interface PackCardEntry {
   ownedQuantity: number
   /** How many copies of this specific card are printed in one copy of the set — the "expected" count for a single owned box. */
   quantity: number | null
+  formatLegalities: FormatLegalityEntry[]
 }
 
 /** A single card's full detail by code, for popups that only start with a code/title (batch and deck card lists). */
@@ -186,25 +218,28 @@ export async function getCardDetail(
     return null
   }
 
-  return {
-    code: card.code,
-    title: card.title,
-    factionCode: card.factionCode,
-    factionName: card.faction.name,
-    typeCode: card.typeCode,
-    typeName: card.type.name,
-    sideCode: card.sideCode,
-    cost: card.cost,
-    factionCost: card.factionCost,
-    strength: card.strength,
-    deckLimit: card.deckLimit,
-    keywords: card.keywords,
-    text: card.text,
-    uniqueness: card.uniqueness,
-    position: card.position,
-    ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
-    quantity: card.quantity,
-  }
+  const [withLegalities] = await attachFormatLegalities(prisma, [
+    {
+      code: card.code,
+      title: card.title,
+      factionCode: card.factionCode,
+      factionName: card.faction.name,
+      typeCode: card.typeCode,
+      typeName: card.type.name,
+      sideCode: card.sideCode,
+      cost: card.cost,
+      factionCost: card.factionCost,
+      strength: card.strength,
+      deckLimit: card.deckLimit,
+      keywords: card.keywords,
+      text: card.text,
+      uniqueness: card.uniqueness,
+      position: card.position,
+      ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
+      quantity: card.quantity,
+    },
+  ])
+  return withLegalities
 }
 
 export async function listCardsInPack(
@@ -222,7 +257,7 @@ export async function listCardsInPack(
     orderBy: { position: 'asc' },
   })
 
-  return cards.map((card) => ({
+  const entries = cards.map((card) => ({
     code: card.code,
     title: card.title,
     factionCode: card.factionCode,
@@ -241,4 +276,6 @@ export async function listCardsInPack(
     ownedQuantity: card.collectionEntries[0]?.quantityOwned ?? 0,
     quantity: card.quantity,
   }))
+
+  return attachFormatLegalities(prisma, entries)
 }
