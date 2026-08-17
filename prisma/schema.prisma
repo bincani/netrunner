@@ -61,8 +61,30 @@ model Card {
   uniqueness        Boolean           @default(false)
   quantity          Int?
   position          Int
+  /// The v2 data model's title-level card slug (e.g. "rezeki") — null until the format-legality import resolves it. Used to join CardFormatLegality and to look up restriction-list membership, which is keyed by this slug, not by printing code.
+  cardId            String?
   collectionEntries CollectionEntry[]
   batchCards        BatchCard[]
+  formatLegalities  CardFormatLegality[]
+}
+
+model Format {
+  code       String               @id // standard, startup, eternal, core, system_gateway, snapshot, ram
+  name       String
+  legalities CardFormatLegality[]
+}
+
+model CardFormatLegality {
+  cardCode   String
+  card       Card   @relation(fields: [cardCode], references: [code], onDelete: Cascade)
+  formatCode String
+  format     Format @relation(fields: [formatCode], references: [code], onDelete: Cascade)
+  /// 'legal' | 'not_in_pool' | 'banned' | 'restricted' | 'universal_influence_penalty' | 'points'
+  status     String
+  /// e.g. "+2 influence" or "2 pts (limit 7)" — null for legal/not_in_pool/banned/restricted.
+  detail     String?
+
+  @@id([cardCode, formatCode])
 }
 
 model Collection {
