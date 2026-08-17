@@ -358,4 +358,51 @@ describe('CardDetailPopup', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load card details.')
     })
   })
+
+  describe('format legality', () => {
+    it('shows a line per format the card has legality data for', async () => {
+      const cardWithLegalities = {
+        ...fullCard,
+        formatLegalities: [
+          { formatCode: 'standard', formatName: 'Standard', status: 'banned', detail: null },
+          { formatCode: 'startup', formatName: 'Startup', status: 'legal', detail: null },
+        ],
+      }
+      mockPrintingsFetch([])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={cardWithLegalities} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(await screen.findByText('Standard: banned')).toBeInTheDocument()
+      expect(screen.getByText('Startup: legal')).toBeInTheDocument()
+    })
+
+    it('includes the detail string when present', async () => {
+      const cardWithLegalities = {
+        ...fullCard,
+        formatLegalities: [
+          { formatCode: 'eternal', formatName: 'Eternal', status: 'points', detail: '3 pts (limit 7)' },
+        ],
+      }
+      mockPrintingsFetch([])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={cardWithLegalities} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(await screen.findByText('Eternal: points (3 pts (limit 7))')).toBeInTheDocument()
+    })
+
+    it('shows an unavailable message when there is no legality data', async () => {
+      const cardWithoutLegalities = { ...fullCard, formatLegalities: [] }
+      mockPrintingsFetch([])
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={cardWithoutLegalities} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(await screen.findByText('Format legality unavailable')).toBeInTheDocument()
+    })
+  })
 })

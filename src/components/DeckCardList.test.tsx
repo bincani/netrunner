@@ -82,6 +82,7 @@ describe('DeckCardList', () => {
             position: 1,
             ownedQuantity: 2,
             quantity: 3,
+            formatLegalities: [],
           }),
         }
       }

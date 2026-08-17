@@ -35,6 +35,7 @@ const mockResults = [
     position: 7,
     ownedQuantity: 0,
     quantity: 2,
+    formatLegalities: [],
   },
   {
     code: '01011',
@@ -56,6 +57,7 @@ const mockResults = [
     position: 11,
     ownedQuantity: 0,
     quantity: 2,
+    formatLegalities: [],
   },
 ]
 

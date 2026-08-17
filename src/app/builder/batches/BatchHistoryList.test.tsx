@@ -44,7 +44,17 @@ const batches: BatchSummary[] = [
 
 describe('BatchHistoryList', () => {
   beforeEach(() => {
-    global.fetch = vi.fn(async () => ({ ok: true, json: async () => [] })) as unknown as typeof fetch
+    // The card-detail popup's minimal (code/title-only) card lookup fetches
+    // `/api/cards/detail` for the full card; every other fetch (other
+    // printings) is a plain list. Only the detail response needs
+    // `formatLegalities` — the popup dereferences `.length` on it.
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/cards/detail')) {
+        return { ok: true, json: async () => ({ formatLegalities: [] }) }
+      }
+      return { ok: true, json: async () => [] }
+    }) as unknown as typeof fetch
   })
 
   it('links each card to its detail popup', async () => {

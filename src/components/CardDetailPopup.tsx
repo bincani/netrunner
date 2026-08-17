@@ -200,6 +200,22 @@ export function CardDetailPopup({
 
                     <div className="pt-2 text-sm text-muted">Owned: {detail.ownedQuantity}</div>
 
+                    <div className="pt-2">
+                      <div className="text-sm font-semibold text-primary">Format Legality</div>
+                      {detail.formatLegalities.length > 0 ? (
+                        <ul className="text-sm text-muted">
+                          {detail.formatLegalities.map((entry) => (
+                            <li key={entry.formatCode}>
+                              {entry.formatName}: {entry.status.replace(/_/g, ' ')}
+                              {entry.detail && ` (${entry.detail})`}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-faint">Format legality unavailable</p>
+                      )}
+                    </div>
+
                     {printings.length > 0 && (
                       <div className="pt-2">
                         <div className="text-sm font-semibold text-primary">
