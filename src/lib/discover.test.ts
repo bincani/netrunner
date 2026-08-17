@@ -20,6 +20,8 @@ beforeEach(async () => {
   await prisma.tournamentDeck.deleteMany()
   await prisma.collectionEntry.deleteMany()
   await prisma.collection.deleteMany()
+  await prisma.cardFormatLegality.deleteMany()
+  await prisma.format.deleteMany()
   await prisma.card.deleteMany()
 })
 
