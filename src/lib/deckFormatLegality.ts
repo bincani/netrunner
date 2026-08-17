@@ -1,6 +1,8 @@
+import type { CardFormatStatus } from './cardFormatStatus'
+
 export interface CardFormatLegalityInfo {
   formatCode: string
-  status: string
+  status: CardFormatStatus
 }
 
 export interface DeckFormatLegality {

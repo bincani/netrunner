@@ -11,8 +11,10 @@ export interface RestrictionData {
   point_limit?: number
 }
 
+export type CardFormatStatus = 'legal' | 'not_in_pool' | 'banned' | 'restricted' | 'universal_influence_penalty' | 'points'
+
 export interface CardFormatStatusResult {
-  status: 'legal' | 'not_in_pool' | 'banned' | 'restricted' | 'universal_influence_penalty' | 'points'
+  status: CardFormatStatus
   detail: string | null
 }
 

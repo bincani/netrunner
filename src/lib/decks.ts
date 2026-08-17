@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import { cardContribution } from './reports'
 import { computeDeckFormatLegality, type DeckFormatLegality } from './deckFormatLegality'
+import type { CardFormatStatus } from './cardFormatStatus'
 
 export interface DeckCardOwnership {
   code: string
@@ -50,10 +51,10 @@ async function computeDeckSummary(
   const ownedByCode = new Map(collectionEntries.map((entry) => [entry.cardCode, entry.quantityOwned]))
   const identityCard = cards.find((card) => card.typeCode === 'identity')
 
-  const legalityByCode = new Map<string, { formatCode: string; status: string }[]>()
+  const legalityByCode = new Map<string, { formatCode: string; status: CardFormatStatus }[]>()
   for (const row of legalityRows) {
     const list = legalityByCode.get(row.cardCode) ?? []
-    list.push({ formatCode: row.formatCode, status: row.status })
+    list.push({ formatCode: row.formatCode, status: row.status as CardFormatStatus })
     legalityByCode.set(row.cardCode, list)
   }
 

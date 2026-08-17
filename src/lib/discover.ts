@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { computeDeckFormatLegality, type DeckFormatLegality } from './deckFormatLegality'
+import type { CardFormatStatus } from './cardFormatStatus'
 import type { DeckCardOwnership } from './decks'
 
 export interface DiscoverFilters {
@@ -126,10 +127,10 @@ export async function getDiscoverDecks(
   const cardByCode = new Map(knownCards.map((card) => [card.code, card]))
   const ownedByCode = new Map(collectionEntries.map((entry) => [entry.cardCode, entry.quantityOwned]))
 
-  const legalityByCode = new Map<string, { formatCode: string; status: string }[]>()
+  const legalityByCode = new Map<string, { formatCode: string; status: CardFormatStatus }[]>()
   for (const row of legalityRows) {
     const list = legalityByCode.get(row.cardCode) ?? []
-    list.push({ formatCode: row.formatCode, status: row.status })
+    list.push({ formatCode: row.formatCode, status: row.status as CardFormatStatus })
     legalityByCode.set(row.cardCode, list)
   }
   const formatList = formats.map((format) => ({ code: format.code, name: format.name }))

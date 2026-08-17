@@ -1,9 +1,10 @@
 import type { PrismaClient } from '@prisma/client'
+import type { CardFormatStatus } from './cardFormatStatus'
 
 export interface FormatLegalityEntry {
   formatCode: string
   formatName: string
-  status: string
+  status: CardFormatStatus
   detail: string | null
 }
 
@@ -21,7 +22,12 @@ async function attachFormatLegalities<T extends { code: string }>(
   const byCode = new Map<string, FormatLegalityEntry[]>()
   for (const row of rows) {
     const list = byCode.get(row.cardCode) ?? []
-    list.push({ formatCode: row.formatCode, formatName: row.format.name, status: row.status, detail: row.detail })
+    list.push({
+      formatCode: row.formatCode,
+      formatName: row.format.name,
+      status: row.status as CardFormatStatus,
+      detail: row.detail,
+    })
     byCode.set(row.cardCode, list)
   }
 
