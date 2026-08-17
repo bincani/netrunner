@@ -70,7 +70,8 @@ export async function importFormatLegalityData(
     let printings: RawPrinting[]
     try {
       printings = await fetchJson<RawPrinting[]>(fetchImpl, `${BASE_URL}/v2/printings/${v2PackId}.json`)
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to fetch printings for pack ${pack.code}:`, error)
       continue
     }
     for (const printing of printings) {
