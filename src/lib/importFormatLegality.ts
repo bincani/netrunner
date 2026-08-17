@@ -113,14 +113,17 @@ export async function importFormatLegalityData(
 
     const pools = await fetchJson<RawCardPool[]>(fetchImpl, `${BASE_URL}/v2/card_pools/${formatCode}.json`)
     const pool = pools.find((p) => p.id === snapshot.card_pool_id)
+    if (!pool) {
+      console.warn(`No card pool ${snapshot.card_pool_id} found for format ${formatCode}; leaving its legality unknown`)
+      await prisma.cardFormatLegality.deleteMany({ where: { formatCode } })
+      continue
+    }
 
     const legalPackCodes = new Set(
-      (pool?.card_set_ids ?? []).map((id) => legacyCodeByV2PackId.get(id)).filter((code): code is string => !!code)
+      pool.card_set_ids.map((id) => legacyCodeByV2PackId.get(id)).filter((code): code is string => !!code)
     )
     const legalCycleCodes = new Set(
-      (pool?.card_cycle_ids ?? [])
-        .map((id) => legacyCodeByV2CycleId.get(id))
-        .filter((code): code is string => !!code)
+      pool.card_cycle_ids.map((id) => legacyCodeByV2CycleId.get(id)).filter((code): code is string => !!code)
     )
     const membership: CardPoolMembership = { legalPackCodes, legalCycleCodes }
 

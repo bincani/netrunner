@@ -162,6 +162,26 @@ describe('importFormatLegalityData', () => {
     expect(rows).toEqual([])
   })
 
+  it('leaves legality unknown (writes no rows) for a format whose current snapshot references a pool that no longer exists', async () => {
+    await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core', cycleCode: 'core' })
+    await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
+    await prisma.cardFormatLegality.create({
+      data: { cardCode: '01001', formatCode: 'standard', status: 'legal', detail: null },
+    })
+
+    await importFormatLegalityData(
+      prisma,
+      makeFetch({
+        'v2/card_pools/standard.json': [
+          { id: 'some_other_pool', format_id: 'standard', card_cycle_ids: ['core_set_v2'], card_set_ids: [] },
+        ],
+      })
+    )
+
+    const rows = await prisma.cardFormatLegality.findMany({ where: { formatCode: 'standard' } })
+    expect(rows).toEqual([])
+  })
+
   it('is idempotent: re-import replaces rather than duplicates rows', async () => {
     await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core', cycleCode: 'core' })
 
