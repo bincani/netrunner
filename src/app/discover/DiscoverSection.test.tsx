@@ -25,6 +25,7 @@ const sampleDeck: DiscoverDeck = {
   cards: [
     { code: '01001', title: 'Card A', factionName: 'Anarch', neededQuantity: 3, ownedQuantity: 3, found: true },
   ],
+  formatLegality: [],
 }
 
 const factionOptions = [

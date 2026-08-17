@@ -145,6 +145,21 @@ describe('getDecksWithOwnership', () => {
     expect(deckA.ownedCount).toBe(3)
     expect(deckB.ownedCount).toBe(0)
   })
+
+  it('includes a per-format legality rollup for the deck', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
+    await prisma.cardFormatLegality.create({
+      data: { cardCode: '01001', formatCode: 'standard', status: 'banned', detail: null },
+    })
+    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+
+    expect(deck.formatLegality).toEqual([{ formatCode: 'standard', formatName: 'Standard', legal: false }])
+  })
 })
 
 describe('getDeckWithOwnership', () => {

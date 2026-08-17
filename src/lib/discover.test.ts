@@ -276,4 +276,21 @@ describe('getDiscoverDecks', () => {
     expect(total).toBe(3)
     expect(decks).toHaveLength(2)
   })
+
+  it('includes a per-format legality rollup for the deck', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
+    await prisma.cardFormatLegality.create({
+      data: { cardCode: '01001', formatCode: 'standard', status: 'legal', detail: null },
+    })
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    expect(decks[0].formatLegality).toEqual([{ formatCode: 'standard', formatName: 'Standard', legal: true }])
+  })
 })

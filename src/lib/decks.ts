@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
 import { cardContribution } from './reports'
+import { computeDeckFormatLegality, type DeckFormatLegality } from './deckFormatLegality'
 
 export interface DeckCardOwnership {
   code: string
@@ -20,6 +21,7 @@ export interface DeckSummary {
   percentOwned: number
   factionCode: string | null
   cards: DeckCardOwnership[]
+  formatLegality: DeckFormatLegality[]
 }
 
 interface DeckWithCards {
@@ -37,14 +39,23 @@ async function computeDeckSummary(
 ): Promise<DeckSummary> {
   const cardCodes = deck.cards.map((deckCard) => deckCard.cardCode)
 
-  const [cards, collectionEntries] = await Promise.all([
+  const [cards, collectionEntries, formats, legalityRows] = await Promise.all([
     prisma.card.findMany({ where: { code: { in: cardCodes } }, include: { faction: true } }),
     prisma.collectionEntry.findMany({ where: { collectionId, cardCode: { in: cardCodes } } }),
+    prisma.format.findMany(),
+    prisma.cardFormatLegality.findMany({ where: { cardCode: { in: cardCodes } } }),
   ])
 
   const cardByCode = new Map(cards.map((card) => [card.code, card]))
   const ownedByCode = new Map(collectionEntries.map((entry) => [entry.cardCode, entry.quantityOwned]))
   const identityCard = cards.find((card) => card.typeCode === 'identity')
+
+  const legalityByCode = new Map<string, { formatCode: string; status: string }[]>()
+  for (const row of legalityRows) {
+    const list = legalityByCode.get(row.cardCode) ?? []
+    list.push({ formatCode: row.formatCode, status: row.status })
+    legalityByCode.set(row.cardCode, list)
+  }
 
   let ownedCount = 0
   let totalCount = 0
@@ -66,6 +77,11 @@ async function computeDeckSummary(
     }
   })
 
+  const formatLegality = computeDeckFormatLegality(
+    formats.map((format) => ({ code: format.code, name: format.name })),
+    deck.cards.map((deckCard) => legalityByCode.get(deckCard.cardCode) ?? [])
+  )
+
   return {
     id: deck.id,
     uuid: deck.uuid,
@@ -76,6 +92,7 @@ async function computeDeckSummary(
     percentOwned: totalCount === 0 ? 0 : Math.round((ownedCount / totalCount) * 100),
     factionCode: identityCard?.factionCode ?? null,
     cards: cardOwnership,
+    formatLegality,
   }
 }
 

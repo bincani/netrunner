@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
+import { computeDeckFormatLegality, type DeckFormatLegality } from './deckFormatLegality'
 import type { DeckCardOwnership } from './decks'
 
 export interface DiscoverFilters {
@@ -8,11 +9,6 @@ export interface DiscoverFilters {
   sort: 'percentOwned' | 'newest' | 'name'
   limit: number
   offset: number
-}
-
-/** Escapes SQL LIKE wildcards (%, _) and the escape character itself, so a name search matches its literal characters, not SQLite's LIKE pattern syntax. */
-function likePattern(query: string): string {
-  return `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
 }
 
 export interface DiscoverDeck {
@@ -27,6 +23,7 @@ export interface DiscoverDeck {
   percentOwned: number
   missingCopies: number
   cards: DeckCardOwnership[]
+  formatLegality: DeckFormatLegality[]
 }
 
 interface DeckAggregateRow {
@@ -39,6 +36,11 @@ interface DeckAggregateRow {
   totalCount: number | bigint
   ownedCount: number | bigint
   missingCopies: number | bigint
+}
+
+/** Escapes SQL LIKE wildcards (%, _) and the escape character itself, so a name search matches its literal characters, not SQLite's LIKE pattern syntax. */
+function likePattern(query: string): string {
+  return `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
 }
 
 /**
@@ -111,16 +113,26 @@ export async function getDiscoverDecks(
   })
   const cardCodes = [...new Set(deckCards.map((card) => card.cardCode))]
 
-  const [knownCards, collectionEntries] = await Promise.all([
+  const [knownCards, collectionEntries, formats, legalityRows] = await Promise.all([
     prisma.card.findMany({
       where: { code: { in: cardCodes } },
       select: { code: true, title: true, faction: { select: { name: true } } },
     }),
     prisma.collectionEntry.findMany({ where: { collectionId, cardCode: { in: cardCodes } } }),
+    prisma.format.findMany(),
+    prisma.cardFormatLegality.findMany({ where: { cardCode: { in: cardCodes } } }),
   ])
 
   const cardByCode = new Map(knownCards.map((card) => [card.code, card]))
   const ownedByCode = new Map(collectionEntries.map((entry) => [entry.cardCode, entry.quantityOwned]))
+
+  const legalityByCode = new Map<string, { formatCode: string; status: string }[]>()
+  for (const row of legalityRows) {
+    const list = legalityByCode.get(row.cardCode) ?? []
+    list.push({ formatCode: row.formatCode, status: row.status })
+    legalityByCode.set(row.cardCode, list)
+  }
+  const formatList = formats.map((format) => ({ code: format.code, name: format.name }))
 
   const cardsByDeckId = new Map<number, DeckCardOwnership[]>()
   for (const deckCard of deckCards) {
@@ -142,6 +154,7 @@ export async function getDiscoverDecks(
   const decks: DiscoverDeck[] = rows.map((row) => {
     const totalCount = Number(row.totalCount)
     const ownedCount = Number(row.ownedCount)
+    const deckCardCodes = (cardsByDeckId.get(row.id) ?? []).map((card) => card.code)
     return {
       id: row.id,
       uuid: row.uuid,
@@ -154,6 +167,10 @@ export async function getDiscoverDecks(
       percentOwned: totalCount === 0 ? 0 : Math.round((ownedCount / totalCount) * 100),
       missingCopies: Number(row.missingCopies),
       cards: cardsByDeckId.get(row.id) ?? [],
+      formatLegality: computeDeckFormatLegality(
+        formatList,
+        deckCardCodes.map((code) => legalityByCode.get(code) ?? [])
+      ),
     }
   })
 

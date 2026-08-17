@@ -46,6 +46,7 @@ const sampleDeck: DeckSummary = {
   cards: [
     { code: '01001', title: 'Card A', factionName: 'Anarch', neededQuantity: 3, ownedQuantity: 2, found: true },
   ],
+  formatLegality: [],
 }
 
 const secondDeck: DeckSummary = {
