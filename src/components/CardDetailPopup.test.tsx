@@ -359,6 +359,45 @@ describe('CardDetailPopup', () => {
     })
   })
 
+  describe('tabs', () => {
+    it('shows the Card Info tab by default, with the Format tab content hidden', async () => {
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(screen.getByRole('tab', { name: 'Card Info' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('tab', { name: 'Format' })).toHaveAttribute('aria-selected', 'false')
+      expect(screen.getByText('Haas-Bioroid · Ice · corp')).toBeInTheDocument()
+      expect(screen.queryByText('Format legality unavailable')).not.toBeInTheDocument()
+    })
+
+    it('switches to the Format tab and hides the Card Info content', async () => {
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+      await user.click(screen.getByRole('tab', { name: 'Format' }))
+
+      expect(screen.getByRole('tab', { name: 'Format' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.queryByText('Haas-Bioroid · Ice · corp')).not.toBeInTheDocument()
+      expect(screen.getByText('Format legality unavailable')).toBeInTheDocument()
+    })
+
+    it('resets to the Card Info tab each time the popup is reopened', async () => {
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+      await user.click(screen.getByRole('tab', { name: 'Format' }))
+      await user.click(screen.getByRole('button', { name: 'Close' }))
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+
+      expect(screen.getByRole('tab', { name: 'Card Info' })).toHaveAttribute('aria-selected', 'true')
+    })
+  })
+
   describe('format legality', () => {
     it('shows a line per format the card has legality data for', async () => {
       const cardWithLegalities = {
@@ -373,6 +412,7 @@ describe('CardDetailPopup', () => {
       render(<CardDetailPopup card={cardWithLegalities} />)
 
       await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+      await user.click(screen.getByRole('tab', { name: 'Format' }))
 
       expect(await screen.findByText('Standard: banned')).toBeInTheDocument()
       expect(screen.getByText('Startup: legal')).toBeInTheDocument()
@@ -390,6 +430,7 @@ describe('CardDetailPopup', () => {
       render(<CardDetailPopup card={cardWithLegalities} />)
 
       await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+      await user.click(screen.getByRole('tab', { name: 'Format' }))
 
       expect(await screen.findByText('Eternal: points (3 pts (limit 7))')).toBeInTheDocument()
     })
@@ -401,6 +442,7 @@ describe('CardDetailPopup', () => {
       render(<CardDetailPopup card={cardWithoutLegalities} />)
 
       await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+      await user.click(screen.getByRole('tab', { name: 'Format' }))
 
       expect(await screen.findByText('Format legality unavailable')).toBeInTheDocument()
     })

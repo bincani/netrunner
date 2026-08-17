@@ -33,9 +33,15 @@ export function CardDetailPopup({
   showAllPrintings?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'info' | 'format'>('info')
   const [printings, setPrintings] = useState<CardPrinting[]>([])
   const [fetchedDetail, setFetchedDetail] = useState<PackCardEntry | null>(null)
   const [detailError, setDetailError] = useState(false)
+
+  function openPopup() {
+    setActiveTab('info')
+    setIsOpen(true)
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -97,7 +103,7 @@ export function CardDetailPopup({
       {trigger === 'thumbnail' ? (
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={openPopup}
           aria-label={`Show details for ${card.title}`}
           className="cursor-pointer"
         >
@@ -106,7 +112,7 @@ export function CardDetailPopup({
       ) : (
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={openPopup}
           aria-label={`Show details for ${card.title}`}
           className="cursor-pointer text-left underline hover:text-primary"
         >
@@ -179,64 +185,98 @@ export function CardDetailPopup({
 
                 {detail ? (
                   <>
-                    <div className="text-sm text-muted">
-                      {detail.factionName} · {detail.typeName} · {detail.sideCode}
+                    <div className="flex gap-2 border-b border-subtle pb-2" role="tablist">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === 'info'}
+                        onClick={() => setActiveTab('info')}
+                        className={
+                          activeTab === 'info'
+                            ? 'cursor-pointer rounded border border-accent bg-accent/20 px-2 py-1 text-sm text-accent'
+                            : 'cursor-pointer rounded border border-transparent px-2 py-1 text-sm text-muted hover:text-primary'
+                        }
+                      >
+                        Card Info
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === 'format'}
+                        onClick={() => setActiveTab('format')}
+                        className={
+                          activeTab === 'format'
+                            ? 'cursor-pointer rounded border border-accent bg-accent/20 px-2 py-1 text-sm text-accent'
+                            : 'cursor-pointer rounded border border-transparent px-2 py-1 text-sm text-muted hover:text-primary'
+                        }
+                      >
+                        Format
+                      </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-                      {detail.cost !== null && <span>Cost: {detail.cost}</span>}
-                      {detail.factionCost !== null && <span>Influence: {detail.factionCost}</span>}
-                      {detail.strength !== null && <span>Strength: {detail.strength}</span>}
-                      {detail.deckLimit !== null && <span>Deck limit: {detail.deckLimit}</span>}
-                    </div>
+                    {activeTab === 'info' && (
+                      <div role="tabpanel" className="space-y-2">
+                        <div className="text-sm text-muted">
+                          {detail.factionName} · {detail.typeName} · {detail.sideCode}
+                        </div>
 
-                    {detail.keywords && <div className="text-sm italic text-muted">{detail.keywords}</div>}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+                          {detail.cost !== null && <span>Cost: {detail.cost}</span>}
+                          {detail.factionCost !== null && <span>Influence: {detail.factionCost}</span>}
+                          {detail.strength !== null && <span>Strength: {detail.strength}</span>}
+                          {detail.deckLimit !== null && <span>Deck limit: {detail.deckLimit}</span>}
+                        </div>
 
-                    {detail.text && (
-                      <p className="whitespace-pre-line text-sm text-primary">
-                        <CardText text={detail.text} />
-                      </p>
+                        {detail.keywords && <div className="text-sm italic text-muted">{detail.keywords}</div>}
+
+                        {detail.text && (
+                          <p className="whitespace-pre-line text-sm text-primary">
+                            <CardText text={detail.text} />
+                          </p>
+                        )}
+
+                        <div className="pt-2 text-sm text-muted">Owned: {detail.ownedQuantity}</div>
+
+                        {printings.length > 0 && (
+                          <div className="pt-2">
+                            <div className="text-sm font-semibold text-primary">
+                              {showAllPrintings ? 'Printings' : 'Other Printings'}
+                            </div>
+                            <ul className="text-sm text-muted">
+                              {printings.map((printing) => (
+                                <li key={printing.code}>
+                                  <Link
+                                    href={`/sets/${printing.packCode}`}
+                                    onClick={() => setIsOpen(false)}
+                                    className="underline hover:text-primary"
+                                  >
+                                    {printing.packName}
+                                  </Link>
+                                  {showAllPrintings && (printing.ownedQuantity ?? 0) > 0 && (
+                                    <span className="text-faint"> (owned)</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     )}
 
-                    <div className="pt-2 text-sm text-muted">Owned: {detail.ownedQuantity}</div>
-
-                    <div className="pt-2">
-                      <div className="text-sm font-semibold text-primary">Format Legality</div>
-                      {detail.formatLegalities.length > 0 ? (
-                        <ul className="text-sm text-muted">
-                          {detail.formatLegalities.map((entry) => (
-                            <li key={entry.formatCode}>
-                              {entry.formatName}: {entry.status.replace(/_/g, ' ')}
-                              {entry.detail && ` (${entry.detail})`}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-faint">Format legality unavailable</p>
-                      )}
-                    </div>
-
-                    {printings.length > 0 && (
-                      <div className="pt-2">
-                        <div className="text-sm font-semibold text-primary">
-                          {showAllPrintings ? 'Printings' : 'Other Printings'}
-                        </div>
-                        <ul className="text-sm text-muted">
-                          {printings.map((printing) => (
-                            <li key={printing.code}>
-                              <Link
-                                href={`/sets/${printing.packCode}`}
-                                onClick={() => setIsOpen(false)}
-                                className="underline hover:text-primary"
-                              >
-                                {printing.packName}
-                              </Link>
-                              {showAllPrintings && (printing.ownedQuantity ?? 0) > 0 && (
-                                <span className="text-faint"> (owned)</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                    {activeTab === 'format' && (
+                      <div role="tabpanel" className="pt-2">
+                        {detail.formatLegalities.length > 0 ? (
+                          <ul className="text-sm text-muted">
+                            {detail.formatLegalities.map((entry) => (
+                              <li key={entry.formatCode}>
+                                {entry.formatName}: {entry.status.replace(/_/g, ' ')}
+                                {entry.detail && ` (${entry.detail})`}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-faint">Format legality unavailable</p>
+                        )}
                       </div>
                     )}
                   </>
