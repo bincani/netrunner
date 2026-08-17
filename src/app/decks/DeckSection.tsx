@@ -299,6 +299,21 @@ export function DeckSection({
                   <div className="space-y-3 border-t border-subtle p-3">
                     <DeckCardList cards={deck.cards} />
 
+                    {deck.formatLegality.length > 0 && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                        {deck.formatLegality.map((entry) => (
+                          <span
+                            key={entry.formatCode}
+                            className={
+                              entry.legal === true ? 'text-success' : entry.legal === false ? 'text-danger' : 'text-faint'
+                            }
+                          >
+                            {entry.formatName} {entry.legal === true ? '✓' : entry.legal === false ? '✗' : '?'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <div>
                       {!isConfirming ? (
                         <button

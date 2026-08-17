@@ -339,3 +339,28 @@ describe('DiscoverSection name search filter', () => {
     }
   })
 })
+
+describe('DiscoverSection format legality badges', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('shows a legal/not-legal badge per format when the deck is expanded', async () => {
+    const deckWithLegality: DiscoverDeck = {
+      ...sampleDeck,
+      formatLegality: [
+        { formatCode: 'standard', formatName: 'Standard', legal: true },
+        { formatCode: 'startup', formatName: 'Startup', legal: false },
+      ],
+    }
+    const user = userEvent.setup()
+    render(
+      <DiscoverSection initialDecks={[deckWithLegality]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
+
+    expect(screen.getByText('Standard ✓')).toBeInTheDocument()
+    expect(screen.getByText('Startup ✗')).toBeInTheDocument()
+  })
+})

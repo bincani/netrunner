@@ -431,4 +431,32 @@ describe('DeckSection', () => {
       expect(screen.queryByLabelText('Filter decks by name')).not.toBeInTheDocument()
     })
   })
+
+  it('shows a legal/not-legal badge per format when the deck is expanded', async () => {
+    const deckWithLegality: DeckSummary = {
+      ...sampleDeck,
+      formatLegality: [
+        { formatCode: 'standard', formatName: 'Standard', legal: true },
+        { formatCode: 'startup', formatName: 'Startup', legal: false },
+        { formatCode: 'eternal', formatName: 'Eternal', legal: null },
+      ],
+    }
+    const user = userEvent.setup()
+    render(<DeckSection initialDecks={[deckWithLegality]} factionOptions={factionOptions} />)
+
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
+
+    expect(screen.getByText('Standard ✓')).toBeInTheDocument()
+    expect(screen.getByText('Startup ✗')).toBeInTheDocument()
+    expect(screen.getByText('Eternal ?')).toBeInTheDocument()
+  })
+
+  it('shows nothing when there is no format legality data at all', async () => {
+    const user = userEvent.setup()
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
+
+    await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
+
+    expect(screen.queryByText(/✓|✗/)).not.toBeInTheDocument()
+  })
 })
