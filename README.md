@@ -5,9 +5,11 @@ card collection: import the full card catalog, record what you own, and see
 completion percentages per set.
 
 Phase 1 covers collection tracking and reporting. Phase 2 adds deck
-tracking: import a published NetrunnerDB decklist and see how much of it
-you own. Full deckbuilding ("what can I build with what I own", in-app
-deck editing, MWL/legality checking) is still a future phase.
+tracking: import a published NetrunnerDB decklist, see how much of it you
+own, and see which of Null Signal Games' formats each card and deck is
+currently legal in. Full deckbuilding ("what can I build with what I
+own", in-app deck editing, flagging illegal cards while building) is
+still a future phase.
 
 ## Features
 
@@ -27,6 +29,12 @@ deck editing, MWL/legality checking) is still a future phase.
   correct owned quantities directly (overwrites the count).
 - **Deck tracking** — import a published NetrunnerDB decklist by URL or
   ID and see how much of it you own, card by card.
+- **Format & legality** — see which of Null Signal Games' 7 current
+  formats (Standard, Startup, Eternal, Core, System Gateway, Snapshot,
+  RAM) a card is legal in, banned from, or restricted in, and a
+  per-format legal/not-legal rollup for each deck. Pool and ban-list
+  membership only — not a full deck-construction check (no influence
+  budget, deck-size, or agenda-point validation).
 
 ## Tech stack
 

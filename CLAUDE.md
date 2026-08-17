@@ -31,8 +31,9 @@ disposable.
   owned quantities directly.
 
 **Out of scope for now:** full deckbuilding / "what can I build with this"
-(in-app deck editing, MWL/legality checking) and multi-user accounts or
-auth (single user, no login — this holds even when deployed behind nginx,
+(in-app deck editing, flagging illegal cards while building) and
+multi-user accounts or auth (single user, no login — this holds even when
+deployed behind nginx,
 see below). `importCsvToCollection`, `approveImportBatch`,
 `removeFromImportBatch`, `removeFromBatch`, `approveBatch`,
 `quickAddSet`/`clearSet`/`undoQuickSetChange` (`src/actions/quickSetActions.ts`),
@@ -47,6 +48,16 @@ added.
 decklist by URL/ID (`src/lib/netrunnerdb.ts`) and see ownership completion
 per card and overall (`src/lib/decks.ts`) on `/builder`. This is distinct
 from full deckbuilding above, which remains out of scope.
+
+**Format & legality (shipped):** per-card, per-format legal/banned/
+restricted/not-in-pool status (`src/lib/importFormatLegality.ts`,
+`src/lib/cardFormatStatus.ts`, shown in `CardDetailPopup`) and a per-deck
+legal/not-legal/unknown rollup per format (`src/lib/deckFormatLegality.ts`,
+shown on `/decks` and `/discover`), computed at `npm run import-cards`
+time from Null Signal Games' data. This is pool + ban/restriction
+membership only — explicitly not a full deck-construction check (no
+influence budget, deck-size, or agenda-point validation), which remains
+deferred alongside full deckbuilding above.
 
 An nginx + systemd production deployment option was added after phase 1
 shipped — see `README.md`'s "Production deployment" section and the
