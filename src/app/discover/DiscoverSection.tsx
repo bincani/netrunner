@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { fetchDiscoverDecks, saveDiscoveredDeck } from '@/actions/discoverActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
+import { FormatLegalityBadges } from '@/components/FormatLegalityBadges'
 import { groupFactionsBySide, type FactionOption } from '@/lib/factionGroups'
 import type { DiscoverDeck, DiscoverFilters } from '@/lib/discover'
 
@@ -266,20 +267,7 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
                   <div className="border-t border-subtle p-3">
                     <DeckCardList cards={deck.cards} />
 
-                    {deck.formatLegality.length > 0 && (
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-                        {deck.formatLegality.map((entry) => (
-                          <span
-                            key={entry.formatCode}
-                            className={
-                              entry.legal === true ? 'text-success' : entry.legal === false ? 'text-danger' : 'text-faint'
-                            }
-                          >
-                            {entry.formatName} {entry.legal === true ? '✓' : entry.legal === false ? '✗' : '?'}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <FormatLegalityBadges formatLegality={deck.formatLegality} />
                   </div>
                 )}
               </li>

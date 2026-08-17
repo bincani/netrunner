@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
+import { FormatLegalityBadges } from '@/components/FormatLegalityBadges'
 import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
 import { groupFactionsBySide, type FactionOption } from '@/lib/factionGroups'
 import type { DeckSummary } from '@/lib/decks'
@@ -299,20 +300,7 @@ export function DeckSection({
                   <div className="space-y-3 border-t border-subtle p-3">
                     <DeckCardList cards={deck.cards} />
 
-                    {deck.formatLegality.length > 0 && (
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-                        {deck.formatLegality.map((entry) => (
-                          <span
-                            key={entry.formatCode}
-                            className={
-                              entry.legal === true ? 'text-success' : entry.legal === false ? 'text-danger' : 'text-faint'
-                            }
-                          >
-                            {entry.formatName} {entry.legal === true ? '✓' : entry.legal === false ? '✗' : '?'}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <FormatLegalityBadges formatLegality={deck.formatLegality} />
 
                     <div>
                       {!isConfirming ? (
