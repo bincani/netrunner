@@ -34,6 +34,28 @@ describe('DiscoverSection', () => {
     vi.resetAllMocks()
   })
 
+  it('shows the total deck count', () => {
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    expect(screen.getByText('1 deck')).toBeInTheDocument()
+  })
+
+  it('pluralizes the deck count and reflects a fetch\'s updated total', async () => {
+    vi.mocked(fetchDiscoverDecks).mockResolvedValue({ decks: [], total: 7 })
+    const user = userEvent.setup()
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={2} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    expect(screen.getByText('2 decks')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Faction'), 'anarch')
+
+    await waitFor(() => expect(screen.getByText('7 decks')).toBeInTheDocument())
+  })
+
   it('renders the initial decks passed from the server', () => {
     render(
       <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
@@ -234,6 +256,69 @@ describe('DiscoverSection missing-cards filter input', () => {
       })
       expect(fetchDiscoverDecks).toHaveBeenCalledTimes(1)
       expect(fetchDiscoverDecks).toHaveBeenCalledWith(expect.objectContaining({ maxMissingCards: 7 }))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('DiscoverSection name search filter', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('debounces the refetch, updating the visible value immediately', async () => {
+    vi.mocked(fetchDiscoverDecks).mockResolvedValue({ decks: [], total: 0 })
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    vi.useFakeTimers()
+    try {
+      const input = screen.getByPlaceholderText('Search decks by name…')
+
+      fireEvent.change(input, { target: { value: 'aggro' } })
+
+      expect(input).toHaveValue('aggro')
+      expect(fetchDiscoverDecks).not.toHaveBeenCalled()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(299)
+      })
+      expect(fetchDiscoverDecks).not.toHaveBeenCalled()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      expect(fetchDiscoverDecks).toHaveBeenCalledTimes(1)
+      expect(fetchDiscoverDecks).toHaveBeenCalledWith(expect.objectContaining({ nameQuery: 'aggro', offset: 0 }))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('an empty query fetches with nameQuery undefined, not an empty string', async () => {
+    vi.mocked(fetchDiscoverDecks).mockResolvedValue({ decks: [], total: 0 })
+    render(
+      <DiscoverSection initialDecks={[sampleDeck]} initialTotal={1} savedDeckIds={[]} factionOptions={factionOptions} />
+    )
+
+    vi.useFakeTimers()
+    try {
+      const input = screen.getByPlaceholderText('Search decks by name…')
+
+      fireEvent.change(input, { target: { value: 'x' } })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300)
+      })
+      vi.mocked(fetchDiscoverDecks).mockClear()
+
+      fireEvent.change(input, { target: { value: '' } })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300)
+      })
+
+      expect(fetchDiscoverDecks).toHaveBeenCalledWith(expect.objectContaining({ nameQuery: undefined }))
     } finally {
       vi.useRealTimers()
     }

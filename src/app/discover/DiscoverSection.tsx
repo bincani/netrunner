@@ -8,11 +8,12 @@ import type { DiscoverDeck, DiscoverFilters } from '@/lib/discover'
 
 const PAGE_SIZE = 25
 const DEFAULT_NEAR_BUILDABLE_THRESHOLD = 3
-const MAX_MISSING_CARDS_DEBOUNCE_MS = 300
+const FILTER_DEBOUNCE_MS = 300
 
 interface FilterState {
   faction: string
   maxMissingCards: number | null
+  nameQuery: string
   sort: DiscoverFilters['sort']
 }
 
@@ -26,18 +27,27 @@ interface DiscoverSectionProps {
 export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, factionOptions }: DiscoverSectionProps) {
   const [decks, setDecks] = useState(initialDecks)
   const [total, setTotal] = useState(initialTotal)
-  const [filters, setFilters] = useState<FilterState>({ faction: '', maxMissingCards: null, sort: 'percentOwned' })
+  const [filters, setFilters] = useState<FilterState>({
+    faction: '',
+    maxMissingCards: null,
+    nameQuery: '',
+    sort: 'percentOwned',
+  })
   const [openDeckId, setOpenDeckId] = useState<number | null>(null)
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set(savedDeckIds))
   const [savingId, setSavingId] = useState<number | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const maxMissingCardsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const nameQueryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (maxMissingCardsDebounceRef.current) {
         clearTimeout(maxMissingCardsDebounceRef.current)
+      }
+      if (nameQueryDebounceRef.current) {
+        clearTimeout(nameQueryDebounceRef.current)
       }
     }
   }, [])
@@ -46,6 +56,7 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
     return {
       faction: next.faction || undefined,
       maxMissingCards: next.maxMissingCards ?? undefined,
+      nameQuery: next.nameQuery || undefined,
       sort: next.sort,
       limit: PAGE_SIZE,
       offset,
@@ -78,7 +89,23 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
         setDecks(result.decks)
         setTotal(result.total)
       })
-    }, MAX_MISSING_CARDS_DEBOUNCE_MS)
+    }, FILTER_DEBOUNCE_MS)
+  }
+
+  function handleNameQueryChange(value: string) {
+    const next = { ...filters, nameQuery: value }
+    setFilters(next)
+
+    if (nameQueryDebounceRef.current) {
+      clearTimeout(nameQueryDebounceRef.current)
+    }
+    nameQueryDebounceRef.current = setTimeout(() => {
+      startTransition(async () => {
+        const result = await fetchDiscoverDecks(toApiFilters(next, 0))
+        setDecks(result.decks)
+        setTotal(result.total)
+      })
+    }, FILTER_DEBOUNCE_MS)
   }
 
   function loadMore() {
@@ -106,7 +133,23 @@ export function DiscoverSection({ initialDecks, initialTotal, savedDeckIds, fact
 
   return (
     <div className="w-full space-y-6">
+      <p className="text-sm text-muted">
+        {total} deck{total === 1 ? '' : 's'}
+      </p>
+
       <div className="flex flex-wrap items-center gap-4 text-sm">
+        <label htmlFor="discover-name" className="flex items-center gap-2">
+          <span className="sr-only">Search decks by name</span>
+          <input
+            id="discover-name"
+            type="text"
+            value={filters.nameQuery}
+            onChange={(event) => handleNameQueryChange(event.target.value)}
+            placeholder="Search decks by name…"
+            className="w-56 rounded border border-default bg-surface px-2 py-1 placeholder:text-faint"
+          />
+        </label>
+
         <label htmlFor="discover-faction" className="flex items-center gap-2">
           Faction
           <select

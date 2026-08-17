@@ -4,9 +4,15 @@ import type { DeckCardOwnership } from './decks'
 export interface DiscoverFilters {
   faction?: string
   maxMissingCards?: number
+  nameQuery?: string
   sort: 'percentOwned' | 'newest' | 'name'
   limit: number
   offset: number
+}
+
+/** Escapes SQL LIKE wildcards (%, _) and the escape character itself, so a name search matches its literal characters, not SQLite's LIKE pattern syntax. */
+function likePattern(query: string): string {
+  return `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
 }
 
 export interface DiscoverDeck {
@@ -44,11 +50,18 @@ interface DeckAggregateRow {
  * instead of vanishing, matching this function's previous in-memory
  * behavior.
  */
-function aggregateFrom(collectionId: number, faction: string | undefined, maxMissingCards: number) {
+function aggregateFrom(
+  collectionId: number,
+  faction: string | undefined,
+  maxMissingCards: number,
+  nameQuery: string | undefined
+) {
+  const namePattern = nameQuery ? likePattern(nameQuery) : null
   return Prisma.sql`
     FROM TournamentDeck td
     LEFT JOIN TournamentDeckCard tdc ON tdc.deckId = td.id
     LEFT JOIN CollectionEntry ce ON ce.cardCode = tdc.cardCode AND ce.collectionId = ${collectionId}
+    WHERE (${namePattern} IS NULL OR td.name LIKE ${namePattern} ESCAPE '\\')
     GROUP BY td.id
     HAVING COALESCE(SUM(MAX(tdc.quantity - COALESCE(ce.quantityOwned, 0), 0)), 0) <= ${maxMissingCards}
       AND (${faction ?? null} IS NULL OR td.factionCode = ${faction ?? null})
@@ -67,7 +80,7 @@ export async function getDiscoverDecks(
   filters: DiscoverFilters
 ): Promise<{ decks: DiscoverDeck[]; total: number }> {
   const maxMissingCards = filters.maxMissingCards ?? 0
-  const from = aggregateFrom(collectionId, filters.faction, maxMissingCards)
+  const from = aggregateFrom(collectionId, filters.faction, maxMissingCards, filters.nameQuery)
 
   const [rows, totalRows] = await Promise.all([
     prisma.$queryRaw<DeckAggregateRow[]>`

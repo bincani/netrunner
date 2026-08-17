@@ -207,6 +207,57 @@ describe('getDiscoverDecks', () => {
     expect(decks[0]).toMatchObject({ name: 'Empty Deck', totalCount: 0, ownedCount: 0, percentOwned: 0, missingCopies: 0, cards: [] })
   })
 
+  it('filters by name, case-insensitively', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Aggressive Anarch', dateCreation: new Date('2020-01-01'), userName: 'a' },
+    })
+    await prisma.tournamentDeck.create({
+      data: { id: 2, uuid: 'uuid-2', name: 'Shaper Toolbox', dateCreation: new Date('2020-01-01'), userName: 'a' },
+    })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, {
+      ...defaultFilters,
+      maxMissingCards: 5,
+      nameQuery: 'anarch',
+    })
+
+    expect(decks.map((d) => d.name)).toEqual(['Aggressive Anarch'])
+  })
+
+  it('treats % and _ in the name query as literal characters, not SQL LIKE wildcards', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: '100% Aggro', dateCreation: new Date('2020-01-01'), userName: 'a' },
+    })
+    await prisma.tournamentDeck.create({
+      data: { id: 2, uuid: 'uuid-2', name: '100X Aggro', dateCreation: new Date('2020-01-01'), userName: 'a' },
+    })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, {
+      ...defaultFilters,
+      maxMissingCards: 5,
+      nameQuery: '100%',
+    })
+
+    expect(decks.map((d) => d.name)).toEqual(['100% Aggro'])
+  })
+
+  it('an empty or unset name query does not filter anything out', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Deck A', dateCreation: new Date('2020-01-01'), userName: 'a' },
+    })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, {
+      ...defaultFilters,
+      maxMissingCards: 5,
+      nameQuery: '',
+    })
+
+    expect(decks.map((d) => d.name)).toEqual(['Deck A'])
+  })
+
   it('paginates with limit/offset while total reflects the full filtered count', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     for (let i = 1; i <= 3; i++) {

@@ -28,6 +28,11 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+const factionOptions = [
+  { code: 'anarch', name: 'Anarch' },
+  { code: 'shaper', name: 'Shaper' },
+]
+
 const sampleDeck: DeckSummary = {
   id: 1,
   uuid: 'uuid-1',
@@ -56,13 +61,13 @@ describe('DeckSection', () => {
   })
 
   it('shows a message when no decks are imported', () => {
-    render(<DeckSection initialDecks={[]} />)
+    render(<DeckSection initialDecks={[]} factionOptions={factionOptions} />)
 
     expect(screen.getByText('No decks imported yet.')).toBeInTheDocument()
   })
 
   it('renders an imported deck collapsed by default, with a link to NetrunnerDB', () => {
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     expect(screen.getByText('Test Deck')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View Test Deck on NetrunnerDB' })).toHaveAttribute(
@@ -74,7 +79,7 @@ describe('DeckSection', () => {
   })
 
   it("links the faction logo to that faction's NetrunnerDB page, opening in a new tab", () => {
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
     expect(link).toHaveAttribute('href', 'https://netrunnerdb.com/en/faction/anarch')
@@ -82,7 +87,7 @@ describe('DeckSection', () => {
   })
 
   it('places the faction logo to the left of the deck title', () => {
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
     const title = screen.getByText('Test Deck')
@@ -94,14 +99,14 @@ describe('DeckSection', () => {
 
   it('shows no faction logo when the deck has no identity card locally', () => {
     const deckWithoutFaction: DeckSummary = { ...sampleDeck, factionCode: null }
-    render(<DeckSection initialDecks={[deckWithoutFaction]} />)
+    render(<DeckSection initialDecks={[deckWithoutFaction]} factionOptions={factionOptions} />)
 
     expect(screen.queryByRole('link', { name: /faction on NetrunnerDB/ })).not.toBeInTheDocument()
   })
 
   it('clicking the deck header expands its card list', async () => {
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
@@ -110,7 +115,7 @@ describe('DeckSection', () => {
 
   it('links each found card to its detail popup', async () => {
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
     await user.click(screen.getByRole('button', { name: 'Show details for Card A' }))
@@ -120,7 +125,7 @@ describe('DeckSection', () => {
 
   it('highlights a card that is short of the needed quantity', async () => {
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
@@ -134,7 +139,7 @@ describe('DeckSection', () => {
       cards: [{ ...sampleDeck.cards[0], ownedQuantity: 3 }],
     }
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[fullyOwnedDeck]} />)
+    render(<DeckSection initialDecks={[fullyOwnedDeck]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
@@ -148,7 +153,7 @@ describe('DeckSection', () => {
       cards: [{ code: 'zzzzz', title: null, factionName: null, neededQuantity: 1, ownedQuantity: 0, found: false }],
     }
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[deckWithUnknown]} />)
+    render(<DeckSection initialDecks={[deckWithUnknown]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
 
@@ -157,7 +162,7 @@ describe('DeckSection', () => {
   })
 
   it('disables the Add button while the input is empty', () => {
-    render(<DeckSection initialDecks={[]} />)
+    render(<DeckSection initialDecks={[]} factionOptions={factionOptions} />)
 
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
   })
@@ -165,7 +170,7 @@ describe('DeckSection', () => {
   it('importing a deck adds it to the list and clears the input', async () => {
     vi.mocked(importDeck).mockResolvedValue({ ok: true, deck: sampleDeck })
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[]} />)
+    render(<DeckSection initialDecks={[]} factionOptions={factionOptions} />)
 
     await user.type(screen.getByPlaceholderText('NetrunnerDB decklist URL or ID'), '1')
     await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -178,7 +183,7 @@ describe('DeckSection', () => {
   it('shows a visible error when import fails', async () => {
     vi.mocked(importDeck).mockResolvedValue({ ok: false, error: 'Decklist not found' })
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[]} />)
+    render(<DeckSection initialDecks={[]} factionOptions={factionOptions} />)
 
     await user.type(screen.getByPlaceholderText('NetrunnerDB decklist URL or ID'), 'bad-input')
     await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -190,7 +195,7 @@ describe('DeckSection', () => {
     const updatedDeck: DeckSummary = { ...sampleDeck, ownedCount: 3, percentOwned: 100 }
     vi.mocked(importDeck).mockResolvedValue({ ok: true, deck: updatedDeck })
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     await user.type(screen.getByPlaceholderText('NetrunnerDB decklist URL or ID'), '1')
     await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -202,7 +207,7 @@ describe('DeckSection', () => {
   it('deleting a deck requires a two-step confirm', async () => {
     vi.mocked(deleteDeck).mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
@@ -218,7 +223,7 @@ describe('DeckSection', () => {
 
   it('canceling the delete confirm leaves the deck in place', async () => {
     const user = userEvent.setup()
-    render(<DeckSection initialDecks={[sampleDeck]} />)
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
     await user.click(screen.getByRole('button', { name: /^Test Deck/ }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
@@ -232,7 +237,9 @@ describe('DeckSection', () => {
   describe('drag-and-drop reorder', () => {
     it('dragging a handle onto another row reorders the list and persists the new order', async () => {
       vi.mocked(reorderDecks).mockResolvedValue({ ok: true })
-      const { container } = render(<DeckSection initialDecks={[sampleDeck, secondDeck]} />)
+      const { container } = render(
+        <DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />
+      )
 
       const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
       const targetRow = screen.getByRole('button', { name: 'Reorder Second Deck' }).closest('li')
@@ -251,7 +258,7 @@ describe('DeckSection', () => {
 
     it('shows an error and keeps the reordered list if persisting fails', async () => {
       vi.mocked(reorderDecks).mockResolvedValue({ ok: false, error: 'Something went wrong' })
-      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} />)
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
 
       const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
       const targetRow = screen.getByRole('button', { name: 'Reorder Second Deck' }).closest('li')
@@ -265,7 +272,7 @@ describe('DeckSection', () => {
     })
 
     it('dropping a handle on its own row does not reorder or call reorderDecks', () => {
-      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} />)
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
 
       const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
       const ownRow = handle.closest('li')
@@ -276,6 +283,130 @@ describe('DeckSection', () => {
       fireEvent.drop(ownRow)
 
       expect(reorderDecks).not.toHaveBeenCalled()
+    })
+
+    it('disables the drag handle while a filter is active', async () => {
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
+
+      await user.type(screen.getByLabelText('Filter decks by name'), 'Test')
+
+      const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
+      expect(handle).toHaveAttribute('draggable', 'false')
+    })
+
+    it('re-enables the drag handle once filters are cleared', async () => {
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
+
+      await user.click(screen.getByRole('button', { name: 'Owned' }))
+      await user.click(screen.getByRole('button', { name: 'All' }))
+
+      const handle = screen.getByRole('button', { name: 'Reorder Test Deck' })
+      expect(handle).toHaveAttribute('draggable', 'true')
+    })
+  })
+
+  describe('filters', () => {
+    it('filters by name, case-insensitively', async () => {
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
+
+      await user.type(screen.getByLabelText('Filter decks by name'), 'second')
+
+      expect(screen.getByText('Second Deck')).toBeInTheDocument()
+      expect(screen.queryByText('Test Deck')).not.toBeInTheDocument()
+    })
+
+    it('the Clear button resets the name filter and restores the full list', async () => {
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
+
+      await user.type(screen.getByLabelText('Filter decks by name'), 'second')
+      await user.click(screen.getByRole('button', { name: 'Clear' }))
+
+      expect(screen.getByLabelText('Filter decks by name')).toHaveValue('')
+      expect(screen.getByText('Test Deck')).toBeInTheDocument()
+      expect(screen.getByText('Second Deck')).toBeInTheDocument()
+    })
+
+    it('the "Owned" filter shows only fully-owned decks', async () => {
+      const fullyOwnedDeck: DeckSummary = { ...secondDeck, ownedCount: 3, percentOwned: 100 }
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, fullyOwnedDeck]} factionOptions={factionOptions} />)
+
+      await user.click(screen.getByRole('button', { name: 'Owned' }))
+
+      expect(screen.getByText('Second Deck')).toBeInTheDocument()
+      expect(screen.queryByText('Test Deck')).not.toBeInTheDocument()
+    })
+
+    it('the "Partial" filter shows only decks owned but short of the full total', async () => {
+      const fullyOwnedDeck: DeckSummary = { ...secondDeck, ownedCount: 3, percentOwned: 100 }
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, fullyOwnedDeck]} factionOptions={factionOptions} />)
+
+      await user.click(screen.getByRole('button', { name: 'Partial' }))
+
+      expect(screen.getByText('Test Deck')).toBeInTheDocument()
+      expect(screen.queryByText('Second Deck')).not.toBeInTheDocument()
+    })
+
+    it('filters by faction', async () => {
+      const shaperDeck: DeckSummary = { ...secondDeck, factionCode: 'shaper' }
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, shaperDeck]} factionOptions={factionOptions} />)
+
+      await user.selectOptions(screen.getByLabelText('Faction'), 'shaper')
+
+      expect(screen.getByText('Second Deck')).toBeInTheDocument()
+      expect(screen.queryByText('Test Deck')).not.toBeInTheDocument()
+    })
+
+    it('only lists factions actually present among the current decks', () => {
+      render(<DeckSection initialDecks={[sampleDeck, secondDeck]} factionOptions={factionOptions} />)
+
+      // Both decks are anarch (sampleDeck/secondDeck share factionCode), so
+      // there's only one faction present — the dropdown should not render
+      // at all (nothing to filter by).
+      expect(screen.queryByLabelText('Faction')).not.toBeInTheDocument()
+    })
+
+    it('shows the faction dropdown once more than one faction is present, listing only those present', () => {
+      const shaperDeck: DeckSummary = { ...secondDeck, factionCode: 'shaper' }
+      render(<DeckSection initialDecks={[sampleDeck, shaperDeck]} factionOptions={factionOptions} />)
+
+      const select = screen.getByLabelText('Faction')
+      expect(select).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Anarch' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Shaper' })).toBeInTheDocument()
+    })
+
+    it('combines filters using AND', async () => {
+      const shaperDeck: DeckSummary = { ...secondDeck, factionCode: 'shaper', name: 'Shaper Deck' }
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck, shaperDeck]} factionOptions={factionOptions} />)
+
+      await user.selectOptions(screen.getByLabelText('Faction'), 'shaper')
+      await user.type(screen.getByLabelText('Filter decks by name'), 'test')
+
+      expect(screen.getByText('No decks match this filter.')).toBeInTheDocument()
+    })
+
+    it('shows a distinct message when filters exclude every deck, vs. no decks imported at all', async () => {
+      const user = userEvent.setup()
+      render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
+
+      await user.type(screen.getByLabelText('Filter decks by name'), 'nonexistent')
+
+      expect(screen.getByText('No decks match this filter.')).toBeInTheDocument()
+      expect(screen.queryByText('No decks imported yet.')).not.toBeInTheDocument()
+    })
+
+    it('does not show any filter controls when there are no decks at all', () => {
+      render(<DeckSection initialDecks={[]} factionOptions={factionOptions} />)
+
+      expect(screen.queryByLabelText('Filter decks by name')).not.toBeInTheDocument()
     })
   })
 })

@@ -4,9 +4,16 @@ import { useState } from 'react'
 import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
+import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
 import type { DeckSummary } from '@/lib/decks'
 
-export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
+export function DeckSection({
+  initialDecks,
+  factionOptions,
+}: {
+  initialDecks: DeckSummary[]
+  factionOptions: { code: string; name: string }[]
+}) {
   const [decks, setDecks] = useState<DeckSummary[]>(initialDecks)
   const [input, setInput] = useState('')
   const [isImporting, setIsImporting] = useState(false)
@@ -17,6 +24,23 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
   const [draggedId, setDraggedId] = useState<number | null>(null)
   const [dropTargetId, setDropTargetId] = useState<number | null>(null)
   const [reorderError, setReorderError] = useState<string | null>(null)
+
+  const [nameQuery, setNameQuery] = useState('')
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('all')
+  const [factionFilter, setFactionFilter] = useState('')
+
+  const trimmedQuery = nameQuery.trim().toLowerCase()
+  const filtersActive = trimmedQuery !== '' || ownershipFilter !== 'all' || factionFilter !== ''
+
+  const presentFactionCodes = new Set(decks.map((deck) => deck.factionCode).filter((code) => code !== null))
+  const presentFactionOptions = factionOptions.filter((option) => presentFactionCodes.has(option.code))
+
+  const visibleDecks = decks.filter((deck) => {
+    if (!matchesOwnershipFilter(deck.ownedCount, deck.totalCount, ownershipFilter)) return false
+    if (factionFilter !== '' && deck.factionCode !== factionFilter) return false
+    if (trimmedQuery !== '' && !deck.name.toLowerCase().includes(trimmedQuery)) return false
+    return true
+  })
 
   async function handleImport() {
     setIsImporting(true)
@@ -52,7 +76,7 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
     const sourceId = draggedId
     setDraggedId(null)
     setDropTargetId(null)
-    if (sourceId === null || sourceId === targetId) return
+    if (filtersActive || sourceId === null || sourceId === targetId) return
 
     const fromIndex = decks.findIndex((deck) => deck.id === sourceId)
     const toIndex = decks.findIndex((deck) => deck.id === targetId)
@@ -103,11 +127,69 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
         )}
       </div>
 
+      {decks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <input
+            type="text"
+            aria-label="Filter decks by name"
+            placeholder="Filter decks by name…"
+            value={nameQuery}
+            onChange={(event) => setNameQuery(event.target.value)}
+            className="w-full max-w-xs rounded border border-default bg-surface px-3 py-1 placeholder:text-faint"
+          />
+          {nameQuery !== '' && (
+            <button
+              type="button"
+              onClick={() => setNameQuery('')}
+              className="cursor-pointer rounded border border-default px-3 py-1 hover:bg-surface-hover"
+            >
+              Clear
+            </button>
+          )}
+
+          {OWNERSHIP_FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setOwnershipFilter(option.value)}
+              className={`cursor-pointer rounded border px-3 py-1 ${
+                ownershipFilter === option.value
+                  ? 'border-accent bg-accent/20 text-accent'
+                  : 'border-default hover:bg-surface-hover'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+
+          {presentFactionOptions.length > 1 && (
+            <label htmlFor="deck-faction-filter" className="flex items-center gap-2">
+              Faction
+              <select
+                id="deck-faction-filter"
+                value={factionFilter}
+                onChange={(event) => setFactionFilter(event.target.value)}
+                className="cursor-pointer rounded border border-default bg-surface px-2 py-1 hover:bg-surface-hover"
+              >
+                <option value="">All</option>
+                {presentFactionOptions.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
+
       {decks.length === 0 ? (
         <p className="text-sm text-faint">No decks imported yet.</p>
+      ) : visibleDecks.length === 0 ? (
+        <p className="text-sm text-faint">No decks match this filter.</p>
       ) : (
         <ul className="space-y-4">
-          {decks.map((deck, index) => {
+          {visibleDecks.map((deck, index) => {
             const isOpen = openDeckId === deck.id
             const isConfirming = confirmingId === deck.id
             const isDeleting = deletingId === deck.id
@@ -132,8 +214,9 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
               >
                 <div className={`flex items-center gap-1 p-3 ${isDragging ? 'opacity-50' : ''}`}>
                   <span
-                    draggable
+                    draggable={!filtersActive}
                     onDragStart={(event) => {
+                      if (filtersActive) return
                       event.dataTransfer?.setData('text/plain', String(deck.id))
                       setDraggedId(deck.id)
                     }}
@@ -143,7 +226,10 @@ export function DeckSection({ initialDecks }: { initialDecks: DeckSummary[] }) {
                     }}
                     role="button"
                     aria-label={`Reorder ${deck.name}`}
-                    className="shrink-0 cursor-grab px-1 text-faint select-none hover:text-primary"
+                    title={filtersActive ? 'Clear filters to reorder' : undefined}
+                    className={`shrink-0 px-1 text-faint select-none ${
+                      filtersActive ? 'cursor-not-allowed opacity-50' : 'cursor-grab hover:text-primary'
+                    }`}
                   >
                     ⠿
                   </span>

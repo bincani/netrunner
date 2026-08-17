@@ -10,12 +10,18 @@ export const dynamic = 'force-dynamic'
 
 export default async function DecksPage() {
   const collectionId = await getDefaultCollectionId(prisma)
-  const decks = await getDecksWithOwnership(prisma, collectionId)
+  const [decks, factions] = await Promise.all([
+    getDecksWithOwnership(prisma, collectionId),
+    prisma.faction.findMany({ orderBy: { name: 'asc' } }),
+  ])
 
   return (
     <main className="p-8 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Decks</h1>
-      <DeckSection initialDecks={decks} />
+      <DeckSection
+        initialDecks={decks}
+        factionOptions={factions.map((faction) => ({ code: faction.code, name: faction.name }))}
+      />
     </main>
   )
 }
