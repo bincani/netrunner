@@ -61,4 +61,12 @@ describe('PrimaryNav', () => {
     expect(screen.getByRole('link', { name: 'Discover' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Decks' })).not.toHaveAttribute('aria-current')
   })
+
+  it('highlights Formats on /formats', () => {
+    vi.mocked(usePathname).mockReturnValue('/formats')
+    render(<PrimaryNav />)
+
+    expect(screen.getByRole('link', { name: 'Formats' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Discover' })).not.toHaveAttribute('aria-current')
+  })
 })

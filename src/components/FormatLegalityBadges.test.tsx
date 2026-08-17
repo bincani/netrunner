@@ -21,6 +21,15 @@ describe('FormatLegalityBadges', () => {
     ).toBeInTheDocument()
   })
 
+  it('links to the formats explainer page', () => {
+    render(
+      <FormatLegalityBadges
+        formatLegality={[{ formatCode: 'standard', formatName: 'Standard', legal: true }]}
+      />
+    )
+    expect(screen.getByRole('link', { name: 'What do these mean?' })).toHaveAttribute('href', '/formats')
+  })
+
   it('renders a checkmark, cross, and question mark for legal, not-legal, and unknown respectively', () => {
     const formatLegality: DeckFormatLegality[] = [
       { formatCode: 'standard', formatName: 'Standard', legal: true },

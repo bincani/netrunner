@@ -264,7 +264,7 @@ export function CardDetailPopup({
                     )}
 
                     {activeTab === 'format' && (
-                      <div role="tabpanel" className="pt-2">
+                      <div role="tabpanel" className="space-y-2 pt-2">
                         {detail.formatLegalities.length > 0 ? (
                           <ul className="text-sm text-muted">
                             {detail.formatLegalities.map((entry) => (
@@ -277,6 +277,13 @@ export function CardDetailPopup({
                         ) : (
                           <p className="text-sm text-faint">Format legality unavailable</p>
                         )}
+                        <Link
+                          href="/formats"
+                          onClick={() => setIsOpen(false)}
+                          className="text-sm text-faint underline hover:text-primary"
+                        >
+                          What do these mean?
+                        </Link>
                       </div>
                     )}
                   </>

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { DeckFormatLegality } from '@/lib/deckFormatLegality'
 
 /**
@@ -13,7 +14,12 @@ export function FormatLegalityBadges({ formatLegality }: { formatLegality: DeckF
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-faint">Card pool and ban list only — not a full deck-construction check.</div>
+      <div className="text-xs text-faint">
+        Card pool and ban list only — not a full deck-construction check.{' '}
+        <Link href="/formats" className="underline hover:text-primary">
+          What do these mean?
+        </Link>
+      </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
         {formatLegality.map((entry) => (
           <span

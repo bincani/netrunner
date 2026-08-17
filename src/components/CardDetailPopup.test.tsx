@@ -446,5 +446,15 @@ describe('CardDetailPopup', () => {
 
       expect(await screen.findByText('Format legality unavailable')).toBeInTheDocument()
     })
+
+    it('links to the formats explainer page', async () => {
+      const user = userEvent.setup()
+      render(<CardDetailPopup card={fullCard} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
+      await user.click(screen.getByRole('tab', { name: 'Format' }))
+
+      expect(screen.getByRole('link', { name: 'What do these mean?' })).toHaveAttribute('href', '/formats')
+    })
   })
 })
