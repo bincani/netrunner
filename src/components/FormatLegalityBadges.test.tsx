@@ -27,7 +27,7 @@ describe('FormatLegalityBadges', () => {
         formatLegality={[{ formatCode: 'standard', formatName: 'Standard', legal: true }]}
       />
     )
-    expect(screen.getByRole('link', { name: 'What do these mean?' })).toHaveAttribute('href', '/formats')
+    expect(screen.getByRole('link', { name: 'What do these mean?' })).toHaveAttribute('href', '/docs/formats')
   })
 
   it('renders a checkmark, cross, and question mark for legal, not-legal, and unknown respectively', () => {

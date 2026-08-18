@@ -16,7 +16,7 @@ export function FormatLegalityBadges({ formatLegality }: { formatLegality: DeckF
     <div className="space-y-3">
       <div className="text-xs text-faint">
         Card pool and ban list only — not a full deck-construction check.{' '}
-        <Link href="/formats" className="underline hover:text-primary">
+        <Link href="/docs/formats" className="underline hover:text-primary">
           What do these mean?
         </Link>
       </div>

@@ -41,4 +41,10 @@ describe('FormatsPage', () => {
 
     expect(screen.getByText(/not a full deck-construction check/)).toBeInTheDocument()
   })
+
+  it('links back to the docs index', () => {
+    render(<FormatsPage />)
+
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', '/docs')
+  })
 })

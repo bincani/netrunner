@@ -454,7 +454,7 @@ describe('CardDetailPopup', () => {
       await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
       await user.click(screen.getByRole('tab', { name: 'Format' }))
 
-      expect(screen.getByRole('link', { name: 'What do these mean?' })).toHaveAttribute('href', '/formats')
+      expect(screen.getByRole('link', { name: 'What do these mean?' })).toHaveAttribute('href', '/docs/formats')
     })
   })
 })

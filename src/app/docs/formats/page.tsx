@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Formats — Netrunner Collection Tracker',
+  title: 'Formats & Rules — Netrunner Collection Tracker',
 }
 
 const FORMATS = [
@@ -79,7 +80,13 @@ export default function FormatsPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Formats</h1>
+        <h1 className="text-2xl font-bold">
+          <Link href="/docs" className="text-muted hover:text-primary hover:underline">
+            Docs
+          </Link>
+          <span className="text-faint"> {'>'} </span>
+          Formats & Rules
+        </h1>
         <p className="text-sm text-muted">
           Card and deck pages in this app show which of these formats a card or deck is
           currently legal in. That data comes from Null Signal Games and is computed each time

@@ -278,7 +278,7 @@ export function CardDetailPopup({
                           <p className="text-sm text-faint">Format legality unavailable</p>
                         )}
                         <Link
-                          href="/formats"
+                          href="/docs/formats"
                           onClick={() => setIsOpen(false)}
                           className="text-sm text-faint underline hover:text-primary"
                         >
