@@ -98,4 +98,25 @@ describe('NavSidebar', () => {
     expect(screen.getByRole('link', { name: 'Builder' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Batch History' })).not.toHaveAttribute('aria-current')
   })
+
+  it('renders a decorative, hidden icon on each standalone link and group heading', () => {
+    render(<NavSidebar />)
+
+    const dashboardIcon = screen.getByRole('link', { name: 'Dashboard' }).querySelector('svg')
+    const docsIcon = screen.getByRole('link', { name: 'Docs' }).querySelector('svg')
+    const collectionIcon = screen.getByText('Collection').closest('span')!.querySelector('svg')
+    const deckIcon = screen.getByText('Deck').closest('span')!.querySelector('svg')
+    const cardsIcon = screen.getByText('Cards').closest('span')!.querySelector('svg')
+
+    for (const icon of [dashboardIcon, docsIcon, collectionIcon, deckIcon, cardsIcon]) {
+      expect(icon).toBeInTheDocument()
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    }
+  })
+
+  it('does not render an icon on group sub-items', () => {
+    render(<NavSidebar />)
+
+    expect(screen.getByRole('link', { name: 'My Decks' }).querySelector('svg')).not.toBeInTheDocument()
+  })
 })
