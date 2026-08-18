@@ -147,4 +147,26 @@ describe('NavTopBar', () => {
 
     expect(screen.getByRole('button', { name: /cards/i })).toHaveClass('text-accent')
   })
+
+  it('highlights only Batch History, not Builder, on /builder/batches', async () => {
+    vi.mocked(usePathname).mockReturnValue('/builder/batches')
+    const user = userEvent.setup()
+    render(<NavTopBar />)
+
+    await user.click(screen.getByRole('button', { name: /collection/i }))
+
+    expect(screen.getByRole('menuitem', { name: 'Batch History' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('menuitem', { name: 'Builder' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('highlights Builder on its own exact path', async () => {
+    vi.mocked(usePathname).mockReturnValue('/builder')
+    const user = userEvent.setup()
+    render(<NavTopBar />)
+
+    await user.click(screen.getByRole('button', { name: /collection/i }))
+
+    expect(screen.getByRole('menuitem', { name: 'Builder' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('menuitem', { name: 'Batch History' })).not.toHaveAttribute('aria-current')
+  })
 })

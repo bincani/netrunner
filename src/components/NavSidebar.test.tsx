@@ -82,4 +82,20 @@ describe('NavSidebar', () => {
 
     expect(screen.getByRole('link', { name: 'Batch History' })).toHaveAttribute('aria-current', 'page')
   })
+
+  it('highlights only Batch History, not Builder, on /builder/batches', () => {
+    vi.mocked(usePathname).mockReturnValue('/builder/batches')
+    render(<NavSidebar />)
+
+    expect(screen.getByRole('link', { name: 'Batch History' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Builder' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('highlights Builder on its own exact path', () => {
+    vi.mocked(usePathname).mockReturnValue('/builder')
+    render(<NavSidebar />)
+
+    expect(screen.getByRole('link', { name: 'Builder' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Batch History' })).not.toHaveAttribute('aria-current')
+  })
 })

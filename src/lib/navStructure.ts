@@ -35,7 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { type: 'link', href: '/collections', label: 'My Collections' },
       { type: 'link', href: '/builder/batches', label: 'Batch History' },
-      { type: 'link', href: '/builder', label: 'Builder' },
+      { type: 'link', href: '/builder', label: 'Builder', exact: true },
     ],
   },
   {
