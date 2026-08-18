@@ -37,3 +37,16 @@ export async function getBuilderMode(prisma: PrismaClient): Promise<BuilderMode>
 export async function setBuilderMode(prisma: PrismaClient, mode: BuilderMode): Promise<void> {
   await setSetting(prisma, BUILDER_MODE_KEY, mode)
 }
+
+export type NavStyle = 'sidebar' | 'topbar'
+
+const NAV_STYLE_KEY = 'navStyle'
+
+export async function getNavStyle(prisma: PrismaClient): Promise<NavStyle> {
+  const value = await getSetting(prisma, NAV_STYLE_KEY)
+  return value === 'sidebar' ? 'sidebar' : 'topbar'
+}
+
+export async function setNavStyle(prisma: PrismaClient, style: NavStyle): Promise<void> {
+  await setSetting(prisma, NAV_STYLE_KEY, style)
+}

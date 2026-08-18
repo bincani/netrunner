@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from '@/lib/testDb'
 import { seedCard } from '@/lib/testFixtures'
-import { getHiddenBuilderPackCodes, setHiddenBuilderPacks, getSetting, setSetting, getBuilderMode, setBuilderMode } from './settingsMutations'
+import {
+  getHiddenBuilderPackCodes,
+  setHiddenBuilderPacks,
+  getSetting,
+  setSetting,
+  getBuilderMode,
+  setBuilderMode,
+  getNavStyle,
+  setNavStyle,
+} from './settingsMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -93,5 +102,25 @@ describe('getBuilderMode / setBuilderMode', () => {
     await setBuilderMode(prisma, 'simple')
 
     expect(await getBuilderMode(prisma)).toBe('simple')
+  })
+})
+
+describe('getNavStyle / setNavStyle', () => {
+  it('defaults to topbar when unset', async () => {
+    expect(await getNavStyle(prisma)).toBe('topbar')
+  })
+
+  it('persists and returns sidebar', async () => {
+    await setNavStyle(prisma, 'sidebar')
+
+    expect(await getNavStyle(prisma)).toBe('sidebar')
+  })
+
+  it('can switch back to topbar', async () => {
+    await setNavStyle(prisma, 'sidebar')
+
+    await setNavStyle(prisma, 'topbar')
+
+    expect(await getNavStyle(prisma)).toBe('topbar')
   })
 })

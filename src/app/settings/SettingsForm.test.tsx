@@ -3,11 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SettingsForm } from './SettingsForm'
-import { updateHiddenBuilderPacks, updateBuilderMode } from '@/actions/settingsActions'
+import { updateHiddenBuilderPacks, updateBuilderMode, updateNavStyle } from '@/actions/settingsActions'
 
 vi.mock('@/actions/settingsActions', () => ({
   updateHiddenBuilderPacks: vi.fn(),
   updateBuilderMode: vi.fn(),
+  updateNavStyle: vi.fn(),
 }))
 
 const packs = [
@@ -22,14 +23,14 @@ describe('SettingsForm', () => {
   })
 
   it('renders the theme toggle', () => {
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Dark' })).toBeInTheDocument()
   })
 
   it('pre-checks currently-hidden sets', () => {
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={['sg']} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={['sg']} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     expect(screen.getByRole('checkbox', { name: 'Core Set' })).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'System Gateway' })).toBeChecked()
@@ -37,7 +38,7 @@ describe('SettingsForm', () => {
 
   it('filters the set list by name', async () => {
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.type(screen.getByRole('textbox', { name: 'Filter sets by name' }), 'core')
 
@@ -48,7 +49,7 @@ describe('SettingsForm', () => {
   it('saving calls updateHiddenBuilderPacks with the currently-checked pack codes', async () => {
     vi.mocked(updateHiddenBuilderPacks).mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.click(screen.getByRole('checkbox', { name: 'System Gateway' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -59,7 +60,7 @@ describe('SettingsForm', () => {
   it('unchecking a previously-hidden set removes it from what gets saved', async () => {
     vi.mocked(updateHiddenBuilderPacks).mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={['core', 'sg']} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={['core', 'sg']} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.click(screen.getByRole('checkbox', { name: 'Core Set' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -70,7 +71,7 @@ describe('SettingsForm', () => {
   it('shows a status message after a successful save', async () => {
     vi.mocked(updateHiddenBuilderPacks).mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -80,7 +81,7 @@ describe('SettingsForm', () => {
   it('shows an error message when saving fails', async () => {
     vi.mocked(updateHiddenBuilderPacks).mockRejectedValue(new Error('db exploded'))
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -88,14 +89,14 @@ describe('SettingsForm', () => {
   })
 
   it('renders the builder mode toggle, defaulting to Simple', () => {
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     expect(screen.getByRole('button', { name: 'Simple' })).toHaveClass('border-accent')
     expect(screen.getByRole('button', { name: 'Batch' })).toBeInTheDocument()
   })
 
   it('renders Batch as selected when that is the initial mode', () => {
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="batch" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="batch" initialNavStyle="topbar" />)
 
     expect(screen.getByRole('button', { name: 'Batch' })).toHaveClass('border-accent')
   })
@@ -103,7 +104,7 @@ describe('SettingsForm', () => {
   it('clicking Batch calls updateBuilderMode and highlights it as selected', async () => {
     vi.mocked(updateBuilderMode).mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.click(screen.getByRole('button', { name: 'Batch' }))
 
@@ -114,11 +115,46 @@ describe('SettingsForm', () => {
   it('reverts the selection if updateBuilderMode fails', async () => {
     vi.mocked(updateBuilderMode).mockRejectedValue(new Error('db exploded'))
     const user = userEvent.setup()
-    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" />)
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
 
     await user.click(screen.getByRole('button', { name: 'Batch' }))
 
     await waitFor(() => expect(updateBuilderMode).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByRole('button', { name: 'Simple' })).toHaveClass('border-accent'))
+  })
+
+  it('renders the nav style toggle, defaulting to Top Bar', () => {
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
+
+    expect(screen.getByRole('button', { name: 'Top Bar' })).toHaveClass('border-accent')
+    expect(screen.getByRole('button', { name: 'Sidebar' })).toBeInTheDocument()
+  })
+
+  it('renders Sidebar as selected when that is the initial nav style', () => {
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="sidebar" />)
+
+    expect(screen.getByRole('button', { name: 'Sidebar' })).toHaveClass('border-accent')
+  })
+
+  it('clicking Sidebar calls updateNavStyle and highlights it as selected', async () => {
+    vi.mocked(updateNavStyle).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
+
+    await user.click(screen.getByRole('button', { name: 'Sidebar' }))
+
+    await waitFor(() => expect(updateNavStyle).toHaveBeenCalledWith('sidebar'))
+    expect(screen.getByRole('button', { name: 'Sidebar' })).toHaveClass('border-accent')
+  })
+
+  it('reverts the selection if updateNavStyle fails', async () => {
+    vi.mocked(updateNavStyle).mockRejectedValue(new Error('db exploded'))
+    const user = userEvent.setup()
+    render(<SettingsForm packs={packs} initialHiddenPackCodes={[]} initialBuilderMode="simple" initialNavStyle="topbar" />)
+
+    await user.click(screen.getByRole('button', { name: 'Sidebar' }))
+
+    await waitFor(() => expect(updateNavStyle).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Top Bar' })).toHaveClass('border-accent'))
   })
 })

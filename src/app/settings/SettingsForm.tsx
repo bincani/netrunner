@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { updateHiddenBuilderPacks, updateBuilderMode } from '@/actions/settingsActions'
+import { updateHiddenBuilderPacks, updateBuilderMode, updateNavStyle } from '@/actions/settingsActions'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import type { BuilderMode } from '@/actions/settingsMutations'
+import type { BuilderMode, NavStyle } from '@/actions/settingsMutations'
 
 interface PackOption {
   code: string
@@ -15,14 +15,21 @@ const BUILDER_MODE_OPTIONS: { value: BuilderMode; label: string }[] = [
   { value: 'batch', label: 'Batch' },
 ]
 
+const NAV_STYLE_OPTIONS: { value: NavStyle; label: string }[] = [
+  { value: 'topbar', label: 'Top Bar' },
+  { value: 'sidebar', label: 'Sidebar' },
+]
+
 export function SettingsForm({
   packs,
   initialHiddenPackCodes,
   initialBuilderMode,
+  initialNavStyle,
 }: {
   packs: PackOption[]
   initialHiddenPackCodes: string[]
   initialBuilderMode: BuilderMode
+  initialNavStyle: NavStyle
 }) {
   const [hiddenCodes, setHiddenCodes] = useState<Set<string>>(new Set(initialHiddenPackCodes))
   const [nameQuery, setNameQuery] = useState('')
@@ -30,6 +37,8 @@ export function SettingsForm({
   const [status, setStatus] = useState<string | null>(null)
   const [builderMode, setBuilderModeState] = useState<BuilderMode>(initialBuilderMode)
   const [isSavingBuilderMode, setIsSavingBuilderMode] = useState(false)
+  const [navStyle, setNavStyleState] = useState<NavStyle>(initialNavStyle)
+  const [isSavingNavStyle, setIsSavingNavStyle] = useState(false)
 
   const trimmedQuery = nameQuery.trim().toLowerCase()
   const visiblePacks = packs.filter((pack) => trimmedQuery === '' || pack.name.toLowerCase().includes(trimmedQuery))
@@ -59,6 +68,19 @@ export function SettingsForm({
     }
   }
 
+  async function selectNavStyle(style: NavStyle) {
+    const previous = navStyle
+    setNavStyleState(style)
+    setIsSavingNavStyle(true)
+    try {
+      await updateNavStyle(style)
+    } catch {
+      setNavStyleState(previous)
+    } finally {
+      setIsSavingNavStyle(false)
+    }
+  }
+
   async function handleSave() {
     setIsSaving(true)
     setStatus(null)
@@ -77,6 +99,26 @@ export function SettingsForm({
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Theme</h2>
         <ThemeToggle />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Nav Style</h2>
+        <p className="text-sm text-muted">Top Bar keeps the current horizontal nav. Sidebar moves it to the left.</p>
+        <div className="flex gap-2">
+          {NAV_STYLE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => selectNavStyle(option.value)}
+              disabled={isSavingNavStyle}
+              className={`cursor-pointer rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+                navStyle === option.value ? 'border-accent bg-accent/20 text-accent' : 'border-default hover:bg-surface-hover'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-2">

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { setHiddenBuilderPacks, setBuilderMode, type BuilderMode } from './settingsMutations'
+import { setHiddenBuilderPacks, setBuilderMode, setNavStyle, type BuilderMode, type NavStyle } from './settingsMutations'
 
 export async function updateHiddenBuilderPacks(packCodes: string[]): Promise<void> {
   await setHiddenBuilderPacks(prisma, packCodes)
@@ -13,4 +13,9 @@ export async function updateBuilderMode(mode: BuilderMode): Promise<void> {
   await setBuilderMode(prisma, mode)
   revalidatePath('/settings')
   revalidatePath('/builder')
+}
+
+export async function updateNavStyle(style: NavStyle): Promise<void> {
+  await setNavStyle(prisma, style)
+  revalidatePath('/', 'layout')
 }

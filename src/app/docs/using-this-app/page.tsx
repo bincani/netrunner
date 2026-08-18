@@ -101,9 +101,9 @@ const SECTIONS = [
     title: 'Settings',
     body: (
       <p>
-        Switch between light/dark theme, set your default Builder mode, and hide specific sets
-        from Builder search results (e.g. ones you&rsquo;ll never own or don&rsquo;t want to log
-        yet).
+        Switch between light/dark theme and Nav Style (top bar or sidebar), set your default
+        Builder mode, and hide specific sets from Builder search results (e.g. ones you&rsquo;ll
+        never own or don&rsquo;t want to log yet).
       </p>
     ),
   },
@@ -111,8 +111,8 @@ const SECTIONS = [
     title: 'Collections',
     body: (
       <p>
-        Manage multiple named collections and choose which one is active. Useful if you track more
-        than one physical collection separately.
+        Manage multiple named collections and choose which one is active, from the Collection
+        group in the nav. Useful if you track more than one physical collection separately.
       </p>
     ),
   },
@@ -120,8 +120,8 @@ const SECTIONS = [
     title: 'Reports',
     body: (
       <p>
-        The Reports menu in the top nav has a couple of maintenance views: sets missing a cover
-        image, and cards you own fewer than a full playset of.
+        Reports lives under Cards in the nav. It currently has one report: cards you own fewer
+        than a full playset of.
       </p>
     ),
   },
