@@ -18,10 +18,12 @@ function parseQuantity(raw: string): number | null {
 export function SetCardGrid({
   cards,
   expectedCount = null,
+  collectionId,
 }: {
   cards: PackCardEntry[]
   /** The set's officially declared card count, if known — shown as the total rather than however many happened to import. */
   expectedCount?: number | null
+  collectionId: number
 }) {
   // What's currently typed in each input, kept as a string so an in-progress
   // edit (e.g. a cleared field, or "-" while typing "-5") can be displayed
@@ -70,7 +72,7 @@ export function SetCardGrid({
 
     setPendingCodes((prev) => ({ ...prev, [code]: true }))
     try {
-      const updated = await updateCollectionQuantity(code, parsed)
+      const updated = await updateCollectionQuantity(code, parsed, collectionId)
       setSavedQuantities((prev) => ({ ...prev, [code]: updated }))
       setInputValues((prev) => ({ ...prev, [code]: String(updated) }))
       setErrors((prev) => {

@@ -3,26 +3,45 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { listCardsInPack } from '@/lib/cards'
 import { computeSetCompletion, releaseYear } from '@/lib/reports'
-import { getDefaultCollectionId } from '@/lib/collections'
+import { getDefaultCollection, getCollection } from '@/lib/collections'
 import { SetCoverImage } from '@/components/SetCoverImage'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetCardGrid } from './SetCardGrid'
 
-export default async function SetPage({ params }: { params: Promise<{ packCode: string }> }) {
+export default async function SetPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ packCode: string }>
+  searchParams: Promise<{ collectionId?: string }>
+}) {
   const { packCode } = await params
+  const { collectionId: requestedCollectionId } = await searchParams
 
   const pack = await prisma.pack.findUnique({ where: { code: packCode }, include: { cycle: true } })
   if (!pack) {
     notFound()
   }
 
-  const collectionId = await getDefaultCollectionId(prisma)
+  let collection
+  if (requestedCollectionId) {
+    const parsedId = Number(requestedCollectionId)
+    if (!Number.isInteger(parsedId)) notFound()
+    collection = await getCollection(prisma, parsedId)
+    if (!collection) notFound()
+  } else {
+    collection = await getDefaultCollection(prisma)
+  }
+
   const [cards, completion] = await Promise.all([
-    listCardsInPack(prisma, collectionId, packCode),
-    computeSetCompletion(prisma, collectionId, packCode),
+    listCardsInPack(prisma, collection.id, packCode),
+    computeSetCompletion(prisma, collection.id, packCode),
   ])
 
   const year = releaseYear(pack.dateRelease)
+  const backHref = collection.isDefault
+    ? `/#cycle-${pack.cycleCode}`
+    : `/collections/${collection.id}#cycle-${pack.cycleCode}`
 
   return (
     <main className="p-8 max-w-7xl mx-auto space-y-6">
@@ -32,7 +51,7 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <SetTypeBadge setType={pack.setType} />
             <span>
-              <Link href={`/#cycle-${pack.cycleCode}`} className="text-muted hover:text-primary hover:underline">
+              <Link href={backHref} className="text-muted hover:text-primary hover:underline">
                 {pack.cycle.name}
               </Link>
               <span className="text-faint"> {'>'} </span>
@@ -68,9 +87,10 @@ export default async function SetPage({ params }: { params: Promise<{ packCode: 
               {completion.ownedCount}/{completion.totalCount} owned ({completion.percentOwned}%)
             </p>
           )}
+          {!collection.isDefault && <p className="text-sm text-accent">Viewing: {collection.name}</p>}
         </div>
       </div>
-      <SetCardGrid cards={cards} expectedCount={pack.size} />
+      <SetCardGrid cards={cards} expectedCount={pack.size} collectionId={collection.id} />
     </main>
   )
 }

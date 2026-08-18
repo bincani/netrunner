@@ -20,6 +20,7 @@ export async function quickAddSet(collectionId: number, packCode: string): Promi
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to quick add set' }
   }
   revalidatePath('/')
+  revalidatePath('/collections/[id]', 'page')
   return { ok: true, changes }
 }
 
@@ -31,6 +32,7 @@ export async function clearSet(collectionId: number, packCode: string): Promise<
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to clear set' }
   }
   revalidatePath('/')
+  revalidatePath('/collections/[id]', 'page')
   return { ok: true, changes }
 }
 
@@ -44,5 +46,6 @@ export async function undoQuickSetChange(
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to undo' }
   }
   revalidatePath('/')
+  revalidatePath('/collections/[id]', 'page')
   return { ok: true }
 }

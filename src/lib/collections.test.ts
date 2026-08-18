@@ -4,6 +4,7 @@ import { seedCard, seedCollection } from './testFixtures'
 import {
   getDefaultCollection,
   getDefaultCollectionId,
+  getCollection,
   listCollections,
   createCollection,
   renameCollection,
@@ -66,6 +67,26 @@ describe('getDefaultCollection', () => {
 
   it('throws when no default collection exists', async () => {
     await expect(getDefaultCollection(prisma)).rejects.toThrow('No default collection exists')
+  })
+})
+
+describe('getCollection', () => {
+  it('returns the collection with that id, default or not', async () => {
+    const { id } = await seedCollection(prisma, { name: 'Trade Binder', isDefault: false })
+
+    const collection = await getCollection(prisma, id)
+
+    expect(collection).toEqual({
+      id,
+      name: 'Trade Binder',
+      isDefault: false,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    })
+  })
+
+  it('returns null for an id that does not exist', async () => {
+    expect(await getCollection(prisma, 999999)).toBeNull()
   })
 })
 

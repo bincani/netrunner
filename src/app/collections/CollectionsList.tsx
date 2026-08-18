@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import {
   createCollection,
   renameCollection,
@@ -326,7 +327,7 @@ function CollectionRow({
           type="button"
           onClick={onToggle}
           aria-expanded={isOpen}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 p-3 text-left hover:bg-surface-hover"
+          className="flex flex-1 cursor-pointer items-center justify-between gap-2 p-3 text-left hover:bg-surface-hover"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -341,6 +342,12 @@ function CollectionRow({
             {isOpen ? '▲' : '▼'}
           </span>
         </button>
+        <Link
+          href={`/collections/${collection.id}`}
+          className="shrink-0 cursor-pointer px-3 text-sm text-accent hover:underline"
+        >
+          View
+        </Link>
       </div>
 
       {isOpen && (

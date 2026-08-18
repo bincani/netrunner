@@ -144,7 +144,10 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
                 return (
                   <li key={set.packCode} className="space-y-1">
                     <div className="flex items-center gap-2 rounded border border-subtle p-3 hover:border-default">
-                      <Link href={`/sets/${set.packCode}`} className="flex min-w-0 flex-1 items-center gap-3">
+                      <Link
+                        href={`/sets/${set.packCode}?collectionId=${collectionId}`}
+                        className="flex min-w-0 flex-1 items-center gap-3"
+                      >
                         <SetThumbnail packCode={set.packCode} packName={set.packName} />
                         <div className="min-w-0 flex-1">
                           <div className="flex justify-between">

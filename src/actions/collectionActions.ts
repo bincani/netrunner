@@ -25,14 +25,20 @@ export async function addToCollection(cardCode: string, amount: number): Promise
   const quantity = await addToCollectionMutation(prisma, collectionId, cardCode, amount)
   revalidatePath('/')
   revalidatePath('/sets/[packCode]', 'page')
+  revalidatePath('/collections/[id]', 'page')
   return quantity
 }
 
-export async function updateCollectionQuantity(cardCode: string, quantity: number): Promise<number> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  const updated = await updateCollectionQuantityMutation(prisma, collectionId, cardCode, quantity)
+export async function updateCollectionQuantity(
+  cardCode: string,
+  quantity: number,
+  collectionId?: number
+): Promise<number> {
+  const resolvedCollectionId = collectionId ?? (await getDefaultCollectionId(prisma))
+  const updated = await updateCollectionQuantityMutation(prisma, resolvedCollectionId, cardCode, quantity)
   revalidatePath('/')
   revalidatePath('/sets/[packCode]', 'page')
+  revalidatePath('/collections/[id]', 'page')
   return updated
 }
 
@@ -90,6 +96,7 @@ export async function setDefaultCollection(collectionId: number): Promise<Simple
   try {
     await setDefaultCollectionMutation(prisma, collectionId)
     revalidatePath('/collections')
+    revalidatePath('/collections/[id]', 'page')
     revalidatePath('/', 'layout')
     return { ok: true }
   } catch (err) {

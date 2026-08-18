@@ -1,40 +1,54 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
-import { getDefaultCollection, listCollections } from '@/lib/collections'
+import { getCollection } from '@/lib/collections'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
-import { SetProgressList } from './SetProgressList'
-import { CollectionSwitcher } from './CollectionSwitcher'
+import { SetProgressList } from '@/app/SetProgressList'
+import { SetDefaultButton } from './SetDefaultButton'
 
-// This page's entire content is "how much of my current collection do I
-// own right now" — it must reflect live database state on every request,
-// not a build-time snapshot. See finding 4 of the 2026-08-04 whole-branch
-// review.
+// Same rationale as the Dashboard: this page's entire content is "how much
+// of this collection do I own right now" and must reflect live database
+// state on every request, not a build-time snapshot.
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage() {
-  const collection = await getDefaultCollection(prisma)
-  const [sets, totals, unsizedPacks, collections] = await Promise.all([
+export default async function CollectionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const parsedId = Number(id)
+  if (!Number.isInteger(parsedId)) {
+    notFound()
+  }
+
+  const collection = await getCollection(prisma, parsedId)
+  if (!collection) {
+    notFound()
+  }
+
+  const [sets, totals, unsizedPacks] = await Promise.all([
     computeAllSetsCompletion(prisma, collection.id),
     computeCollectionTotals(prisma, collection.id),
     listUnsizedPacks(prisma),
-    listCollections(prisma),
   ])
 
   return (
     <main className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <CollectionSwitcher current={collection} collections={collections} />
+          <div className="flex items-center gap-3">
+            <Link href="/collections" className="text-sm text-muted hover:text-primary hover:underline">
+              ← My Collections
+            </Link>
             <h1 className="text-2xl font-bold">Collection: {collection.name}</h1>
           </div>
-          <a
-            href={`/api/collection/export?collectionId=${collection.id}`}
-            className="shrink-0 cursor-pointer text-sm text-accent hover:underline"
-          >
-            Export CSV
-          </a>
+          <div className="flex shrink-0 items-center gap-4">
+            <SetDefaultButton collectionId={collection.id} isDefault={collection.isDefault} />
+            <a
+              href={`/api/collection/export?collectionId=${collection.id}`}
+              className="cursor-pointer text-sm text-accent hover:underline"
+            >
+              Export CSV
+            </a>
+          </div>
         </div>
         <p className="text-muted">
           {totals.ownedCards} / {totals.totalCards} cards owned ({totals.percentOwned}%)
@@ -54,7 +68,10 @@ export default async function DashboardPage() {
             {unsizedPacks.map((pack) => (
               <li key={pack.packCode} className="flex items-center gap-2">
                 <SetTypeBadge setType={pack.setType} />
-                <Link href={`/sets/${pack.packCode}?collectionId=${collection.id}`} className="text-accent hover:underline">
+                <Link
+                  href={`/sets/${pack.packCode}?collectionId=${collection.id}`}
+                  className="text-accent hover:underline"
+                >
                   {pack.packName}
                 </Link>
               </li>

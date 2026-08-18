@@ -21,7 +21,9 @@ vi.mock('next/cache', () => ({
   revalidatePath: () => {},
 }))
 
-const { importCsvToCollection, approveImportBatch, removeFromImportBatch } = await import('./collectionActions')
+const { importCsvToCollection, approveImportBatch, removeFromImportBatch, updateCollectionQuantity } = await import(
+  './collectionActions'
+)
 
 describe('collection-scoped batch actions', () => {
   let prisma: PrismaClient
@@ -106,5 +108,47 @@ describe('collection-scoped batch actions', () => {
     expect(result.ok).toBe(false)
     expect(await getOwnedQuantity(prisma, a.id, '01001')).toBe(0)
     expect(await getOwnedQuantity(prisma, b.id, '01001')).toBe(0)
+  })
+})
+
+describe('updateCollectionQuantity', () => {
+  let prisma: PrismaClient
+
+  beforeAll(() => {
+    prisma = createTestDb()
+    dbHolder.prisma = prisma
+  })
+
+  afterAll(async () => {
+    await prisma.$disconnect()
+  })
+
+  beforeEach(async () => {
+    await prisma.collectionEntry.deleteMany()
+    await prisma.collection.deleteMany()
+    await prisma.card.deleteMany()
+  })
+
+  it('updates the given collectionId, not the default collection', async () => {
+    const a = await seedCollection(prisma, { name: 'A', isDefault: true })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+
+    const updated = await updateCollectionQuantity('01001', 3, b.id)
+
+    expect(updated).toBe(3)
+    expect(await getOwnedQuantity(prisma, b.id, '01001')).toBe(3)
+    expect(await getOwnedQuantity(prisma, a.id, '01001')).toBe(0)
+  })
+
+  it('falls back to the default collection when collectionId is omitted', async () => {
+    const a = await seedCollection(prisma, { name: 'A', isDefault: true })
+    await seedCollection(prisma, { name: 'B', isDefault: false })
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+
+    const updated = await updateCollectionQuantity('01001', 2)
+
+    expect(updated).toBe(2)
+    expect(await getOwnedQuantity(prisma, a.id, '01001')).toBe(2)
   })
 })

@@ -32,6 +32,10 @@ vi.mock('@/actions/batchActions', () => ({
   discardBatch: vi.fn(),
 }))
 
+vi.mock('next/link', () => ({
+  default: (props: React.ComponentProps<'a'>) => <a {...props} />,
+}))
+
 const defaultCollection: CollectionListEntry = {
   id: 1,
   name: 'My Collection',
@@ -80,6 +84,13 @@ describe('CollectionsList', () => {
     expect(screen.getByText('10 / 100 owned (10%)')).toBeInTheDocument()
     expect(screen.getByText('Default')).toBeInTheDocument()
     expect(screen.getByText('Trade Binder')).toBeInTheDocument()
+  })
+
+  it('renders a View link to each collection\'s detail page', () => {
+    render(<CollectionsList initialCollections={[defaultCollection, secondCollection]} />)
+
+    expect(screen.getAllByRole('link', { name: 'View' })[0]).toHaveAttribute('href', '/collections/1')
+    expect(screen.getAllByRole('link', { name: 'View' })[1]).toHaveAttribute('href', '/collections/2')
   })
 
   it('creating a collection with a valid name adds it to the list', async () => {

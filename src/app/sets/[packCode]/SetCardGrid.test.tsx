@@ -58,14 +58,14 @@ describe('SetCardGrid', () => {
   })
 
   it('renders each card with its current owned quantity', () => {
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     expect(screen.getByDisplayValue('2')).toBeInTheDocument()
     expect(screen.getByDisplayValue('0')).toBeInTheDocument()
   })
 
   it('dims cards with 0 owned quantity', () => {
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const cardBItem = screen.getByText('Card B').closest('li')
     expect(cardBItem?.className).toContain('opacity-50')
@@ -74,21 +74,21 @@ describe('SetCardGrid', () => {
   it('editing a quantity and blurring calls updateCollectionQuantity with the new value', async () => {
     vi.mocked(updateCollectionQuantity).mockResolvedValue(3)
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const input = screen.getByLabelText('Card B owned quantity')
     await user.clear(input)
     await user.type(input, '3')
     await user.tab()
 
-    expect(updateCollectionQuantity).toHaveBeenCalledWith('01002', 3)
+    expect(updateCollectionQuantity).toHaveBeenCalledWith('01002', 3, 1)
     expect(updateCollectionQuantity).toHaveBeenCalledTimes(1)
   })
 
   it('does not call the mutation while the user is still typing, only on commit (blur)', async () => {
     vi.mocked(updateCollectionQuantity).mockResolvedValue(3)
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const input = screen.getByLabelText('Card B owned quantity')
     await user.clear(input)
@@ -102,14 +102,14 @@ describe('SetCardGrid', () => {
 
     await user.tab()
     expect(updateCollectionQuantity).toHaveBeenCalledTimes(1)
-    expect(updateCollectionQuantity).not.toHaveBeenCalledWith('01002', 0)
+    expect(updateCollectionQuantity).not.toHaveBeenCalledWith('01002', 0, 1)
   })
 
   it('editing one card does not disable or otherwise affect other cards while its save is pending', async () => {
     const { promise, resolve } = deferred<number>()
     vi.mocked(updateCollectionQuantity).mockReturnValue(promise)
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const inputA = screen.getByLabelText('Card A owned quantity')
     const inputB = screen.getByLabelText('Card B owned quantity')
@@ -131,7 +131,7 @@ describe('SetCardGrid', () => {
 
   it('rejects a negative quantity client-side without calling the mutation, and shows an error', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const input = screen.getByLabelText('Card B owned quantity')
     await user.clear(input)
@@ -146,7 +146,7 @@ describe('SetCardGrid', () => {
 
   it('rejects a non-integer quantity client-side without calling the mutation', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const input = screen.getByLabelText('Card B owned quantity')
     await user.clear(input)
@@ -159,7 +159,7 @@ describe('SetCardGrid', () => {
   })
 
   it('defaults to showing all cards', () => {
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     expect(screen.getByText('Card A')).toBeInTheDocument()
     expect(screen.getByText('Card B')).toBeInTheDocument()
@@ -172,7 +172,7 @@ describe('SetCardGrid', () => {
       makeCard({ code: '01002', title: 'Partially Owned Card', ownedQuantity: 1, quantity: 3 }),
       makeCard({ code: '01003', title: 'Unowned Card', ownedQuantity: 0, quantity: 3 }),
     ]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Owned' }))
 
@@ -183,7 +183,7 @@ describe('SetCardGrid', () => {
 
   it('the "Partial" filter shows only cards owned but short of their printed quantity', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Partial' }))
 
@@ -195,7 +195,7 @@ describe('SetCardGrid', () => {
   it('a card with no declared printed quantity is never "Partial", only "Owned" once it has any', async () => {
     const user = userEvent.setup()
     const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 1, quantity: null })]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Partial' }))
     expect(screen.queryByText('Card A')).not.toBeInTheDocument()
@@ -206,7 +206,7 @@ describe('SetCardGrid', () => {
 
   it('the "Missing" filter hides cards with a positive owned quantity', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Missing' }))
 
@@ -216,7 +216,7 @@ describe('SetCardGrid', () => {
 
   it('"All" restores both cards after filtering', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Owned' }))
     await user.click(screen.getByRole('button', { name: 'All' }))
@@ -228,7 +228,7 @@ describe('SetCardGrid', () => {
   it('the "Partial" filter follows live edits, not just the initial quantity', async () => {
     vi.mocked(updateCollectionQuantity).mockResolvedValue(1)
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     // Card B starts at 0 (missing); bump it up to 1 of 3 so it should now count as partial.
     const inputB = screen.getByLabelText('Card B owned quantity')
@@ -246,7 +246,7 @@ describe('SetCardGrid', () => {
   it('shows a visible error and rolls back the displayed value when the mutation rejects', async () => {
     vi.mocked(updateCollectionQuantity).mockRejectedValue(new Error('db exploded'))
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     const input = screen.getByLabelText('Card B owned quantity')
     await user.clear(input)
@@ -263,7 +263,7 @@ describe('SetCardGrid', () => {
       makeCard({ code: '01001', title: 'Card A', factionCode: 'anarch', factionName: 'Anarch' }),
       makeCard({ code: '01002', title: 'Card B', factionCode: 'shaper', factionName: 'Shaper' }),
     ]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     await user.click(screen.getByRole('checkbox', { name: 'Anarch (1)' }))
 
@@ -278,7 +278,7 @@ describe('SetCardGrid', () => {
       makeCard({ code: '01002', title: 'Card B', factionCode: 'anarch', factionName: 'Anarch', ownedQuantity: 3 }),
       makeCard({ code: '01003', title: 'Card C', factionCode: 'shaper', factionName: 'Shaper', ownedQuantity: 3 }),
     ]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Owned' }))
     await user.click(screen.getByRole('checkbox', { name: 'Anarch (2)' }))
@@ -289,14 +289,14 @@ describe('SetCardGrid', () => {
   })
 
   it('shows a count of how many cards are currently included out of the set total', () => {
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     expect(screen.getByText('2 of 2 cards')).toBeInTheDocument()
   })
 
   it('the card count updates as the ownership filter narrows the list', async () => {
     const user = userEvent.setup()
-    render(<SetCardGrid cards={cards} />)
+    render(<SetCardGrid cards={cards} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Partial' }))
 
@@ -309,7 +309,7 @@ describe('SetCardGrid', () => {
       makeCard({ code: '01001', title: 'Card A', factionCode: 'anarch', factionName: 'Anarch' }),
       makeCard({ code: '01002', title: 'Card B', factionCode: 'shaper', factionName: 'Shaper' }),
     ]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     await user.click(screen.getByRole('checkbox', { name: 'Anarch (1)' }))
 
@@ -317,13 +317,13 @@ describe('SetCardGrid', () => {
   })
 
   it('shows the declared expected card count as the total, not just how many imported', () => {
-    render(<SetCardGrid cards={cards} expectedCount={45} />)
+    render(<SetCardGrid cards={cards} expectedCount={45} collectionId={1} />)
 
     expect(screen.getByText('2 of 45 cards')).toBeInTheDocument()
   })
 
   it('falls back to the actual imported count when no expected count is declared', () => {
-    render(<SetCardGrid cards={cards} expectedCount={null} />)
+    render(<SetCardGrid cards={cards} expectedCount={null} collectionId={1} />)
 
     expect(screen.getByText('2 of 2 cards')).toBeInTheDocument()
   })
@@ -333,7 +333,7 @@ describe('SetCardGrid', () => {
       makeCard({ code: '01001', title: 'Card A', position: 1, ownedQuantity: 2, quantity: 3 }),
       makeCard({ code: '01002', title: 'Card B', position: 2, ownedQuantity: 0, quantity: 1 }),
     ]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     const cardAItem = screen.getByText('Card A').closest('li')
     expect(within(cardAItem!).getByText('of 3')).toBeInTheDocument()
@@ -344,14 +344,14 @@ describe('SetCardGrid', () => {
 
   it('shows no printed quantity for a card with none declared', () => {
     const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', quantity: null })]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     expect(screen.queryByText(/^of /)).not.toBeInTheDocument()
   })
 
   it('highlights the owned-quantity input red when owned is less than the declared printed quantity', () => {
     const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 2, quantity: 3 })]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     expect(screen.getByLabelText('Card A owned quantity').className).toContain('border-red-400')
   })
@@ -361,7 +361,7 @@ describe('SetCardGrid', () => {
       makeCard({ code: '01001', title: 'Card A', ownedQuantity: 3, quantity: 3 }),
       makeCard({ code: '01002', title: 'Card B', ownedQuantity: 5, quantity: 3 }),
     ]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-red-400')
     expect(screen.getByLabelText('Card B owned quantity').className).not.toContain('border-red-400')
@@ -369,7 +369,7 @@ describe('SetCardGrid', () => {
 
   it('does not highlight the input when the card has no declared printed quantity', () => {
     const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 0, quantity: null })]
-    render(<SetCardGrid cards={mixedCards} />)
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
     expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-red-400')
   })

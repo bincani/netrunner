@@ -49,6 +49,11 @@ export async function getDefaultCollectionId(prisma: PrismaClient): Promise<numb
   return collection.id
 }
 
+export async function getCollection(prisma: PrismaClient, collectionId: number): Promise<CollectionSummary | null> {
+  const collection = await prisma.collection.findUnique({ where: { id: collectionId } })
+  return collection ? toSummary(collection) : null
+}
+
 export async function listCollections(prisma: PrismaClient): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
