@@ -13,6 +13,7 @@ import {
   removeFromBatch,
   importCsv,
 } from '@/actions/batchActions'
+import { updateBuilderMode } from '@/actions/settingsActions'
 import type { BatchSummary } from '@/lib/batches'
 
 vi.mock('@/actions/batchActions', () => ({
@@ -24,6 +25,16 @@ vi.mock('@/actions/batchActions', () => ({
   approveBatch: vi.fn(),
   removeFromBatch: vi.fn(),
   importCsv: vi.fn(),
+}))
+
+vi.mock('@/actions/settingsActions', () => ({
+  updateBuilderMode: vi.fn(),
+}))
+
+const routerRefresh = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: routerRefresh }),
 }))
 
 vi.mock('next/image', () => ({
@@ -79,6 +90,36 @@ describe('BatchBuilderForm', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled()
   })
 
+  it('groups the start screen into New Batch, Add Cards, and Import Batch legends', () => {
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
+
+    expect(screen.getByRole('group', { name: 'New Batch' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Add Cards' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Import Batch' })).toBeInTheDocument()
+  })
+
+  it('clicking Add Cards switches Builder Mode to simple and refreshes', async () => {
+    vi.mocked(updateBuilderMode).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
+
+    await user.click(screen.getByRole('button', { name: 'Add Cards' }))
+
+    expect(updateBuilderMode).toHaveBeenCalledWith('simple')
+    await waitFor(() => expect(routerRefresh).toHaveBeenCalledTimes(1))
+  })
+
+  it('shows an error if switching to simple mode fails', async () => {
+    vi.mocked(updateBuilderMode).mockRejectedValue(new Error('db exploded'))
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
+
+    await user.click(screen.getByRole('button', { name: 'Add Cards' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to switch mode')
+    expect(routerRefresh).not.toHaveBeenCalled()
+  })
+
   it('starting a batch with a valid count shows the active batch UI', async () => {
     vi.mocked(startBatch).mockResolvedValue({ ok: true, batch: runningBatch })
     const user = userEvent.setup()
@@ -120,7 +161,7 @@ describe('BatchBuilderForm', () => {
     render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     const file = new File(['cardCode,quantityOwned\n01007,3\n'], 'collection.csv', { type: 'text/csv' })
-    await user.upload(screen.getByLabelText('Or import a CSV'), file)
+    await user.upload(screen.getByLabelText('Import a CSV'), file)
 
     await waitFor(() => expect(importCsv).toHaveBeenCalledWith('cardCode,quantityOwned\n01007,3\n'))
     // The batch name legitimately appears twice once review is open — once
@@ -153,7 +194,7 @@ describe('BatchBuilderForm', () => {
     const file = new File(['cardCode,quantityOwned\n01007,1\nnonexistent,2\n'], 'collection.csv', {
       type: 'text/csv',
     })
-    await user.upload(screen.getByLabelText('Or import a CSV'), file)
+    await user.upload(screen.getByLabelText('Import a CSV'), file)
 
     expect(await screen.findByText('1 row(s) skipped')).toBeInTheDocument()
     expect(screen.getByText('nonexistent: Unknown card code')).toBeInTheDocument()
@@ -165,7 +206,7 @@ describe('BatchBuilderForm', () => {
     render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     const file = new File(['cardCode,quantityOwned\n01007,1\n'], 'collection.csv', { type: 'text/csv' })
-    await user.upload(screen.getByLabelText('Or import a CSV'), file)
+    await user.upload(screen.getByLabelText('Import a CSV'), file)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('A batch is already active')
   })

@@ -23,7 +23,7 @@ export default async function BuilderPage() {
   const showBatchMode = builderMode === 'batch' || activeBatch !== null
 
   return (
-    <main className="p-8 max-w-3xl mx-auto">
+    <main className="w-3/5 p-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Collection Builder</h1>
         <span className="text-sm text-muted">{collection.name}</span>

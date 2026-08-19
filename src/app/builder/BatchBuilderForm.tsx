@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   startBatch,
   addCardToBatch,
@@ -12,6 +13,7 @@ import {
   removeFromBatch,
   importCsv,
 } from '@/actions/batchActions'
+import { updateBuilderMode } from '@/actions/settingsActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
 import { BatchStatusBar } from './BatchStatusBar'
 import { BatchReviewModal } from './BatchReviewModal'
@@ -25,10 +27,14 @@ export function BatchBuilderForm({
   activeBatch: BatchSummary | null
   collectionId: number
 }) {
+  const router = useRouter()
   const [batch, setBatch] = useState<BatchSummary | null>(activeBatch)
   const [expectedCountInput, setExpectedCountInput] = useState('')
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false)
+  const [switchModeError, setSwitchModeError] = useState<string | null>(null)
 
   const [isImportingCsv, setIsImportingCsv] = useState(false)
   const [importCsvError, setImportCsvError] = useState<string | null>(null)
@@ -85,6 +91,19 @@ export function BatchBuilderForm({
     } catch {
       setResults([])
       setSearchError('Search failed — try again')
+    }
+  }
+
+  async function handleSwitchToSimple() {
+    setIsSwitchingMode(true)
+    setSwitchModeError(null)
+    try {
+      await updateBuilderMode('simple')
+      router.refresh()
+    } catch {
+      setSwitchModeError('Failed to switch mode — try again')
+    } finally {
+      setIsSwitchingMode(false)
     }
   }
 
@@ -257,60 +276,84 @@ export function BatchBuilderForm({
 
   if (!batch) {
     return (
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="expected-count" className="block text-sm font-medium">
-            Expected card count
-          </label>
-          <input
-            id="expected-count"
-            type="number"
-            min={1}
-            value={expectedCountInput}
-            onChange={(event) => setExpectedCountInput(event.target.value)}
-            placeholder="e.g. 60"
-            className="mt-1 w-32 rounded border border-default bg-surface px-3 py-1.5 text-sm"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleStart}
-          disabled={isStarting || expectedCountInput.trim() === ''}
-          className="cursor-pointer rounded border border-accent bg-accent/20 px-4 py-1.5 text-sm text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isStarting ? 'Starting…' : 'Start'}
-        </button>
-        {startError && (
-          <p className="text-sm text-danger" role="alert">
-            {startError}
-          </p>
-        )}
-
-        <div>
-          <label
-            htmlFor="import-csv"
-            className={`inline-block cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover ${isImportingCsv ? 'pointer-events-none opacity-50' : ''}`}
+      <div className="space-y-6">
+        <fieldset className="space-y-3 rounded border border-default p-4">
+          <legend className="px-1 text-sm font-semibold text-muted">New Batch</legend>
+          <div>
+            <label htmlFor="expected-count" className="block text-sm font-medium">
+              Expected card count
+            </label>
+            <input
+              id="expected-count"
+              type="number"
+              min={1}
+              value={expectedCountInput}
+              onChange={(event) => setExpectedCountInput(event.target.value)}
+              placeholder="e.g. 60"
+              className="mt-1 w-32 rounded border border-default bg-surface px-3 py-1.5 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={isStarting || expectedCountInput.trim() === ''}
+            className="cursor-pointer rounded border border-accent bg-accent/20 px-4 py-1.5 text-sm text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isImportingCsv ? 'Importing…' : 'Or import a CSV'}
-          </label>
-          <input
-            id="import-csv"
-            type="file"
-            accept=".csv,text/csv"
-            disabled={isImportingCsv}
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) handleImportCsv(file)
-              event.target.value = ''
-            }}
-            className="sr-only"
-          />
-        </div>
-        {importCsvError && (
-          <p className="text-sm text-danger" role="alert">
-            {importCsvError}
-          </p>
-        )}
+            {isStarting ? 'Starting…' : 'Start'}
+          </button>
+          {startError && (
+            <p className="text-sm text-danger" role="alert">
+              {startError}
+            </p>
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-3 rounded border border-default p-4">
+          <legend className="px-1 text-sm font-semibold text-muted">Add Cards</legend>
+          <p className="text-sm text-muted">Switch to Simple mode to search for cards and add them immediately.</p>
+          <button
+            type="button"
+            onClick={handleSwitchToSimple}
+            disabled={isSwitchingMode}
+            className="cursor-pointer rounded border border-default px-4 py-1.5 text-sm hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSwitchingMode ? 'Switching…' : 'Add Cards'}
+          </button>
+          {switchModeError && (
+            <p className="text-sm text-danger" role="alert">
+              {switchModeError}
+            </p>
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-3 rounded border border-default p-4">
+          <legend className="px-1 text-sm font-semibold text-muted">Import Batch</legend>
+          <div>
+            <label
+              htmlFor="import-csv"
+              className={`inline-block cursor-pointer rounded border border-default px-3 py-1.5 text-sm hover:bg-surface-hover ${isImportingCsv ? 'pointer-events-none opacity-50' : ''}`}
+            >
+              {isImportingCsv ? 'Importing…' : 'Import a CSV'}
+            </label>
+            <input
+              id="import-csv"
+              type="file"
+              accept=".csv,text/csv"
+              disabled={isImportingCsv}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) handleImportCsv(file)
+                event.target.value = ''
+              }}
+              className="sr-only"
+            />
+          </div>
+          {importCsvError && (
+            <p className="text-sm text-danger" role="alert">
+              {importCsvError}
+            </p>
+          )}
+        </fieldset>
 
         <div>
           <Link
