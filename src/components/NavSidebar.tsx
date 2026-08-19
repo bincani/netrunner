@@ -27,7 +27,7 @@ export function NavSidebar() {
   const pathname = usePathname()
 
   return (
-    <nav aria-label="Primary" className="flex w-56 shrink-0 flex-col gap-6 border-r border-subtle p-4">
+    <nav aria-label="Primary" className="flex w-[16.8rem] shrink-0 flex-col gap-6 border-r border-subtle p-4">
       <div className="flex flex-col gap-1">
         {NAV_STANDALONE_LINKS.map((link) => (
           <NavLinkRow key={link.href} item={link} pathname={pathname} icon={STANDALONE_ICONS[link.href]} />
