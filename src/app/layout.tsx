@@ -1,7 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
-import { getDefaultCollection } from '@/lib/collections'
 import { getNavStyle } from '@/actions/settingsMutations'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { NavTopBar } from '@/components/NavTopBar'
@@ -12,10 +11,10 @@ export const metadata: Metadata = {
   description: 'Track your Android: Netrunner card collection',
 }
 
-// Reflects the current default collection and Nav Style setting, both of
-// which can change at runtime — not something to freeze into a build-time
-// snapshot. See the dashboard's identical rationale. Applies to the whole
-// app since every page shares this layout's nav.
+// Reflects the current Nav Style setting, which can change at runtime —
+// not something to freeze into a build-time snapshot. See the dashboard's
+// identical rationale. Applies to the whole app since every page shares
+// this layout's nav.
 export const dynamic = 'force-dynamic'
 
 const THEME_INIT_SCRIPT = `
@@ -30,7 +29,7 @@ try {
 `
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [collection, navStyle] = await Promise.all([getDefaultCollection(prisma), getNavStyle(prisma)])
+  const navStyle = await getNavStyle(prisma)
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -41,7 +40,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <NavSidebar />
             <div className="flex flex-1 flex-col">
               <div className="flex items-center justify-end gap-3 border-b border-subtle px-8 py-4">
-                <span className="text-sm text-muted">{collection.name}</span>
                 <SettingsMenu />
               </div>
               {children}
@@ -54,7 +52,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <NavTopBar />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-muted">{collection.name}</span>
                 <SettingsMenu />
               </div>
             </nav>
