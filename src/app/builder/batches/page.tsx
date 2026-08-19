@@ -29,7 +29,7 @@ export default async function BatchHistoryPage({
   ])
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-8">
+    <main className="space-y-6 p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Batch History ({batches.length})</h1>
         <BatchHistoryFilter collections={collections} selectedId={selectedCollectionId} />
