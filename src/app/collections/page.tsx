@@ -11,7 +11,7 @@ export default async function CollectionsPage() {
   const collections = await listCollectionsWithStats(prisma)
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-8">
+    <main className="w-3/5 space-y-6 p-8">
       <h1 className="text-2xl font-bold">Collections</h1>
       <CollectionsList initialCollections={collections} />
     </main>
