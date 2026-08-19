@@ -128,4 +128,25 @@ describe('BatchHistoryList', () => {
 
     expect(screen.getByText('No cards were added to this batch.')).toBeInTheDocument()
   })
+
+  // BatchHistoryList seeds local state from `batches` via useState, which
+  // only reads its initializer on mount — re-rendering with a different
+  // `batches` prop (e.g. the parent page re-fetching after a filter change)
+  // does NOT update it unless React treats it as a fresh instance. The page
+  // relies on a changing `key` prop to force that remount; simulate it here
+  // the same way React does, by re-rendering with a different key.
+  it('shows the new batches after a remount, not the previous render\'s stale list', () => {
+    const { rerender } = render(<BatchHistoryList key="all" batches={batches} />)
+    expect(screen.getByText('Batch A')).toBeInTheDocument()
+    expect(screen.getByText('Batch B')).toBeInTheDocument()
+
+    const otherCollectionBatches: BatchSummary[] = [
+      { ...batches[0], id: 99, name: 'Batch C', collectionId: 3, collectionName: 'Other Collection' },
+    ]
+    rerender(<BatchHistoryList key="collection-3" batches={otherCollectionBatches} />)
+
+    expect(screen.getByText('Batch C')).toBeInTheDocument()
+    expect(screen.queryByText('Batch A')).not.toBeInTheDocument()
+    expect(screen.queryByText('Batch B')).not.toBeInTheDocument()
+  })
 })

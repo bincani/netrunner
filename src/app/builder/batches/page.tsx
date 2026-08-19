@@ -38,7 +38,12 @@ export default async function BatchHistoryPage({
       {batches.length === 0 ? (
         <p className="text-sm text-faint">No batches have been reviewed yet.</p>
       ) : (
-        <BatchHistoryList batches={batches} />
+        // BatchHistoryList seeds its own local state from `batches` (for the
+        // Approve/Revert optimistic update) and never re-syncs it to new
+        // props — keying on the active filter forces React to remount it
+        // with fresh state whenever the filter (and thus `batches`) changes,
+        // instead of silently rendering the previous filter's stale list.
+        <BatchHistoryList key={selectedCollectionId ?? 'all'} batches={batches} />
       )}
     </main>
   )
