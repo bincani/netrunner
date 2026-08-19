@@ -16,7 +16,7 @@ export default async function DecksPage() {
   ])
 
   return (
-    <main className="p-8 max-w-3xl mx-auto">
+    <main className="w-3/5 p-8">
       <h1 className="text-2xl font-bold mb-6">Decks</h1>
       <DeckSection
         initialDecks={decks}
