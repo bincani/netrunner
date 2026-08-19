@@ -61,6 +61,8 @@ const runningBatch: BatchSummary = {
   status: 'running',
   currentCount: 0,
   elapsedMs: 0,
+  collectionId: 1,
+  collectionName: 'My Collection',
   cards: [],
 }
 
@@ -71,7 +73,7 @@ describe('BatchBuilderForm', () => {
   })
 
   it('shows the start form when there is no active batch', () => {
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     expect(screen.getByLabelText('Expected card count')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled()
@@ -80,7 +82,7 @@ describe('BatchBuilderForm', () => {
   it('starting a batch with a valid count shows the active batch UI', async () => {
     vi.mocked(startBatch).mockResolvedValue({ ok: true, batch: runningBatch })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     await user.type(screen.getByLabelText('Expected card count'), '60')
     await user.click(screen.getByRole('button', { name: 'Start' }))
@@ -93,7 +95,7 @@ describe('BatchBuilderForm', () => {
   it('shows a visible error when starting fails', async () => {
     vi.mocked(startBatch).mockResolvedValue({ ok: false, error: 'A batch is already active' })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     await user.type(screen.getByLabelText('Expected card count'), '60')
     await user.click(screen.getByRole('button', { name: 'Start' }))
@@ -109,11 +111,13 @@ describe('BatchBuilderForm', () => {
       status: 'stopped',
       currentCount: 3,
       elapsedMs: 0,
+      collectionId: 1,
+      collectionName: 'My Collection',
       cards: [{ code: '01007', title: 'Corroder', quantity: 3 }],
     }
     vi.mocked(importCsv).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     const file = new File(['cardCode,quantityOwned\n01007,3\n'], 'collection.csv', { type: 'text/csv' })
     await user.upload(screen.getByLabelText('Or import a CSV'), file)
@@ -134,6 +138,8 @@ describe('BatchBuilderForm', () => {
       status: 'stopped',
       currentCount: 1,
       elapsedMs: 0,
+      collectionId: 1,
+      collectionName: 'My Collection',
       cards: [{ code: '01007', title: 'Corroder', quantity: 1 }],
     }
     vi.mocked(importCsv).mockResolvedValue({
@@ -142,7 +148,7 @@ describe('BatchBuilderForm', () => {
       skipped: [{ cardCode: 'nonexistent', reason: 'Unknown card code' }],
     })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     const file = new File(['cardCode,quantityOwned\n01007,1\nnonexistent,2\n'], 'collection.csv', {
       type: 'text/csv',
@@ -156,7 +162,7 @@ describe('BatchBuilderForm', () => {
   it('shows a visible error when importing a CSV fails', async () => {
     vi.mocked(importCsv).mockResolvedValue({ ok: false, error: 'A batch is already active' })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     const file = new File(['cardCode,quantityOwned\n01007,1\n'], 'collection.csv', { type: 'text/csv' })
     await user.upload(screen.getByLabelText('Or import a CSV'), file)
@@ -170,7 +176,7 @@ describe('BatchBuilderForm', () => {
       batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
     })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -192,7 +198,7 @@ describe('BatchBuilderForm', () => {
       cards: [{ code: '01007', title: 'Corroder', quantity: 2 }],
     }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={batchWithCard} />)
+    render(<BatchBuilderForm activeBatch={batchWithCard} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -203,7 +209,7 @@ describe('BatchBuilderForm', () => {
 
   it('does not show a "0" reset button (removal is not supported in batch mode)', async () => {
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -215,7 +221,7 @@ describe('BatchBuilderForm', () => {
     vi.mocked(continueBatch).mockResolvedValue({ ok: true, batch: runningBatch })
     const pausedBatch: BatchSummary = { ...runningBatch, status: 'paused' }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={pausedBatch} />)
+    render(<BatchBuilderForm activeBatch={pausedBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'c')
 
@@ -226,7 +232,7 @@ describe('BatchBuilderForm', () => {
     vi.mocked(continueBatch).mockResolvedValue({ ok: true, batch: runningBatch })
     const pausedBatch: BatchSummary = { ...runningBatch, status: 'paused' }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={pausedBatch} />)
+    render(<BatchBuilderForm activeBatch={pausedBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
 
@@ -242,7 +248,7 @@ describe('BatchBuilderForm', () => {
       batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
     })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     // Populate results while running, same as any normal search.
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
@@ -266,7 +272,7 @@ describe('BatchBuilderForm', () => {
   it('clicking Pause calls pauseBatch and updates the chrome', async () => {
     vi.mocked(pauseBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, status: 'paused' } })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Pause' }))
 
@@ -276,7 +282,7 @@ describe('BatchBuilderForm', () => {
 
   it('hides the search UI and shows only Review once stopped', () => {
     const stoppedBatch: BatchSummary = { ...runningBatch, status: 'stopped' }
-    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+    render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
 
     expect(screen.queryByPlaceholderText('Search for a card by title...')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Review' })).toBeInTheDocument()
@@ -290,7 +296,7 @@ describe('BatchBuilderForm', () => {
       cards: [{ code: '01007', title: 'Corroder', quantity: 3 }],
     }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+    render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
 
@@ -302,7 +308,7 @@ describe('BatchBuilderForm', () => {
     vi.mocked(approveBatch).mockResolvedValue({ ok: true })
     const stoppedBatch: BatchSummary = { ...runningBatch, status: 'stopped' }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+    render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
     await user.click(screen.getByRole('button', { name: 'Approve' }))
@@ -315,7 +321,7 @@ describe('BatchBuilderForm', () => {
     vi.mocked(discardBatch).mockResolvedValue({ ok: true })
     const stoppedBatch: BatchSummary = { ...runningBatch, status: 'stopped' }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+    render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
     await user.click(screen.getByRole('button', { name: 'Discard' }))
@@ -332,6 +338,8 @@ describe('BatchBuilderForm', () => {
       status: 'running',
       currentCount: 0,
       elapsedMs: 0,
+      collectionId: 1,
+      collectionName: 'My Collection',
       cards: [],
     }
     const batchOneStopped: BatchSummary = {
@@ -347,13 +355,15 @@ describe('BatchBuilderForm', () => {
       status: 'running',
       currentCount: 0,
       elapsedMs: 0,
+      collectionId: 1,
+      collectionName: 'My Collection',
       cards: [],
     }
     vi.mocked(startBatch).mockResolvedValueOnce({ ok: true, batch: batchOne }).mockResolvedValueOnce({ ok: true, batch: batchTwo })
     vi.mocked(addCardToBatch).mockResolvedValue({ ok: true, batch: batchOneStopped })
     vi.mocked(approveBatch).mockResolvedValue({ ok: true })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={null} />)
+    render(<BatchBuilderForm activeBatch={null} collectionId={1} />)
 
     // Start batch one, add Corroder x3 (which completes/auto-stops it —
     // this sets local per-card status state for card 01007), then
@@ -389,7 +399,7 @@ describe('BatchBuilderForm', () => {
       batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] },
     })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -406,7 +416,7 @@ describe('BatchBuilderForm', () => {
     })
     vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 0, cards: [] } })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -433,7 +443,7 @@ describe('BatchBuilderForm', () => {
       })
     vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', quantity: 3 }] } })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -466,7 +476,7 @@ describe('BatchBuilderForm', () => {
       },
     })
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={runningBatch} />)
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
     await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
     await waitFor(() => screen.getByText('Corroder'))
@@ -489,7 +499,7 @@ describe('BatchBuilderForm', () => {
       cards: [{ code: '01007', title: 'Corroder', quantity: 3 }],
     }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+    render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
     await user.click(screen.getByRole('button', { name: 'Remove Corroder' }))
@@ -515,7 +525,7 @@ describe('BatchBuilderForm', () => {
       cards: [{ code: '01007', title: 'Corroder', quantity: 3 }, { code: '01011', title: 'Mimic', quantity: 0 }],
     }
     const user = userEvent.setup()
-    render(<BatchBuilderForm activeBatch={stoppedBatch} />)
+    render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
     await user.click(screen.getByRole('button', { name: 'Remove Corroder' }))

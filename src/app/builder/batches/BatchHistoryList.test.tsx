@@ -29,6 +29,8 @@ const batches: BatchSummary[] = [
     status: 'approved',
     currentCount: 3,
     elapsedMs: 65000,
+    collectionId: 1,
+    collectionName: 'My Collection',
     cards: [{ code: '01001', title: 'Card A', quantity: 3 }],
   },
   {
@@ -38,6 +40,8 @@ const batches: BatchSummary[] = [
     status: 'discarded',
     currentCount: 1,
     elapsedMs: 5000,
+    collectionId: 2,
+    collectionName: 'Trade Binder',
     cards: [{ code: '01002', title: 'Card B', quantity: 1 }],
   },
 ]
@@ -74,6 +78,13 @@ describe('BatchHistoryList', () => {
     expect(screen.getByText('Batch B')).toBeInTheDocument()
     expect(screen.queryByText('Card A')).not.toBeInTheDocument()
     expect(screen.queryByText('Card B')).not.toBeInTheDocument()
+  })
+
+  it("shows each batch's collection name", () => {
+    render(<BatchHistoryList batches={batches} />)
+
+    expect(screen.getByText(/My Collection/)).toBeInTheDocument()
+    expect(screen.getByText(/Trade Binder/)).toBeInTheDocument()
   })
 
   it('clicking a batch header shows its card list', async () => {

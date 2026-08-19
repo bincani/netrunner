@@ -12,6 +12,8 @@ const runningBatch: BatchSummary = {
   status: 'running',
   currentCount: 23,
   elapsedMs: 65000,
+  collectionId: 1,
+  collectionName: 'My Collection',
   cards: [],
 }
 
@@ -25,14 +27,14 @@ describe('BatchStatusBar', () => {
   })
 
   it('shows the batch name, formatted elapsed time, and count', () => {
-    render(<BatchStatusBar batch={runningBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={runningBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     expect(screen.getByText('Batch Test')).toBeInTheDocument()
     expect(screen.getByText('1:05 · 23 of 60')).toBeInTheDocument()
   })
 
   it('ticks the elapsed time forward every second while running', () => {
-    render(<BatchStatusBar batch={runningBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={runningBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     act(() => {
       vi.advanceTimersByTime(3000)
@@ -43,7 +45,7 @@ describe('BatchStatusBar', () => {
 
   it('does not tick while paused', () => {
     const pausedBatch: BatchSummary = { ...runningBatch, status: 'paused' }
-    render(<BatchStatusBar batch={pausedBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={pausedBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     act(() => {
       vi.advanceTimersByTime(5000)
@@ -53,7 +55,7 @@ describe('BatchStatusBar', () => {
   })
 
   it('shows only Pause while running', () => {
-    render(<BatchStatusBar batch={runningBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={runningBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument()
@@ -62,7 +64,7 @@ describe('BatchStatusBar', () => {
 
   it('shows Continue and Review while paused', () => {
     const pausedBatch: BatchSummary = { ...runningBatch, status: 'paused' }
-    render(<BatchStatusBar batch={pausedBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={pausedBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
@@ -71,7 +73,7 @@ describe('BatchStatusBar', () => {
 
   it('shows only Review while stopped', () => {
     const stoppedBatch: BatchSummary = { ...runningBatch, status: 'stopped' }
-    render(<BatchStatusBar batch={stoppedBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={stoppedBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument()
@@ -82,7 +84,7 @@ describe('BatchStatusBar', () => {
     vi.useRealTimers()
     const onPause = vi.fn()
     const user = userEvent.setup()
-    render(<BatchStatusBar batch={runningBatch} onPause={onPause} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={runningBatch} collectionId={1} onPause={onPause} onContinue={vi.fn()} onReview={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Pause' }))
 
@@ -94,7 +96,7 @@ describe('BatchStatusBar', () => {
     const onContinue = vi.fn()
     const user = userEvent.setup()
     const pausedBatch: BatchSummary = { ...runningBatch, status: 'paused' }
-    render(<BatchStatusBar batch={pausedBatch} onPause={vi.fn()} onContinue={onContinue} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={pausedBatch} collectionId={1} onPause={vi.fn()} onContinue={onContinue} onReview={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'Continue' }))
 
@@ -106,7 +108,7 @@ describe('BatchStatusBar', () => {
     const onReview = vi.fn()
     const user = userEvent.setup()
     const stoppedBatch: BatchSummary = { ...runningBatch, status: 'stopped' }
-    render(<BatchStatusBar batch={stoppedBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={onReview} />)
+    render(<BatchStatusBar batch={stoppedBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={onReview} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
 
@@ -114,8 +116,11 @@ describe('BatchStatusBar', () => {
   })
 
   it('links to the batch history page', () => {
-    render(<BatchStatusBar batch={runningBatch} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
+    render(<BatchStatusBar batch={runningBatch} collectionId={1} onPause={vi.fn()} onContinue={vi.fn()} onReview={vi.fn()} />)
 
-    expect(screen.getByRole('link', { name: 'Batch History' })).toHaveAttribute('href', '/builder/batches')
+    expect(screen.getByRole('link', { name: 'Batch History' })).toHaveAttribute(
+      'href',
+      '/builder/batches?collectionId=1'
+    )
   })
 })

@@ -64,7 +64,8 @@ export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSu
                     </span>
                   </div>
                   <p className="text-sm text-muted">
-                    {formatElapsedMs(batch.elapsedMs)} · {batch.currentCount} of {batch.expectedCount}
+                    {batch.collectionName} · {formatElapsedMs(batch.elapsedMs)} · {batch.currentCount} of{' '}
+                    {batch.expectedCount}
                   </p>
                 </div>
                 <span className="shrink-0 text-faint" aria-hidden="true">

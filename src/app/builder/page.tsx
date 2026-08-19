@@ -28,7 +28,11 @@ export default async function BuilderPage() {
         <h1 className="text-2xl font-bold">Collection Builder</h1>
         <span className="text-sm text-muted">{collection.name}</span>
       </div>
-      {showBatchMode ? <BatchBuilderForm activeBatch={activeBatch} /> : <CardBuilderForm />}
+      {showBatchMode ? (
+        <BatchBuilderForm activeBatch={activeBatch} collectionId={collection.id} />
+      ) : (
+        <CardBuilderForm />
+      )}
     </main>
   )
 }

@@ -6,11 +6,13 @@ import { formatElapsedMs, type BatchSummary } from '@/lib/batches'
 
 export function BatchStatusBar({
   batch,
+  collectionId,
   onPause,
   onContinue,
   onReview,
 }: {
   batch: BatchSummary
+  collectionId: number
   onPause: () => void
   onContinue: () => void
   onReview: () => void
@@ -68,7 +70,10 @@ export function BatchStatusBar({
             Review
           </button>
         )}
-        <Link href="/builder/batches" className="text-sm text-faint underline hover:text-primary">
+        <Link
+          href={`/builder/batches?collectionId=${collectionId}`}
+          className="text-sm text-faint underline hover:text-primary"
+        >
           Batch History
         </Link>
       </div>

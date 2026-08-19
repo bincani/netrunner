@@ -16,6 +16,8 @@ export interface BatchSummary {
   currentCount: number
   elapsedMs: number
   cards: BatchCardEntry[]
+  collectionId: number
+  collectionName: string
 }
 
 export function formatBatchName(date: Date, prefix: string): string {
@@ -42,6 +44,8 @@ interface BatchWithCards {
   status: string
   elapsedMs: number
   lastResumedAt: Date | null
+  collectionId: number
+  collection: { name: string }
   cards: { cardCode: string; quantity: number; card: { title: string } }[]
 }
 
@@ -54,11 +58,14 @@ function toSummary(batch: BatchWithCards): BatchSummary {
     currentCount: batch.cards.reduce((sum, card) => sum + card.quantity, 0),
     elapsedMs: liveElapsedMs(batch.elapsedMs, batch.lastResumedAt),
     cards: batch.cards.map((card) => ({ code: card.cardCode, title: card.card.title, quantity: card.quantity })),
+    collectionId: batch.collectionId,
+    collectionName: batch.collection.name,
   }
 }
 
 const BATCH_CARDS_INCLUDE = {
   cards: { include: { card: { select: { title: true } } }, orderBy: { cardCode: 'asc' as const } },
+  collection: { select: { name: true } },
 }
 
 export async function getActiveBatch(prisma: PrismaClient, collectionId: number): Promise<BatchSummary | null> {
@@ -69,7 +76,8 @@ export async function getActiveBatch(prisma: PrismaClient, collectionId: number)
   return batch ? toSummary(batch) : null
 }
 
-export async function listArchivedBatches(prisma: PrismaClient, collectionId: number): Promise<BatchSummary[]> {
+/** Omit collectionId to list archived batches across every collection. */
+export async function listArchivedBatches(prisma: PrismaClient, collectionId?: number): Promise<BatchSummary[]> {
   const batches = await prisma.batch.findMany({
     where: { collectionId, status: { in: ['approved', 'discarded'] } },
     include: BATCH_CARDS_INCLUDE,

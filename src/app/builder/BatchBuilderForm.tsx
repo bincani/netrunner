@@ -18,7 +18,13 @@ import { BatchReviewModal } from './BatchReviewModal'
 import type { BatchSummary } from '@/lib/batches'
 import type { CardSearchResult } from '@/lib/cards'
 
-export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | null }) {
+export function BatchBuilderForm({
+  activeBatch,
+  collectionId,
+}: {
+  activeBatch: BatchSummary | null
+  collectionId: number
+}) {
   const [batch, setBatch] = useState<BatchSummary | null>(activeBatch)
   const [expectedCountInput, setExpectedCountInput] = useState('')
   const [isStarting, setIsStarting] = useState(false)
@@ -307,7 +313,10 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
         )}
 
         <div>
-          <Link href="/builder/batches" className="text-sm text-faint underline hover:text-primary">
+          <Link
+            href={`/builder/batches?collectionId=${collectionId}`}
+            className="text-sm text-faint underline hover:text-primary"
+          >
             Batch History
           </Link>
         </div>
@@ -319,6 +328,7 @@ export function BatchBuilderForm({ activeBatch }: { activeBatch: BatchSummary | 
     <div className="space-y-6">
       <BatchStatusBar
         batch={batch}
+        collectionId={collectionId}
         onPause={handlePause}
         onContinue={handleContinue}
         onReview={() => setIsReviewOpen(true)}

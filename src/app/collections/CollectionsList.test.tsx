@@ -210,6 +210,8 @@ describe('CollectionsList', () => {
       status: 'stopped',
       currentCount: 3,
       elapsedMs: 0,
+      collectionId: 2,
+      collectionName: 'Trade Binder',
       cards: [{ code: '01001', title: 'Corroder', quantity: 3 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
@@ -234,6 +236,8 @@ describe('CollectionsList', () => {
       status: 'stopped',
       currentCount: 1,
       elapsedMs: 0,
+      collectionId: 2,
+      collectionName: 'Trade Binder',
       cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({
@@ -260,6 +264,8 @@ describe('CollectionsList', () => {
       status: 'stopped',
       currentCount: 1,
       elapsedMs: 0,
+      collectionId: 2,
+      collectionName: 'Trade Binder',
       cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
     }
     const updatedBatch: BatchSummary = { ...importedBatch, currentCount: 0, cards: [] }
@@ -290,6 +296,8 @@ describe('CollectionsList', () => {
       status: 'stopped',
       currentCount: 1,
       elapsedMs: 0,
+      collectionId: 2,
+      collectionName: 'Trade Binder',
       cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
@@ -316,6 +324,8 @@ describe('CollectionsList', () => {
       status: 'stopped',
       currentCount: 1,
       elapsedMs: 0,
+      collectionId: 2,
+      collectionName: 'Trade Binder',
       cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
@@ -342,6 +352,8 @@ describe('CollectionsList', () => {
       status: 'stopped',
       currentCount: 2,
       elapsedMs: 0,
+      collectionId: 2,
+      collectionName: 'Trade Binder',
       cards: [{ code: '01001', title: 'Corroder', quantity: 2 }],
     }
     const withPending: CollectionListEntry = { ...secondCollection, pendingBatch }

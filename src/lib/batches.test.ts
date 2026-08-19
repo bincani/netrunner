@@ -154,6 +154,33 @@ describe('listArchivedBatches', () => {
     expect((await listArchivedBatches(prisma, a.id)).map((batch) => batch.name)).toEqual(['From A'])
     expect((await listArchivedBatches(prisma, b.id)).map((batch) => batch.name)).toEqual(['From B'])
   })
+
+  it('includes the collectionId and collectionName of each batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma, { name: 'Trade Binder' })
+    await prisma.batch.create({
+      data: { collectionId, name: 'Batch', expectedCount: 10, status: 'approved', elapsedMs: 0 },
+    })
+
+    const [batch] = await listArchivedBatches(prisma, collectionId)
+
+    expect(batch.collectionId).toBe(collectionId)
+    expect(batch.collectionName).toBe('Trade Binder')
+  })
+
+  it('returns every collection\'s archived batches when collectionId is omitted', async () => {
+    const a = await seedCollection(prisma, { name: 'A' })
+    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    await prisma.batch.create({
+      data: { collectionId: a.id, name: 'From A', expectedCount: 10, status: 'approved', elapsedMs: 0 },
+    })
+    await prisma.batch.create({
+      data: { collectionId: b.id, name: 'From B', expectedCount: 10, status: 'discarded', elapsedMs: 0 },
+    })
+
+    const all = await listArchivedBatches(prisma)
+
+    expect(all.map((batch) => batch.name).sort()).toEqual(['From A', 'From B'])
+  })
 })
 
 describe('formatBatchName', () => {
