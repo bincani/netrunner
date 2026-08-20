@@ -2,10 +2,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
-import { getCollection } from '@/lib/collections'
+import { getCollection, listCollections } from '@/lib/collections'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetProgressList } from '@/app/SetProgressList'
 import { SetDefaultButton } from './SetDefaultButton'
+import { CollectionViewSwitcher } from './CollectionViewSwitcher'
 
 // Same rationale as the Dashboard: this page's entire content is "how much
 // of this collection do I own right now" and must reflect live database
@@ -24,20 +25,19 @@ export default async function CollectionDetailPage({ params }: { params: Promise
     notFound()
   }
 
-  const [sets, totals, unsizedPacks] = await Promise.all([
+  const [sets, totals, unsizedPacks, collections] = await Promise.all([
     computeAllSetsCompletion(prisma, collection.id),
     computeCollectionTotals(prisma, collection.id),
     listUnsizedPacks(prisma),
+    listCollections(prisma),
   ])
 
   return (
     <main className="w-3/5 space-y-8 p-8">
       <div>
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/collections" className="text-sm text-muted hover:text-primary hover:underline">
-              ← My Collections
-            </Link>
+          <div className="flex items-center gap-2">
+            <CollectionViewSwitcher current={collection} collections={collections} />
             <h1 className="text-2xl font-bold">Collection: {collection.name}</h1>
           </div>
           <div className="flex shrink-0 items-center gap-4">
