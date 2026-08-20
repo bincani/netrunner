@@ -228,7 +228,7 @@ describe('importCsvAsBatch', () => {
     expect(batch.expectedCount).toBe(5)
     expect(batch.collectionId).toBe(collectionId)
     const cards = await prisma.batchCard.findMany({ where: { batchId: result.batchId }, orderBy: { cardCode: 'asc' } })
-    expect(cards).toEqual([
+    expect(cards).toMatchObject([
       { batchId: result.batchId, cardCode: '01001', quantity: 3 },
       { batchId: result.batchId, cardCode: '01002', quantity: 2 },
     ])
@@ -256,7 +256,7 @@ describe('importCsvAsBatch', () => {
 
     expect(result.skipped).toEqual([{ cardCode: 'nonexistent', reason: 'Unknown card code' }])
     const cards = await prisma.batchCard.findMany({ where: { batchId: result.batchId } })
-    expect(cards).toEqual([{ batchId: result.batchId, cardCode: '01001', quantity: 2 }])
+    expect(cards).toMatchObject([{ batchId: result.batchId, cardCode: '01001', quantity: 2 }])
   })
 
   it('skips and reports a malformed quantity', async () => {
@@ -304,7 +304,7 @@ describe('importCsvAsBatch', () => {
 
     expect(result.skipped).toEqual([])
     const cards = await prisma.batchCard.findMany({ where: { batchId: result.batchId } })
-    expect(cards).toEqual([{ batchId: result.batchId, cardCode: '01001', quantity: 3 }])
+    expect(cards).toMatchObject([{ batchId: result.batchId, cardCode: '01001', quantity: 3 }])
   })
 
   it('handles a quoted title containing a comma and escaped quotes', async () => {

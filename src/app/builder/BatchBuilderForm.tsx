@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -29,6 +29,7 @@ export function BatchBuilderForm({
   collectionId: number
 }) {
   const router = useRouter()
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [batch, setBatch] = useState<BatchSummary | null>(activeBatch)
   const [expectedCountInput, setExpectedCountInput] = useState('')
   const [isStarting, setIsStarting] = useState(false)
@@ -52,7 +53,12 @@ export function BatchBuilderForm({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [chromeError, setChromeError] = useState<string | null>(null)
 
-  const [lastAdded, setLastAdded] = useState<{ code: string; title: string; amount: number } | null>(null)
+  const [lastAdded, setLastAdded] = useState<{
+    code: string
+    title: string
+    amount: number
+    newSet: { code: string; name: string } | null
+  } | null>(null)
   const [isUndoing, setIsUndoing] = useState(false)
 
   // Clears a card's per-code status label (the green "Corroder: added 3"
@@ -168,7 +174,12 @@ export function BatchBuilderForm({
       if (result.ok) {
         setBatch(result.batch)
         setStatusByCode((prev) => ({ ...prev, [card.code]: `added ${amount}` }))
-        setLastAdded({ code: card.code, title: card.title, amount })
+        setLastAdded({ code: card.code, title: card.title, amount, newSet: result.newSet ?? null })
+        // Return focus to the search box with its text selected, so the
+        // next keystroke immediately overwrites it and starts a fresh
+        // search — the user shouldn't have to click back in.
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
       } else {
         setErrorByCode((prev) => ({ ...prev, [card.code]: result.error }))
       }
@@ -379,17 +390,24 @@ export function BatchBuilderForm({
       />
 
       {lastAdded && (
-        <p className="text-sm text-muted">
-          Added {lastAdded.amount}× {lastAdded.title}{' '}
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={isUndoing}
-            className="cursor-pointer text-accent underline hover:text-accent/80 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isUndoing ? 'Undoing…' : 'Undo'}
-          </button>
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-muted">
+            Added {lastAdded.amount}× {lastAdded.title}{' '}
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={isUndoing}
+              className="cursor-pointer text-accent underline hover:text-accent/80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isUndoing ? 'Undoing…' : 'Undo'}
+            </button>
+          </p>
+          {lastAdded.newSet && (
+            <p className="rounded border border-accent bg-accent/10 px-2 py-1 text-sm text-accent">
+              New set added: {lastAdded.newSet.name}
+            </p>
+          )}
+        </div>
       )}
 
       {chromeError && (
@@ -401,6 +419,7 @@ export function BatchBuilderForm({
       {batch.status !== 'stopped' && (
         <div className="space-y-6">
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
             onChange={(event) => runSearch(event.target.value)}

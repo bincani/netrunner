@@ -15,23 +15,28 @@ import {
   revertApprovedBatch as revertApprovedBatchMutation,
 } from './batchMutations'
 
-export type BatchActionResult = { ok: true; batch: BatchSummary } | { ok: false; error: string }
+export type BatchActionResult =
+  | { ok: true; batch: BatchSummary; newSet?: { code: string; name: string } | null }
+  | { ok: false; error: string }
 export type SimpleActionResult = { ok: true } | { ok: false; error: string }
+
+type MutateResult = { newSet?: { code: string; name: string } | null } | number | void
 
 // Every exported action's entire body — mutation, the getActiveBatch
 // read, and all revalidatePath calls — must run inside this try/catch, so
 // a thrown error (Prisma or otherwise) always converts to { ok: false }
 // instead of escaping the Server Action uncaught (where production builds
 // strip it to a generic minified message).
-async function withActiveBatch(collectionId: number, mutate: () => Promise<unknown>): Promise<BatchActionResult> {
+async function withActiveBatch(collectionId: number, mutate: () => Promise<MutateResult>): Promise<BatchActionResult> {
   try {
-    await mutate()
+    const mutateResult = await mutate()
     const batch = await getActiveBatch(prisma, collectionId)
     if (!batch) {
       return { ok: false, error: 'No active batch' }
     }
     revalidatePath('/builder')
-    return { ok: true, batch }
+    const newSet = typeof mutateResult === 'object' && mutateResult !== null ? (mutateResult.newSet ?? null) : null
+    return { ok: true, batch, newSet }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Something went wrong' }
   }

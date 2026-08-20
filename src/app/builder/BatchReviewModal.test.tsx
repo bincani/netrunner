@@ -21,8 +21,8 @@ vi.mock('next/link', () => ({
 }))
 
 const cards = [
-  { code: '01001', title: 'Card A', sideCode: 'corp', quantity: 3 },
-  { code: '01002', title: 'Card B', sideCode: 'runner', quantity: 1 },
+  { code: '01001', title: 'Card A', sideCode: 'corp', quantity: 3, packName: 'Set One' },
+  { code: '01002', title: 'Card B', sideCode: 'runner', quantity: 1, packName: 'Set Two' },
 ]
 
 describe('BatchReviewModal', () => {
@@ -75,6 +75,23 @@ describe('BatchReviewModal', () => {
     expect(screen.getByRole('heading', { name: 'Batch Test' })).toBeInTheDocument()
     expect(screen.getByText('Card A')).toBeInTheDocument()
     expect(screen.getByText('Card B')).toBeInTheDocument()
+  })
+
+  it('shows the set name to the left of each card name', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Set One')).toBeInTheDocument()
+    expect(screen.getByText('Set Two')).toBeInTheDocument()
   })
 
   it('shows a side badge for each card', () => {

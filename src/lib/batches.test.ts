@@ -47,7 +47,51 @@ describe('getActiveBatch', () => {
 
     expect(active?.status).toBe('running')
     expect(active?.currentCount).toBe(3)
-    expect(active?.cards).toEqual([{ code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3 }])
+    expect(active?.cards).toEqual([
+      { code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3, packName: 'core' },
+    ])
+  })
+
+  it("includes each card's set name", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'sg', packName: 'System Gateway' })
+    const batch = await prisma.batch.create({
+      data: {
+        collectionId,
+        name: 'Batch Test',
+        expectedCount: 10,
+        status: 'running',
+        elapsedMs: 0,
+        lastResumedAt: new Date(),
+      },
+    })
+    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01001', quantity: 1 } })
+
+    const active = await getActiveBatch(prisma, collectionId)
+
+    expect(active?.cards[0].packName).toBe('System Gateway')
+  })
+
+  it('orders cards by when they were added, not alphabetically by code', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
+    const batch = await prisma.batch.create({
+      data: {
+        collectionId,
+        name: 'Batch Test',
+        expectedCount: 10,
+        status: 'running',
+        elapsedMs: 0,
+        lastResumedAt: new Date(),
+      },
+    })
+    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01002', quantity: 1 } })
+    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01001', quantity: 1 } })
+
+    const active = await getActiveBatch(prisma, collectionId)
+
+    expect(active?.cards.map((card) => card.code)).toEqual(['01002', '01001'])
   })
 
   it('does not return an approved or discarded batch', async () => {

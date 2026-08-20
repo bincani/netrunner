@@ -78,7 +78,7 @@ describe('addCardToBatch', () => {
     await addCardToBatch(prisma, batchId, '01001', 3)
 
     const cards = await prisma.batchCard.findMany({ where: { batchId } })
-    expect(cards).toEqual([{ batchId, cardCode: '01001', quantity: 3 }])
+    expect(cards).toMatchObject([{ batchId, cardCode: '01001', quantity: 3 }])
   })
 
   it('accumulates quantity across repeated adds of the same card', async () => {
@@ -135,6 +135,65 @@ describe('addCardToBatch', () => {
     await pauseBatch(prisma, batchId)
 
     await expect(addCardToBatch(prisma, batchId, '01001', 1)).rejects.toThrow('status "paused"')
+  })
+
+  it('reports newSet when adding the first card from a set with zero previously-owned copies', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'sg', packName: 'System Gateway' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+
+    const result = await addCardToBatch(prisma, batchId, '01001', 3)
+
+    expect(result.newSet).toEqual({ code: 'sg', name: 'System Gateway' })
+  })
+
+  it('does not report newSet for a set the collection already owns at least one copy of', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'sg', packName: 'System Gateway' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'sg', packName: 'System Gateway' })
+    await prisma.collectionEntry.create({ data: { collectionId, cardCode: '01002', quantityOwned: 1 } })
+    const batchId = await startBatch(prisma, collectionId, 60)
+
+    const result = await addCardToBatch(prisma, batchId, '01001', 1)
+
+    expect(result.newSet).toBeNull()
+  })
+
+  it('does not report newSet again for a second card added from the same set in the same batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'sg', packName: 'System Gateway' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'sg', packName: 'System Gateway' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+
+    const result = await addCardToBatch(prisma, batchId, '01002', 1)
+
+    expect(result.newSet).toBeNull()
+  })
+
+  it("keeps a card's original add-order position when quantity is incremented later", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01002', 1)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+
+    await addCardToBatch(prisma, batchId, '01002', 1)
+
+    const cards = await prisma.batchCard.findMany({ where: { batchId }, orderBy: { createdAt: 'asc' } })
+    expect(cards.map((card) => card.cardCode)).toEqual(['01002', '01001'])
+  })
+
+  it('does not report newSet again when adding more of the same card already in the batch', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'sg', packName: 'System Gateway' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+
+    const result = await addCardToBatch(prisma, batchId, '01001', 1)
+
+    expect(result.newSet).toBeNull()
   })
 })
 

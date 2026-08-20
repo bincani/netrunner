@@ -56,6 +56,9 @@ export function BatchReviewModal({
           {cards.map((card) => (
             <li key={card.code} className="flex items-center gap-3">
               <SideBadge sideCode={card.sideCode} />
+              <span className="w-24 shrink-0 truncate text-xs text-muted" title={card.packName}>
+                {card.packName}
+              </span>
               <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
               <span className="ml-auto flex shrink-0 items-center gap-2">
                 <span>{card.quantity}</span>

@@ -31,7 +31,7 @@ const batches: BatchSummary[] = [
     elapsedMs: 65000,
     collectionId: 1,
     collectionName: 'My Collection',
-    cards: [{ code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3 }],
+    cards: [{ code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3, packName: 'Core Set' }],
   },
   {
     id: 2,
@@ -42,7 +42,7 @@ const batches: BatchSummary[] = [
     elapsedMs: 5000,
     collectionId: 2,
     collectionName: 'Trade Binder',
-    cards: [{ code: '01002', title: 'Card B', sideCode: 'runner', quantity: 1 }],
+    cards: [{ code: '01002', title: 'Card B', sideCode: 'runner', quantity: 1, packName: 'Core Set' }],
   },
 ]
 

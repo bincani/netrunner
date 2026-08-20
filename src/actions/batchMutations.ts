@@ -45,7 +45,7 @@ export async function addCardToBatch(
   batchId: number,
   cardCode: string,
   amount: number
-): Promise<void> {
+): Promise<{ newSet: { code: string; name: string } | null }> {
   if (!Number.isInteger(amount) || amount < 1) {
     throw new Error(`amount must be a positive integer, got ${amount}`)
   }
@@ -53,6 +53,30 @@ export async function addCardToBatch(
   const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
   if (batch.status !== 'running') {
     throw new Error(`Cannot add a card to a batch with status "${batch.status}"`)
+  }
+
+  const card = await prisma.card.findUniqueOrThrow({
+    where: { code: cardCode },
+    select: { packCode: true, pack: { select: { name: true } } },
+  })
+
+  // "New set" means: no card from this pack is already in the batch (so
+  // this is the first add of it this session) AND the real collection
+  // owns zero copies from the pack — CollectionEntry is only updated on
+  // approveBatch, so it reflects ownership from before this batch, even
+  // while the batch is in progress.
+  let newSet: { code: string; name: string } | null = null
+  const alreadyInBatchFromSet = await prisma.batchCard.findFirst({
+    where: { batchId, card: { packCode: card.packCode } },
+  })
+  if (!alreadyInBatchFromSet) {
+    const owned = await prisma.collectionEntry.aggregate({
+      where: { collectionId: batch.collectionId, card: { packCode: card.packCode } },
+      _sum: { quantityOwned: true },
+    })
+    if (!owned._sum.quantityOwned) {
+      newSet = { code: card.packCode, name: card.pack.name }
+    }
   }
 
   await prisma.batchCard.upsert({
@@ -67,6 +91,8 @@ export async function addCardToBatch(
   if (currentCount >= batch.expectedCount) {
     await freeze(prisma, batchId, batch.lastResumedAt!, 'stopped')
   }
+
+  return { newSet }
 }
 
 export async function pauseBatch(prisma: PrismaClient, batchId: number): Promise<void> {

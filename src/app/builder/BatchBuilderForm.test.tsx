@@ -154,7 +154,7 @@ describe('BatchBuilderForm', () => {
       elapsedMs: 0,
       collectionId: 1,
       collectionName: 'My Collection',
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }],
     }
     vi.mocked(importCsv).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
     const user = userEvent.setup()
@@ -181,7 +181,7 @@ describe('BatchBuilderForm', () => {
       elapsedMs: 0,
       collectionId: 1,
       collectionName: 'My Collection',
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 1 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 1, packName: 'Core Set' }],
     }
     vi.mocked(importCsv).mockResolvedValue({
       ok: true,
@@ -214,7 +214,7 @@ describe('BatchBuilderForm', () => {
   it('searching and clicking a quantity button adds to the batch', async () => {
     vi.mocked(addCardToBatch).mockResolvedValue({
       ok: true,
-      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }] },
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
     })
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
@@ -232,6 +232,24 @@ describe('BatchBuilderForm', () => {
     )
   })
 
+  it('returns focus to the search input and selects its text after a successful add', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
+
+    const searchInput = screen.getByPlaceholderText('Search for a card by title...') as HTMLInputElement
+    await user.type(searchInput, 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+
+    await waitFor(() => expect(searchInput).toHaveFocus())
+    expect(searchInput.selectionStart).toBe(0)
+    expect(searchInput.selectionEnd).toBe(searchInput.value.length)
+  })
+
   it('shows a side badge on each search result', async () => {
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
@@ -247,7 +265,7 @@ describe('BatchBuilderForm', () => {
     const batchWithCard: BatchSummary = {
       ...runningBatch,
       currentCount: 2,
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 2 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 2, packName: 'Core Set' }],
     }
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={batchWithCard} collectionId={1} />)
@@ -297,7 +315,7 @@ describe('BatchBuilderForm', () => {
     vi.mocked(continueBatch).mockResolvedValue({ ok: true, batch: runningBatch })
     vi.mocked(addCardToBatch).mockResolvedValue({
       ok: true,
-      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }] },
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
     })
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
@@ -345,7 +363,7 @@ describe('BatchBuilderForm', () => {
       ...runningBatch,
       status: 'stopped',
       currentCount: 3,
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }],
     }
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
@@ -398,7 +416,7 @@ describe('BatchBuilderForm', () => {
       ...batchOne,
       status: 'stopped',
       currentCount: 3,
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }],
     }
     const batchTwo: BatchSummary = {
       id: 2,
@@ -448,7 +466,7 @@ describe('BatchBuilderForm', () => {
   it('shows an "Added" line with an Undo button after a successful add', async () => {
     vi.mocked(addCardToBatch).mockResolvedValue({
       ok: true,
-      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }] },
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
     })
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
@@ -461,10 +479,64 @@ describe('BatchBuilderForm', () => {
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
   })
 
+  it('shows a "new set added" message next to the Added line when the add reports a newSet', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
+      newSet: { code: 'core', name: 'Core Set' },
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+
+    await waitFor(() => expect(screen.getByText(/Added 3× Corroder/)).toBeInTheDocument())
+    expect(screen.getByText(/New set added: Core Set/)).toBeInTheDocument()
+  })
+
+  it('does not show a "new set added" message when the add does not report a newSet', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
+      newSet: null,
+    })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+
+    await waitFor(() => expect(screen.getByText(/Added 3× Corroder/)).toBeInTheDocument())
+    expect(screen.queryByText(/New set added/)).not.toBeInTheDocument()
+  })
+
+  it('clicking Undo clears the "new set added" message along with the Added line', async () => {
+    vi.mocked(addCardToBatch).mockResolvedValue({
+      ok: true,
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
+      newSet: { code: 'core', name: 'Core Set' },
+    })
+    vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 0, cards: [] } })
+    const user = userEvent.setup()
+    render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+    await user.click(screen.getByRole('button', { name: 'Add 3 Corroder' }))
+    await waitFor(() => screen.getByText(/New set added: Core Set/))
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+
+    await waitFor(() => expect(screen.queryByText(/New set added/)).not.toBeInTheDocument())
+  })
+
   it('clicking Undo calls removeFromBatch with the tracked code/amount and clears the line', async () => {
     vi.mocked(addCardToBatch).mockResolvedValue({
       ok: true,
-      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }] },
+      batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
     })
     vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 0, cards: [] } })
     const user = userEvent.setup()
@@ -487,13 +559,13 @@ describe('BatchBuilderForm', () => {
     vi.mocked(addCardToBatch)
       .mockResolvedValueOnce({
         ok: true,
-        batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }] },
+        batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] },
       })
       .mockResolvedValueOnce({
         ok: true,
-        batch: { ...runningBatch, currentCount: 5, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 5 }] },
+        batch: { ...runningBatch, currentCount: 5, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 5, packName: 'Core Set' }] },
       })
-    vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }] } })
+    vi.mocked(removeFromBatch).mockResolvedValue({ ok: true, batch: { ...runningBatch, currentCount: 3, cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }] } })
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={runningBatch} collectionId={1} />)
 
@@ -524,7 +596,7 @@ describe('BatchBuilderForm', () => {
         ...runningBatch,
         status: 'stopped',
         currentCount: 60,
-        cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 60 }],
+        cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 60, packName: 'Core Set' }],
       },
     })
     const user = userEvent.setup()
@@ -548,7 +620,7 @@ describe('BatchBuilderForm', () => {
       ...runningBatch,
       status: 'stopped' as const,
       currentCount: 3,
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }],
     }
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)
@@ -567,14 +639,14 @@ describe('BatchBuilderForm', () => {
         ...runningBatch,
         status: 'paused',
         currentCount: 2,
-        cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 2 }],
+        cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 2, packName: 'Core Set' }],
       },
     })
     const stoppedBatch = {
       ...runningBatch,
       status: 'stopped' as const,
       currentCount: 3,
-      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3 }, { code: '01011', title: 'Mimic', sideCode: 'runner', quantity: 0 }],
+      cards: [{ code: '01007', title: 'Corroder', sideCode: 'runner', quantity: 3, packName: 'Core Set' }, { code: '01011', title: 'Mimic', sideCode: 'runner', quantity: 0, packName: 'Core Set' }],
     }
     const user = userEvent.setup()
     render(<BatchBuilderForm activeBatch={stoppedBatch} collectionId={1} />)

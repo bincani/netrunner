@@ -188,11 +188,14 @@ model Batch {
 }
 
 model BatchCard {
-  batchId  Int
-  batch    Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  cardCode String
-  card     Card   @relation(fields: [cardCode], references: [code])
-  quantity Int
+  batchId   Int
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  cardCode  String
+  card      Card     @relation(fields: [cardCode], references: [code])
+  quantity  Int
+  /// Set once, at first add — an increment-only upsert never rewrites it, so
+  /// this stays the batch's card-add order even as quantity accumulates.
+  createdAt DateTime @default(now())
 
   @@id([batchId, cardCode])
 }

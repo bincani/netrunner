@@ -7,6 +7,7 @@ export interface BatchCardEntry {
   title: string
   sideCode: string
   quantity: number
+  packName: string
 }
 
 export interface BatchSummary {
@@ -47,7 +48,11 @@ interface BatchWithCards {
   lastResumedAt: Date | null
   collectionId: number
   collection: { name: string }
-  cards: { cardCode: string; quantity: number; card: { title: string; sideCode: string } }[]
+  cards: {
+    cardCode: string
+    quantity: number
+    card: { title: string; sideCode: string; pack: { name: string } }
+  }[]
 }
 
 function toSummary(batch: BatchWithCards): BatchSummary {
@@ -63,6 +68,7 @@ function toSummary(batch: BatchWithCards): BatchSummary {
       title: card.card.title,
       sideCode: card.card.sideCode,
       quantity: card.quantity,
+      packName: card.card.pack.name,
     })),
     collectionId: batch.collectionId,
     collectionName: batch.collection.name,
@@ -70,7 +76,13 @@ function toSummary(batch: BatchWithCards): BatchSummary {
 }
 
 const BATCH_CARDS_INCLUDE = {
-  cards: { include: { card: { select: { title: true, sideCode: true } } }, orderBy: { cardCode: 'asc' as const } },
+  cards: {
+    include: { card: { select: { title: true, sideCode: true, pack: { select: { name: true } } } } },
+    // createdAt is set once, at first add, and never rewritten by later
+    // increments (see BatchCard.createdAt) — so this reflects add order.
+    // cardCode is a tie-breaker for the (extremely unlikely) same-instant case.
+    orderBy: [{ createdAt: 'asc' as const }, { cardCode: 'asc' as const }],
+  },
   collection: { select: { name: true } },
 }
 
