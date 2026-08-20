@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { getBuilderMode } from '@/actions/settingsMutations'
 import { getActiveBatch } from '@/lib/batches'
@@ -26,7 +27,9 @@ export default async function BuilderPage() {
     <main className="w-3/5 p-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Collection Builder</h1>
-        <span className="text-sm text-muted">{collection.name}</span>
+        <Link href={`/collections/${collection.id}`} className="text-sm text-muted hover:text-primary hover:underline">
+          {collection.name}
+        </Link>
       </div>
       {showBatchMode ? (
         <BatchBuilderForm activeBatch={activeBatch} collectionId={collection.id} />
