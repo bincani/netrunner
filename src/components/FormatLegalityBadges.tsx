@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import type { DeckFormatLegality } from '@/lib/deckFormatLegality'
 
@@ -8,6 +11,8 @@ import type { DeckFormatLegality } from '@/lib/deckFormatLegality'
  * legality check. The disclaimer line makes that explicit in the UI.
  */
 export function FormatLegalityBadges({ formatLegality }: { formatLegality: DeckFormatLegality[] }) {
+  const [showDetails, setShowDetails] = useState(false)
+
   if (formatLegality.length === 0) {
     return null
   }
@@ -20,7 +25,7 @@ export function FormatLegalityBadges({ formatLegality }: { formatLegality: DeckF
           What do these mean?
         </Link>
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         {formatLegality.map((entry) => (
           <span
             key={entry.formatCode}
@@ -32,7 +37,28 @@ export function FormatLegalityBadges({ formatLegality }: { formatLegality: DeckF
             {entry.formatName} {entry.legal === true ? '✓' : entry.legal === false ? '✗' : '?'}
           </span>
         ))}
+        <button
+          type="button"
+          onClick={() => setShowDetails((prev) => !prev)}
+          aria-expanded={showDetails}
+          className="cursor-pointer text-xs text-accent hover:underline"
+        >
+          {showDetails ? 'Hide restriction & rotation details' : 'Show restriction & rotation details'}
+        </button>
       </div>
+      {showDetails && (
+        <ul className="space-y-1 text-sm text-muted">
+          {formatLegality.map((entry) => (
+            <li key={entry.formatCode}>
+              <span className="font-medium text-primary">{entry.formatName}: </span>
+              {entry.activeRestrictionName ? `${entry.activeRestrictionName} (active)` : 'No active restriction'}
+              {entry.isPreRotation !== null && (
+                <> — {entry.isPreRotation ? 'pre-rotation decklist' : 'current rotation'}</>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

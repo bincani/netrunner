@@ -17,7 +17,7 @@ export async function importDeck(
 
   try {
     const decklist = await fetchDecklist(decklistId)
-    await saveDeck(prisma, decklist.id, decklist.uuid, decklist.name, decklist.cards)
+    await saveDeck(prisma, decklist.id, decklist.uuid, decklist.name, decklist.dateCreation, decklist.cards)
     revalidatePath('/decks')
 
     const collectionId = await getDefaultCollectionId(prisma)

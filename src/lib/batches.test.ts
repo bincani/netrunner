@@ -47,7 +47,7 @@ describe('getActiveBatch', () => {
 
     expect(active?.status).toBe('running')
     expect(active?.currentCount).toBe(3)
-    expect(active?.cards).toEqual([{ code: '01001', title: 'Card A', quantity: 3 }])
+    expect(active?.cards).toEqual([{ code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3 }])
   })
 
   it('does not return an approved or discarded batch', async () => {

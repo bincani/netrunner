@@ -161,7 +161,7 @@ export function SetProgressList({ sets, collectionId }: { sets: SetCompletion[];
                             </span>
                           </div>
                           <div className="mt-2 h-2 rounded bg-subtle">
-                            <div className="h-2 rounded bg-blue-600" style={{ width: `${set.percentOwned}%` }} />
+                            <div className="h-2 rounded bg-success" style={{ width: `${set.percentOwned}%` }} />
                           </div>
                         </div>
                       </Link>

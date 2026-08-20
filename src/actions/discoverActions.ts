@@ -20,7 +20,7 @@ export async function saveDiscoveredDeck(id: number): Promise<SimpleActionResult
 
   try {
     const cards = Object.fromEntries(deck.cards.map((card) => [card.cardCode, card.quantity]))
-    await saveDeck(prisma, deck.id, deck.uuid, deck.name, cards)
+    await saveDeck(prisma, deck.id, deck.uuid, deck.name, deck.dateCreation.toISOString(), cards)
     revalidatePath('/decks')
     return { ok: true }
   } catch (err) {

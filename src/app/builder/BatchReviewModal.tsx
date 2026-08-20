@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import type { BatchCardEntry } from '@/lib/batches'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
+import { SideBadge } from '@/components/SideBadge'
 
 export function BatchReviewModal({
   batchName,
@@ -54,6 +55,7 @@ export function BatchReviewModal({
         <ul className="space-y-1 text-sm">
           {cards.map((card) => (
             <li key={card.code} className="flex items-center gap-3">
+              <SideBadge sideCode={card.sideCode} />
               <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
               <span className="ml-auto flex shrink-0 items-center gap-2">
                 <span>{card.quantity}</span>

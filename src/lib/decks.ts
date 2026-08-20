@@ -2,14 +2,43 @@ import type { PrismaClient } from '@prisma/client'
 import { cardContribution } from './reports'
 import { computeDeckFormatLegality, type DeckFormatLegality } from './deckFormatLegality'
 import type { CardFormatStatus } from './cardFormatStatus'
+import { computeAgendaPointRequirement, type AgendaPointRequirement } from './agendaPoints'
+import { csvEscape } from './collection'
 
 export interface DeckCardOwnership {
   code: string
   title: string | null
   factionName: string | null
+  typeCode: string | null
+  typeName: string | null
+  sideCode: string | null
+  keywords: string | null
+  /** Influence cost per copy: 0 for the identity's own faction (and neutral cards), the card's printed cost otherwise. Null for a card not found locally. */
+  influenceCost: number | null
   neededQuantity: number
   ownedQuantity: number
   found: boolean
+}
+
+export interface DeckIdentity {
+  code: string
+  title: string
+  factionName: string
+  sideCode: string
+  influenceLimit: number | null
+  minimumDeckSize: number | null
+}
+
+export interface DeckPackUsage {
+  code: string
+  name: string
+  cardCount: number
+  dateRelease: string | null
+}
+
+export interface DeckAgendaPoints {
+  inDeck: number
+  required: AgendaPointRequirement | null
 }
 
 export interface DeckSummary {
@@ -21,8 +50,12 @@ export interface DeckSummary {
   totalCount: number
   percentOwned: number
   factionCode: string | null
+  identity: DeckIdentity | null
   cards: DeckCardOwnership[]
   formatLegality: DeckFormatLegality[]
+  packsUsed: DeckPackUsage[]
+  influenceSpent: number
+  agendaPoints: DeckAgendaPoints | null
 }
 
 interface DeckWithCards {
@@ -30,6 +63,7 @@ interface DeckWithCards {
   uuid: string
   name: string
   importedAt: Date
+  dateCreation: Date | null
   cards: { cardCode: string; quantity: number }[]
 }
 
@@ -41,7 +75,7 @@ async function computeDeckSummary(
   const cardCodes = deck.cards.map((deckCard) => deckCard.cardCode)
 
   const [cards, collectionEntries, formats, legalityRows] = await Promise.all([
-    prisma.card.findMany({ where: { code: { in: cardCodes } }, include: { faction: true } }),
+    prisma.card.findMany({ where: { code: { in: cardCodes } }, include: { faction: true, type: true, pack: true } }),
     prisma.collectionEntry.findMany({ where: { collectionId, cardCode: { in: cardCodes } } }),
     prisma.format.findMany(),
     prisma.cardFormatLegality.findMany({ where: { cardCode: { in: cardCodes } } }),
@@ -60,6 +94,9 @@ async function computeDeckSummary(
 
   let ownedCount = 0
   let totalCount = 0
+  let influenceSpent = 0
+  let agendaPointsInDeck = 0
+  const packUsageByCode = new Map<string, DeckPackUsage>()
 
   const cardOwnership: DeckCardOwnership[] = deck.cards.map((deckCard) => {
     const card = cardByCode.get(deckCard.cardCode)
@@ -68,10 +105,37 @@ async function computeDeckSummary(
     totalCount += deckCard.quantity
     ownedCount += cardContribution(ownedQuantity, deckCard.quantity)
 
+    let influenceCost: number | null = null
+    if (card) {
+      const isOwnFaction = card.typeCode === 'identity' || card.factionCode === identityCard?.factionCode
+      influenceCost = isOwnFaction ? 0 : (card.factionCost ?? 0)
+      influenceSpent += influenceCost * deckCard.quantity
+
+      if (card.typeCode === 'agenda') {
+        agendaPointsInDeck += (card.agendaPoints ?? 0) * deckCard.quantity
+      }
+      const existingPackUsage = packUsageByCode.get(card.packCode)
+      if (existingPackUsage) {
+        existingPackUsage.cardCount += deckCard.quantity
+      } else {
+        packUsageByCode.set(card.packCode, {
+          code: card.packCode,
+          name: card.pack.name,
+          cardCount: deckCard.quantity,
+          dateRelease: card.pack.dateRelease,
+        })
+      }
+    }
+
     return {
       code: deckCard.cardCode,
       title: card?.title ?? null,
       factionName: card?.faction.name ?? null,
+      typeCode: card?.typeCode ?? null,
+      typeName: card?.type.name ?? null,
+      sideCode: card?.sideCode ?? null,
+      keywords: card?.keywords ?? null,
+      influenceCost,
       neededQuantity: deckCard.quantity,
       ownedQuantity,
       found: card !== undefined,
@@ -79,9 +143,42 @@ async function computeDeckSummary(
   })
 
   const formatLegality = computeDeckFormatLegality(
-    formats.map((format) => ({ code: format.code, name: format.name })),
-    deck.cards.map((deckCard) => legalityByCode.get(deckCard.cardCode) ?? [])
+    formats.map((format) => ({
+      code: format.code,
+      name: format.name,
+      activeRestrictionName: format.activeRestrictionName,
+      currentSnapshotDate: format.currentSnapshotDate,
+    })),
+    deck.cards.map((deckCard) => legalityByCode.get(deckCard.cardCode) ?? []),
+    deck.dateCreation
   )
+
+  const packsUsed = Array.from(packUsageByCode.values()).sort((a, b) => {
+    if (a.dateRelease === b.dateRelease) return 0
+    if (a.dateRelease === null) return 1
+    if (b.dateRelease === null) return -1
+    return a.dateRelease.localeCompare(b.dateRelease)
+  })
+
+  const identity: DeckIdentity | null = identityCard
+    ? {
+        code: identityCard.code,
+        title: identityCard.title,
+        factionName: identityCard.faction.name,
+        sideCode: identityCard.sideCode,
+        influenceLimit: identityCard.influenceLimit,
+        minimumDeckSize: identityCard.minimumDeckSize,
+      }
+    : null
+
+  const agendaPoints: DeckAgendaPoints | null =
+    identity && identity.sideCode === 'corp'
+      ? {
+          inDeck: agendaPointsInDeck,
+          required:
+            identity.minimumDeckSize === null ? null : computeAgendaPointRequirement(identity.minimumDeckSize, totalCount),
+        }
+      : null
 
   return {
     id: deck.id,
@@ -92,8 +189,12 @@ async function computeDeckSummary(
     totalCount,
     percentOwned: totalCount === 0 ? 0 : Math.round((ownedCount / totalCount) * 100),
     factionCode: identityCard?.factionCode ?? null,
+    identity,
     cards: cardOwnership,
     formatLegality,
+    packsUsed,
+    influenceSpent,
+    agendaPoints,
   }
 }
 
@@ -118,4 +219,27 @@ export async function getDeckWithOwnership(
     return null
   }
   return computeDeckSummary(prisma, collectionId, deck)
+}
+
+export async function exportDeckCsv(prisma: PrismaClient, collectionId: number, id: number): Promise<string | null> {
+  const deck = await getDeckWithOwnership(prisma, collectionId, id)
+  if (!deck) {
+    return null
+  }
+
+  const header = 'cardCode,title,faction,type,quantityNeeded,quantityOwned\n'
+  const rows = deck.cards.map((card) => {
+    return (
+      [
+        csvEscape(card.code),
+        csvEscape(card.title ?? ''),
+        csvEscape(card.factionName ?? ''),
+        csvEscape(card.typeName ?? ''),
+        String(card.neededQuantity),
+        String(card.ownedQuantity),
+      ].join(',') + '\n'
+    )
+  })
+
+  return header + rows.join('')
 }

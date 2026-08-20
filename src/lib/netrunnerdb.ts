@@ -41,6 +41,7 @@ export interface NetrunnerDbDecklist {
   id: number
   uuid: string
   name: string
+  dateCreation: string | null
   cards: Record<string, number>
 }
 
@@ -63,6 +64,7 @@ export async function fetchDecklist(decklistId: string): Promise<NetrunnerDbDeck
     id: decklist.id,
     uuid: decklist.uuid,
     name: decklist.name,
+    dateCreation: decklist.date_creation ?? null,
     cards: decklist.cards,
   }
 }

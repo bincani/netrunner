@@ -29,10 +29,17 @@ interface RawFormat {
   snapshots: RawSnapshot[]
 }
 
+interface RawV2IdentityCard {
+  influence_limit?: number
+  minimum_deck_size?: number
+}
+
 interface RawCardPool {
   id: string
-  card_cycle_ids: string[]
-  card_set_ids: string[]
+  // Some pools (e.g. RAM's) define their membership purely by pack, with no
+  // card_cycle_ids field at all — not just an empty array.
+  card_cycle_ids?: string[]
+  card_set_ids?: string[]
 }
 
 async function fetchJson<T>(fetchImpl: typeof fetch, url: string): Promise<T> {
@@ -92,20 +99,65 @@ export async function importFormatLegalityData(
 
   const allCards = await prisma.card.findMany({
     where: { cardId: { not: null } },
-    select: { code: true, packCode: true, cardId: true },
+    select: { code: true, packCode: true, cardId: true, typeCode: true },
   })
+
+  // Identity cards carry the deck-building stats (influence limit, minimum
+  // deck size) shown on the deck detail page — a title-level v2 fetch per
+  // identity, not per printing, so this is a small, fixed-size addition
+  // regardless of how many sets/printings exist.
+  const identityStatsByCode = new Map<string, { influenceLimit: number | null; minimumDeckSize: number | null }>()
+  for (const card of allCards) {
+    if (card.typeCode !== 'identity' || !card.cardId) continue
+    try {
+      const v2Card = await fetchJson<RawV2IdentityCard>(fetchImpl, `${BASE_URL}/v2/cards/${card.cardId}.json`)
+      identityStatsByCode.set(card.code, {
+        influenceLimit: v2Card.influence_limit ?? null,
+        minimumDeckSize: v2Card.minimum_deck_size ?? null,
+      })
+    } catch (error) {
+      console.warn(`Failed to fetch identity stats for ${card.cardId}:`, error)
+    }
+  }
+
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [code, stats] of identityStatsByCode) {
+        await tx.card.update({ where: { code }, data: stats })
+      }
+    },
+    { timeout: 60_000 }
+  )
 
   let legalityRows = 0
 
   for (const formatCode of FORMAT_CODES) {
     const format = await fetchJson<RawFormat>(fetchImpl, `${BASE_URL}/v2/formats/${formatCode}.json`)
+    const snapshot = resolveCurrentSnapshot(format.snapshots, new Date())
+
+    let restriction: RestrictionData | null = null
+    if (snapshot?.restriction_id) {
+      restriction = await fetchJson<RestrictionData>(
+        fetchImpl,
+        `${BASE_URL}/v2/restrictions/${formatCode}/${snapshot.restriction_id}.json`
+      )
+    }
+
     await prisma.format.upsert({
       where: { code: formatCode },
-      create: { code: formatCode, name: format.name },
-      update: { name: format.name },
+      create: {
+        code: formatCode,
+        name: format.name,
+        currentSnapshotDate: snapshot?.date_start ?? null,
+        activeRestrictionName: restriction?.name ?? null,
+      },
+      update: {
+        name: format.name,
+        currentSnapshotDate: snapshot?.date_start ?? null,
+        activeRestrictionName: restriction?.name ?? null,
+      },
     })
 
-    const snapshot = resolveCurrentSnapshot(format.snapshots, new Date())
     if (!snapshot) {
       await prisma.cardFormatLegality.deleteMany({ where: { formatCode } })
       continue
@@ -120,20 +172,12 @@ export async function importFormatLegalityData(
     }
 
     const legalPackCodes = new Set(
-      pool.card_set_ids.map((id) => legacyCodeByV2PackId.get(id)).filter((code): code is string => !!code)
+      (pool.card_set_ids ?? []).map((id) => legacyCodeByV2PackId.get(id)).filter((code): code is string => !!code)
     )
     const legalCycleCodes = new Set(
-      pool.card_cycle_ids.map((id) => legacyCodeByV2CycleId.get(id)).filter((code): code is string => !!code)
+      (pool.card_cycle_ids ?? []).map((id) => legacyCodeByV2CycleId.get(id)).filter((code): code is string => !!code)
     )
     const membership: CardPoolMembership = { legalPackCodes, legalCycleCodes }
-
-    let restriction: RestrictionData | null = null
-    if (snapshot.restriction_id) {
-      restriction = await fetchJson<RestrictionData>(
-        fetchImpl,
-        `${BASE_URL}/v2/restrictions/${formatCode}/${snapshot.restriction_id}.json`
-      )
-    }
 
     const rows = allCards.map((card) => {
       const cycleCode = cycleCodeByPackCode.get(card.packCode) ?? ''

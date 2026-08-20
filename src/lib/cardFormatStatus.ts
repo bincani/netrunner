@@ -4,6 +4,7 @@ export interface CardPoolMembership {
 }
 
 export interface RestrictionData {
+  name?: string
   banned?: string[]
   restricted?: string[]
   global_penalty?: Record<string, string[]>

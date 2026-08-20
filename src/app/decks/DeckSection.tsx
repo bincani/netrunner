@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { importDeck, deleteDeck, reorderDecks } from '@/actions/deckActions'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardList } from '@/components/DeckCardList'
 import { FormatLegalityBadges } from '@/components/FormatLegalityBadges'
 import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
 import { groupFactionsBySide, type FactionOption } from '@/lib/factionGroups'
+import { sideTypeInfo } from '@/lib/sideTypes'
 import type { DeckSummary } from '@/lib/decks'
 
 export function DeckSection({
@@ -246,7 +248,9 @@ export function DeckSection({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`View ${deck.factionCode} faction on NetrunnerDB`}
-                      className="shrink-0 pr-2 text-faint hover:text-primary"
+                      className={`shrink-0 pr-2 hover:text-primary ${
+                        sideTypeInfo(deck.identity?.sideCode ?? null)?.textClassName ?? 'text-faint'
+                      }`}
                     >
                       <svg width="36" height="36" fill="currentColor" aria-hidden="true">
                         <use href={`/images/icons.svg#faction-${deck.factionCode}`} />
@@ -271,6 +275,12 @@ export function DeckSection({
                       {isOpen ? '▲' : '▼'}
                     </span>
                   </button>
+                  <Link
+                    href={`/decks/${deck.id}`}
+                    className="shrink-0 cursor-pointer px-3 text-sm text-accent hover:underline"
+                  >
+                    View
+                  </Link>
                   <a
                     href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
                     target="_blank"

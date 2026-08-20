@@ -5,10 +5,20 @@ export interface CardFormatLegalityInfo {
   status: CardFormatStatus
 }
 
+export interface FormatInfo {
+  code: string
+  name: string
+  activeRestrictionName: string | null
+  currentSnapshotDate: string | null
+}
+
 export interface DeckFormatLegality {
   formatCode: string
   formatName: string
   legal: boolean | null
+  activeRestrictionName: string | null
+  /** true if the deck predates this format's current card-pool snapshot; null when either date is unknown. */
+  isPreRotation: boolean | null
 }
 
 /**
@@ -22,10 +32,16 @@ export interface DeckFormatLegality {
  * unknown (null), not a false "legal".
  */
 export function computeDeckFormatLegality(
-  formats: { code: string; name: string }[],
-  cardLegalities: CardFormatLegalityInfo[][]
+  formats: FormatInfo[],
+  cardLegalities: CardFormatLegalityInfo[][],
+  deckDateCreation: Date | null
 ): DeckFormatLegality[] {
   return formats.map((format) => {
+    const isPreRotation =
+      deckDateCreation === null || format.currentSnapshotDate === null
+        ? null
+        : deckDateCreation < new Date(format.currentSnapshotDate)
+
     let sawUnknown = false
 
     for (const cardRows of cardLegalities) {
@@ -35,10 +51,22 @@ export function computeDeckFormatLegality(
         continue
       }
       if (row.status === 'banned' || row.status === 'not_in_pool') {
-        return { formatCode: format.code, formatName: format.name, legal: false }
+        return {
+          formatCode: format.code,
+          formatName: format.name,
+          legal: false,
+          activeRestrictionName: format.activeRestrictionName,
+          isPreRotation,
+        }
       }
     }
 
-    return { formatCode: format.code, formatName: format.name, legal: sawUnknown ? null : true }
+    return {
+      formatCode: format.code,
+      formatName: format.name,
+      legal: sawUnknown ? null : true,
+      activeRestrictionName: format.activeRestrictionName,
+      isPreRotation,
+    }
   })
 }

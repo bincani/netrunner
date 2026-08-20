@@ -13,7 +13,7 @@ export function DeckCompletionBar({
         {ownedCount}/{totalCount} owned ({percentOwned}%)
       </p>
       <div className="h-2 rounded bg-subtle">
-        <div className="h-2 rounded bg-blue-600" style={{ width: `${percentOwned}%` }} />
+        <div className="h-2 rounded bg-success" style={{ width: `${percentOwned}%` }} />
       </div>
     </>
   )

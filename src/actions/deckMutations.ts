@@ -5,6 +5,7 @@ export async function saveDeck(
   id: number,
   uuid: string,
   name: string,
+  dateCreation: string | null,
   cards: Record<string, number>
 ): Promise<void> {
   // A brand new deck is prepended (given the lowest sortOrder) so it lands
@@ -13,11 +14,12 @@ export async function saveDeck(
   // of an existing id leaves sortOrder untouched, same as it already
   // leaves importedAt untouched — re-importing doesn't move the deck.
   const minSortOrder = await prisma.deck.aggregate({ _min: { sortOrder: true } })
+  const parsedDateCreation = dateCreation === null ? null : new Date(dateCreation)
   await prisma.$transaction([
     prisma.deck.upsert({
       where: { id },
-      create: { id, uuid, name, sortOrder: (minSortOrder._min.sortOrder ?? 0) - 1 },
-      update: { uuid, name },
+      create: { id, uuid, name, dateCreation: parsedDateCreation, sortOrder: (minSortOrder._min.sortOrder ?? 0) - 1 },
+      update: { uuid, name, dateCreation: parsedDateCreation },
     }),
     prisma.deckCard.deleteMany({ where: { deckId: id } }),
     prisma.deckCard.createMany({

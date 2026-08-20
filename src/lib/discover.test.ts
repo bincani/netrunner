@@ -45,7 +45,19 @@ describe('getDiscoverDecks', () => {
     expect(decks[0].percentOwned).toBe(67)
     expect(decks[0].missingCopies).toBe(1)
     expect(decks[0].cards).toEqual([
-      { code: '01001', title: 'Card A', factionName: 'anarch', neededQuantity: 3, ownedQuantity: 2, found: true },
+      {
+        code: '01001',
+        title: 'Card A',
+        factionName: 'anarch',
+        typeCode: 'program',
+        typeName: 'program',
+        sideCode: 'runner',
+        keywords: null,
+        influenceCost: 0,
+        neededQuantity: 3,
+        ownedQuantity: 2,
+        found: true,
+      },
     ])
   })
 
@@ -91,10 +103,40 @@ describe('getDiscoverDecks', () => {
       code: 'unknown-code',
       title: null,
       factionName: null,
+      typeCode: null,
+      typeName: null,
+      sideCode: null,
+      keywords: null,
+      influenceCost: null,
       neededQuantity: 3,
       ownedQuantity: 0,
       found: false,
     })
+  })
+
+  it("computes per-card influenceCost against the tournament deck's own factionCode, free for own-faction cards", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01003', title: 'Own Faction Card', packCode: 'core', factionCode: 'anarch', factionCost: 3 })
+    await seedCard(prisma, { code: '01004', title: 'Off Faction Card', packCode: 'core', factionCode: 'shaper', factionCost: 2 })
+    await prisma.tournamentDeck.create({
+      data: {
+        id: 1,
+        uuid: 'uuid-1',
+        name: 'Test Deck',
+        dateCreation: new Date('2020-01-01'),
+        userName: 'alice',
+        factionCode: 'anarch',
+      },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01003', quantity: 1 } })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01004', quantity: 1 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    const ownFactionCard = decks[0].cards.find((c) => c.code === '01003')
+    const offFactionCard = decks[0].cards.find((c) => c.code === '01004')
+    expect(ownFactionCard?.influenceCost).toBe(0)
+    expect(offFactionCard?.influenceCost).toBe(2)
   })
 
   it("returns a deck's cards in cardCode order", async () => {
@@ -293,6 +335,22 @@ describe('getDiscoverDecks', () => {
 
     const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
 
-    expect(decks[0].formatLegality).toEqual([{ formatCode: 'standard', formatName: 'Standard', legal: true }])
+    expect(decks[0].formatLegality).toEqual([
+      { formatCode: 'standard', formatName: 'Standard', legal: true, activeRestrictionName: null, isPreRotation: null },
+    ])
+  })
+
+  it("flags a deck as pre-rotation using the tournament deck's own creation date", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await prisma.format.create({ data: { code: 'standard', name: 'Standard', currentSnapshotDate: '2026-08-01' } })
+    await prisma.tournamentDeck.create({
+      data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
+    })
+    await prisma.tournamentDeckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
+
+    const { decks } = await getDiscoverDecks(prisma, collectionId, { ...defaultFilters, maxMissingCards: 5 })
+
+    expect(decks[0].formatLegality[0].isPreRotation).toBe(true)
   })
 })

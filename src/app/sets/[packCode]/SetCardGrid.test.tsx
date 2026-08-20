@@ -71,6 +71,33 @@ describe('SetCardGrid', () => {
     expect(cardBItem?.className).toContain('opacity-50')
   })
 
+  it("colors each card's row border by side: blue for corp, red for runner", () => {
+    const mixedCards = [
+      makeCard({ code: '01001', title: 'Corp Card', position: 1, sideCode: 'corp' }),
+      makeCard({ code: '01002', title: 'Runner Card', position: 2, sideCode: 'runner' }),
+    ]
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
+
+    expect(screen.getByText('Corp Card').closest('li')?.className).toContain('border-blue-600')
+    expect(screen.getByText('Runner Card').closest('li')?.className).toContain('border-red-600')
+  })
+
+  it('keeps the side-colored row border even when the card is unowned (only opacity dims it)', () => {
+    const unownedCorpCard = [makeCard({ code: '01001', title: 'Corp Card', position: 1, sideCode: 'corp', ownedQuantity: 0 })]
+    render(<SetCardGrid cards={unownedCorpCard} collectionId={1} />)
+
+    const item = screen.getByText('Corp Card').closest('li')
+    expect(item?.className).toContain('border-blue-600')
+    expect(item?.className).toContain('opacity-50')
+  })
+
+  it('gives the quantity input a dashed border when not fully owned', () => {
+    render(<SetCardGrid cards={cards} collectionId={1} />)
+
+    expect(screen.getByLabelText('Card A owned quantity').className).toContain('border-dashed')
+    expect(screen.getByLabelText('Card B owned quantity').className).toContain('border-dashed')
+  })
+
   it('editing a quantity and blurring calls updateCollectionQuantity with the new value', async () => {
     vi.mocked(updateCollectionQuantity).mockResolvedValue(3)
     const user = userEvent.setup()
@@ -349,28 +376,41 @@ describe('SetCardGrid', () => {
     expect(screen.queryByText(/^of /)).not.toBeInTheDocument()
   })
 
-  it('highlights the owned-quantity input red when owned is less than the declared printed quantity', () => {
+  it('dashes the owned-quantity input, with no color, when owned is less than the declared printed quantity', () => {
     const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 2, quantity: 3 })]
     render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
-    expect(screen.getByLabelText('Card A owned quantity').className).toContain('border-red-400')
+    const className = screen.getByLabelText('Card A owned quantity').className
+    expect(className).toContain('border-dashed')
+    expect(className).not.toContain('border-red-400')
+    expect(className).not.toContain('bg-red-500')
   })
 
-  it('does not highlight the input when owned meets or exceeds the declared printed quantity', () => {
+  it('dashes the owned-quantity input, with no color, when nothing is owned', () => {
+    const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 0, quantity: 3 })]
+    render(<SetCardGrid cards={mixedCards} collectionId={1} />)
+
+    const className = screen.getByLabelText('Card A owned quantity').className
+    expect(className).toContain('border-dashed')
+    expect(className).not.toContain('border-red-400')
+    expect(className).not.toContain('bg-red-500')
+  })
+
+  it('gives the input a solid border when owned meets or exceeds the declared printed quantity', () => {
     const mixedCards: PackCardEntry[] = [
       makeCard({ code: '01001', title: 'Card A', ownedQuantity: 3, quantity: 3 }),
       makeCard({ code: '01002', title: 'Card B', ownedQuantity: 5, quantity: 3 }),
     ]
     render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
-    expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-red-400')
-    expect(screen.getByLabelText('Card B owned quantity').className).not.toContain('border-red-400')
+    expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-dashed')
+    expect(screen.getByLabelText('Card B owned quantity').className).not.toContain('border-dashed')
   })
 
-  it('does not highlight the input when the card has no declared printed quantity', () => {
+  it('gives the input a solid border when the card has no declared printed quantity', () => {
     const mixedCards: PackCardEntry[] = [makeCard({ code: '01001', title: 'Card A', ownedQuantity: 0, quantity: null })]
     render(<SetCardGrid cards={mixedCards} collectionId={1} />)
 
-    expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-red-400')
+    expect(screen.getByLabelText('Card A owned quantity').className).not.toContain('border-dashed')
   })
 })

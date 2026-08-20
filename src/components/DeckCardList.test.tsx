@@ -25,6 +25,11 @@ const foundCard: DeckCardOwnership = {
   code: '01001',
   title: 'Card A',
   factionName: 'Anarch',
+  typeCode: 'program',
+  typeName: 'Program',
+  sideCode: 'runner',
+  keywords: null,
+  influenceCost: 0,
   neededQuantity: 3,
   ownedQuantity: 2,
   found: true,
@@ -34,6 +39,11 @@ const unknownCard: DeckCardOwnership = {
   code: 'zzzzz',
   title: null,
   factionName: null,
+  typeCode: null,
+  typeName: null,
+  sideCode: null,
+  keywords: null,
+  influenceCost: null,
   neededQuantity: 1,
   ownedQuantity: 0,
   found: false,
@@ -50,6 +60,31 @@ describe('DeckCardList', () => {
     render(<DeckCardList cards={[{ ...foundCard, ownedQuantity: 3 }]} />)
     const row = screen.getByText('Card A').closest('li')
     expect(row?.className).not.toContain('text-danger')
+  })
+
+  it('shows a side badge for a card found locally', () => {
+    render(<DeckCardList cards={[{ ...foundCard, sideCode: 'corp' }]} />)
+    expect(screen.getByRole('img', { name: 'Corp' })).toBeInTheDocument()
+  })
+
+  it('shows no side badge for a card not found locally', () => {
+    render(<DeckCardList cards={[unknownCard]} />)
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('shows influence pips when a card costs influence', () => {
+    render(<DeckCardList cards={[{ ...foundCard, influenceCost: 3 }]} />)
+    expect(screen.getByLabelText('3 influence')).toHaveTextContent('●●●')
+  })
+
+  it('shows no influence pips for a free (own-faction) card', () => {
+    render(<DeckCardList cards={[{ ...foundCard, influenceCost: 0 }]} />)
+    expect(screen.queryByText('●')).not.toBeInTheDocument()
+  })
+
+  it('shows no influence pips for a card not found locally', () => {
+    render(<DeckCardList cards={[unknownCard]} />)
+    expect(screen.queryByText('●')).not.toBeInTheDocument()
   })
 
   it('shows an unknown-card label with no popup link for a card not found locally', () => {

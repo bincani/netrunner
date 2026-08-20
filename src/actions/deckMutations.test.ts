@@ -20,7 +20,7 @@ beforeEach(async () => {
 
 describe('saveDeck', () => {
   it('creates a new deck with its cards', async () => {
-    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', { '01001': 3, '01002': 2 })
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', null, { '01001': 3, '01002': 2 })
 
     const deck = await prisma.deck.findUnique({ where: { id: 1 }, include: { cards: true } })
 
@@ -31,9 +31,9 @@ describe('saveDeck', () => {
   })
 
   it('replaces an existing deck\'s cards rather than appending to them, on re-import', async () => {
-    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', { '01001': 3 })
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', null, { '01001': 3 })
 
-    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck (updated)', { '01002': 1 })
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck (updated)', null, { '01002': 1 })
 
     const deck = await prisma.deck.findUnique({ where: { id: 1 }, include: { cards: true } })
     expect(deck?.name).toBe('Test Deck (updated)')
@@ -41,30 +41,46 @@ describe('saveDeck', () => {
   })
 
   it('prepends each newly created deck, so it sorts before every existing one', async () => {
-    await saveDeck(prisma, 1, 'uuid-1', 'First', { '01001': 1 })
+    await saveDeck(prisma, 1, 'uuid-1', 'First', null, { '01001': 1 })
 
-    await saveDeck(prisma, 2, 'uuid-2', 'Second', { '01001': 1 })
+    await saveDeck(prisma, 2, 'uuid-2', 'Second', null, { '01001': 1 })
 
     const decks = await prisma.deck.findMany({ orderBy: { sortOrder: 'asc' } })
     expect(decks.map((d) => d.id)).toEqual([2, 1])
   })
 
   it('leaves sortOrder untouched on re-import, so the deck does not move', async () => {
-    await saveDeck(prisma, 1, 'uuid-1', 'First', { '01001': 1 })
-    await saveDeck(prisma, 2, 'uuid-2', 'Second', { '01001': 1 })
+    await saveDeck(prisma, 1, 'uuid-1', 'First', null, { '01001': 1 })
+    await saveDeck(prisma, 2, 'uuid-2', 'Second', null, { '01001': 1 })
     const before = await prisma.deck.findUniqueOrThrow({ where: { id: 1 } })
 
-    await saveDeck(prisma, 1, 'uuid-1', 'First (updated)', { '01001': 2 })
+    await saveDeck(prisma, 1, 'uuid-1', 'First (updated)', null, { '01001': 2 })
 
     const after = await prisma.deck.findUniqueOrThrow({ where: { id: 1 } })
     expect(after.sortOrder).toBe(before.sortOrder)
+  })
+
+  it('stores the decklist\'s own NetrunnerDB creation date', async () => {
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', '2020-05-05T21:27:41+00:00', { '01001': 1 })
+
+    const deck = await prisma.deck.findUniqueOrThrow({ where: { id: 1 } })
+    expect(deck.dateCreation?.toISOString()).toBe('2020-05-05T21:27:41.000Z')
+  })
+
+  it('updates dateCreation on re-import', async () => {
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', null, { '01001': 1 })
+
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', '2020-05-05T21:27:41+00:00', { '01001': 1 })
+
+    const deck = await prisma.deck.findUniqueOrThrow({ where: { id: 1 } })
+    expect(deck.dateCreation?.toISOString()).toBe('2020-05-05T21:27:41.000Z')
   })
 })
 
 describe('reorderDecks', () => {
   it('persists the given order', async () => {
-    await saveDeck(prisma, 1, 'uuid-1', 'A', { '01001': 1 })
-    await saveDeck(prisma, 2, 'uuid-2', 'B', { '01001': 1 })
+    await saveDeck(prisma, 1, 'uuid-1', 'A', null, { '01001': 1 })
+    await saveDeck(prisma, 2, 'uuid-2', 'B', null, { '01001': 1 })
 
     await reorderDecks(prisma, [1, 2])
 
@@ -75,7 +91,7 @@ describe('reorderDecks', () => {
 
 describe('removeDeck', () => {
   it('deletes a deck and its cards', async () => {
-    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', { '01001': 3 })
+    await saveDeck(prisma, 1, 'uuid-1', 'Test Deck', null, { '01001': 3 })
 
     await removeDeck(prisma, 1)
 

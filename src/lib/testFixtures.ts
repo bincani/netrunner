@@ -7,11 +7,18 @@ interface SeedCardOptions {
   packName?: string
   packSize?: number | null
   packSetType?: string | null
+  packDateRelease?: string | null
   cycleCode?: string
   factionCode?: string
   typeCode?: string
   position?: number
   quantity?: number | null
+  factionCost?: number | null
+  agendaPoints?: number | null
+  influenceLimit?: number | null
+  minimumDeckSize?: number | null
+  sideCode?: string
+  keywords?: string | null
 }
 
 export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): Promise<Card> {
@@ -25,17 +32,18 @@ export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): 
     update: {},
   })
 
+  const packData = {
+    name: options.packName ?? options.packCode,
+    cycleCode,
+    position: 1,
+    size: options.packSize === undefined ? 1 : options.packSize,
+    setType: options.packSetType === undefined ? null : options.packSetType,
+    dateRelease: options.packDateRelease === undefined ? null : options.packDateRelease,
+  }
   await prisma.pack.upsert({
     where: { code: options.packCode },
-    create: {
-      code: options.packCode,
-      name: options.packName ?? options.packCode,
-      cycleCode,
-      position: 1,
-      size: options.packSize === undefined ? 1 : options.packSize,
-      setType: options.packSetType === undefined ? null : options.packSetType,
-    },
-    update: {},
+    create: { code: options.packCode, ...packData },
+    update: packData,
   })
 
   await prisma.faction.upsert({
@@ -57,10 +65,15 @@ export async function seedCard(prisma: PrismaClient, options: SeedCardOptions): 
       typeCode,
       factionCode,
       packCode: options.packCode,
-      sideCode: 'runner',
+      sideCode: options.sideCode ?? 'runner',
       position: options.position ?? 1,
       uniqueness: false,
       quantity: options.quantity === undefined ? 1 : options.quantity,
+      factionCost: options.factionCost === undefined ? null : options.factionCost,
+      agendaPoints: options.agendaPoints === undefined ? null : options.agendaPoints,
+      influenceLimit: options.influenceLimit === undefined ? null : options.influenceLimit,
+      minimumDeckSize: options.minimumDeckSize === undefined ? null : options.minimumDeckSize,
+      keywords: options.keywords === undefined ? null : options.keywords,
     },
   })
 }

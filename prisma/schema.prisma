@@ -43,42 +43,52 @@ model CardType {
 }
 
 model Card {
-  code              String            @id
+  code              String               @id
   title             String
   typeCode          String
-  type              CardType          @relation(fields: [typeCode], references: [code])
+  type              CardType             @relation(fields: [typeCode], references: [code])
   factionCode       String
-  faction           Faction           @relation(fields: [factionCode], references: [code])
+  faction           Faction              @relation(fields: [factionCode], references: [code])
   packCode          String
-  pack              Pack              @relation(fields: [packCode], references: [code])
+  pack              Pack                 @relation(fields: [packCode], references: [code])
   sideCode          String
   cost              Int?
   factionCost       Int?
   text              String?
   deckLimit         Int?
+  /// Agenda cards only (v1 `agenda_points`) — points earned toward the corp's 7-point win condition when this card is scored.
+  agendaPoints      Int?
   keywords          String?
   strength          Int?
-  uniqueness        Boolean           @default(false)
+  uniqueness        Boolean              @default(false)
   quantity          Int?
   position          Int
   /// The v2 data model's title-level card slug (e.g. "rezeki") — null until the format-legality import resolves it. Used to join CardFormatLegality and to look up restriction-list membership, which is keyed by this slug, not by printing code.
   cardId            String?
+  /// Identity cards only — the deck's maximum influence budget (v2 `influence_limit`), populated at import-cards time. Null for non-identity cards.
+  influenceLimit    Int?
+  /// Identity cards only — the deck's minimum card count (v2 `minimum_deck_size`), populated at import-cards time. Null for non-identity cards.
+  minimumDeckSize   Int?
   collectionEntries CollectionEntry[]
   batchCards        BatchCard[]
   formatLegalities  CardFormatLegality[]
 }
 
 model Format {
-  code       String               @id // standard, startup, eternal, core, system_gateway, snapshot, ram
-  name       String
-  legalities CardFormatLegality[]
+  code                  String               @id // standard, startup, eternal, core, system_gateway, snapshot, ram
+  name                  String
+  /// Name of the restriction/ban list active in this format's current card-pool snapshot (e.g. "Standard Balance Update 26.08"), from the v2 restrictions data. Null when no restriction is active.
+  activeRestrictionName String?
+  /// date_start of this format's current card-pool snapshot (the date its currently-active card pool took effect). Used to flag a deck as pre-rotation (imported before this date).
+  currentSnapshotDate   String?
+  legalities            CardFormatLegality[]
 }
 
 model CardFormatLegality {
   cardCode   String
-  card       Card   @relation(fields: [cardCode], references: [code], onDelete: Cascade)
+  card       Card    @relation(fields: [cardCode], references: [code], onDelete: Cascade)
   formatCode String
-  format     Format @relation(fields: [formatCode], references: [code], onDelete: Cascade)
+  format     Format  @relation(fields: [formatCode], references: [code], onDelete: Cascade)
   /// 'legal' | 'not_in_pool' | 'banned' | 'restricted' | 'universal_influence_penalty' | 'points'
   status     String
   /// e.g. "+2 influence" or "2 pts (limit 7)" — null for legal/not_in_pool/banned/restricted.
@@ -114,12 +124,14 @@ model HiddenBuilderPack {
 }
 
 model Deck {
-  id         Int        @id
-  uuid       String
-  name       String
-  importedAt DateTime   @default(now())
-  sortOrder  Int        @default(0)
-  cards      DeckCard[]
+  id           Int        @id
+  uuid         String
+  name         String
+  importedAt   DateTime   @default(now())
+  /// The decklist's own creation date on NetrunnerDB (date_creation) — distinct from importedAt, which is when this app first pulled it. Null for decks imported before this field existed. Used to flag pre-rotation decklists.
+  dateCreation DateTime?
+  sortOrder    Int        @default(0)
+  cards        DeckCard[]
 }
 
 model DeckCard {

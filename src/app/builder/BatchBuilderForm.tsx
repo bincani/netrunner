@@ -15,6 +15,7 @@ import {
 } from '@/actions/batchActions'
 import { updateBuilderMode } from '@/actions/settingsActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
+import { SideBadge } from '@/components/SideBadge'
 import { BatchStatusBar } from './BatchStatusBar'
 import { BatchReviewModal } from './BatchReviewModal'
 import type { BatchSummary } from '@/lib/batches'
@@ -423,7 +424,10 @@ export function BatchBuilderForm({
                 <li key={card.code} className="flex items-center gap-4 p-3">
                   <CardDetailPopup card={card} />
                   <div className="flex-1">
-                    <div className="font-medium">{card.title}</div>
+                    <div className="flex items-center gap-2 font-medium">
+                      <SideBadge sideCode={card.sideCode} />
+                      {card.title}
+                    </div>
                     <div className="text-sm text-muted">
                       {card.factionCode} ·{' '}
                       <Link href={`/sets/${card.packCode}`} className="underline hover:text-primary">

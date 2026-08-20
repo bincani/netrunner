@@ -212,7 +212,7 @@ describe('CollectionsList', () => {
       elapsedMs: 0,
       collectionId: 2,
       collectionName: 'Trade Binder',
-      cards: [{ code: '01001', title: 'Corroder', quantity: 3 }],
+      cards: [{ code: '01001', title: 'Corroder', sideCode: 'runner', quantity: 3 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
     const user = userEvent.setup()
@@ -238,7 +238,7 @@ describe('CollectionsList', () => {
       elapsedMs: 0,
       collectionId: 2,
       collectionName: 'Trade Binder',
-      cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
+      cards: [{ code: '01001', title: 'Corroder', sideCode: 'runner', quantity: 1 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({
       ok: true,
@@ -266,7 +266,7 @@ describe('CollectionsList', () => {
       elapsedMs: 0,
       collectionId: 2,
       collectionName: 'Trade Binder',
-      cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
+      cards: [{ code: '01001', title: 'Corroder', sideCode: 'runner', quantity: 1 }],
     }
     const updatedBatch: BatchSummary = { ...importedBatch, currentCount: 0, cards: [] }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
@@ -298,7 +298,7 @@ describe('CollectionsList', () => {
       elapsedMs: 0,
       collectionId: 2,
       collectionName: 'Trade Binder',
-      cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
+      cards: [{ code: '01001', title: 'Corroder', sideCode: 'runner', quantity: 1 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
     vi.mocked(approveImportBatch).mockResolvedValue({ ok: true })
@@ -326,7 +326,7 @@ describe('CollectionsList', () => {
       elapsedMs: 0,
       collectionId: 2,
       collectionName: 'Trade Binder',
-      cards: [{ code: '01001', title: 'Corroder', quantity: 1 }],
+      cards: [{ code: '01001', title: 'Corroder', sideCode: 'runner', quantity: 1 }],
     }
     vi.mocked(importCsvToCollection).mockResolvedValue({ ok: true, batch: importedBatch, skipped: [] })
     vi.mocked(discardBatch).mockResolvedValue({ ok: true })
@@ -354,7 +354,7 @@ describe('CollectionsList', () => {
       elapsedMs: 0,
       collectionId: 2,
       collectionName: 'Trade Binder',
-      cards: [{ code: '01001', title: 'Corroder', quantity: 2 }],
+      cards: [{ code: '01001', title: 'Corroder', sideCode: 'runner', quantity: 2 }],
     }
     const withPending: CollectionListEntry = { ...secondCollection, pendingBatch }
     const user = userEvent.setup()

@@ -117,7 +117,17 @@ export async function getDiscoverDecks(
   const [knownCards, collectionEntries, formats, legalityRows] = await Promise.all([
     prisma.card.findMany({
       where: { code: { in: cardCodes } },
-      select: { code: true, title: true, faction: { select: { name: true } } },
+      select: {
+        code: true,
+        title: true,
+        faction: { select: { name: true } },
+        factionCode: true,
+        factionCost: true,
+        typeCode: true,
+        type: { select: { name: true } },
+        sideCode: true,
+        keywords: true,
+      },
     }),
     prisma.collectionEntry.findMany({ where: { collectionId, cardCode: { in: cardCodes } } }),
     prisma.format.findMany(),
@@ -133,16 +143,34 @@ export async function getDiscoverDecks(
     list.push({ formatCode: row.formatCode, status: row.status as CardFormatStatus })
     legalityByCode.set(row.cardCode, list)
   }
-  const formatList = formats.map((format) => ({ code: format.code, name: format.name }))
+  const formatList = formats.map((format) => ({
+    code: format.code,
+    name: format.name,
+    activeRestrictionName: format.activeRestrictionName,
+    currentSnapshotDate: format.currentSnapshotDate,
+  }))
+
+  const factionCodeByDeckId = new Map(rows.map((row) => [row.id, row.factionCode]))
 
   const cardsByDeckId = new Map<number, DeckCardOwnership[]>()
   for (const deckCard of deckCards) {
     const card = cardByCode.get(deckCard.cardCode)
     const ownedQuantity = ownedByCode.get(deckCard.cardCode) ?? 0
+    let influenceCost: number | null = null
+    if (card) {
+      const deckFactionCode = factionCodeByDeckId.get(deckCard.deckId)
+      const isOwnFaction = card.typeCode === 'identity' || card.factionCode === deckFactionCode
+      influenceCost = isOwnFaction ? 0 : (card.factionCost ?? 0)
+    }
     const cardOwnership: DeckCardOwnership = {
       code: deckCard.cardCode,
       title: card?.title ?? null,
       factionName: card?.faction.name ?? null,
+      typeCode: card?.typeCode ?? null,
+      typeName: card?.type.name ?? null,
+      sideCode: card?.sideCode ?? null,
+      keywords: card?.keywords ?? null,
+      influenceCost,
       neededQuantity: deckCard.quantity,
       ownedQuantity,
       found: card !== undefined,
@@ -170,7 +198,8 @@ export async function getDiscoverDecks(
       cards: cardsByDeckId.get(row.id) ?? [],
       formatLegality: computeDeckFormatLegality(
         formatList,
-        deckCardCodes.map((code) => legalityByCode.get(code) ?? [])
+        deckCardCodes.map((code) => legalityByCode.get(code) ?? []),
+        new Date(row.dateCreation)
       ),
     }
   })

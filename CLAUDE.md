@@ -55,9 +55,40 @@ restricted/not-in-pool status (`src/lib/importFormatLegality.ts`,
 legal/not-legal/unknown rollup per format (`src/lib/deckFormatLegality.ts`,
 shown on `/decks` and `/discover`), computed at `npm run import-cards`
 time from Null Signal Games' data. This is pool + ban/restriction
-membership only — explicitly not a full deck-construction check (no
-influence budget, deck-size, or agenda-point validation), which remains
-deferred alongside full deckbuilding above.
+membership only — explicitly not a full deck-construction check.
+
+**Deck detail view (shipped):** `/decks/[id]` (linked from a "View" link
+on each `/decks` row, mirroring the Collection detail view's pattern) shows
+a single deck's identity, decklist grouped by card type — ICE further
+split into Barrier/Code Gate/Sentry/Other by its keywords' first subtype,
+`src/components/DeckCardListByType.tsx` — with ownership highlighting and
+per-card influence pips, packs used (with a "Cards up to `<latest pack>`"
+line derived from it), format legality, and read-only deck-construction
+stats — influence spent vs. the identity's influence limit
+(`Card.influenceLimit`), agenda points in the deck vs. the required range
+(`src/lib/agendaPoints.ts`, standard NSG rule: 20 at the 45-card minimum,
++2 per full 5-card bracket above it), and card count vs. the identity's
+minimum deck size (`Card.minimumDeckSize`). `influenceLimit` and
+`minimumDeckSize` are populated on identity `Card` rows at
+`npm run import-cards` time (`src/lib/importFormatLegality.ts`, from Null
+Signal Games' v2 per-card data); `Card.agendaPoints` is populated from the
+v1 pack data (`src/lib/importData.ts`). These are computed, read-only
+stats for a deck you already imported — not enforcement while building one
+(no blocking, no editing, no legality gate on import). Full interactive
+deckbuilding remains out of scope alongside full deckbuilding above.
+
+`FormatLegalityBadges` (shared by `/decks`, `/discover`, and `/decks/[id]`)
+has an expandable "Show restriction & rotation details" section per format:
+the active restriction/ban list's name (`Format.activeRestrictionName`)
+and whether the deck predates that format's current card-pool snapshot
+(`Format.currentSnapshotDate`, `Deck.dateCreation`/`TournamentDeck.
+dateCreation` — the decklist's own NetrunnerDB creation date, not
+`importedAt`). Both `Format` columns are populated at `npm run
+import-cards` time in `src/lib/importFormatLegality.ts`. `Deck.dateCreation`
+is only populated on import/re-import (`src/lib/netrunnerdb.ts`'s
+`date_creation` field) — decks imported before this field existed show
+rotation status as unknown until re-imported (re-pasting the same
+URL/ID).
 
 An nginx + systemd production deployment option was added after phase 1
 shipped — see `README.md`'s "Production deployment" section and the

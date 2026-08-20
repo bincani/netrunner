@@ -6,6 +6,7 @@ import { CardDetailPopup } from '@/components/CardDetailPopup'
 import { SetCardFilterSidebar } from './SetCardFilterSidebar'
 import { createEmptyAttributeFilters, matchesAttributeFilters, type AttributeFilters } from './attributeFilters'
 import { OWNERSHIP_FILTER_OPTIONS, matchesOwnershipFilter, type OwnershipFilter } from '@/lib/ownershipFilter'
+import { sideTypeInfo } from '@/lib/sideTypes'
 import type { PackCardEntry } from '@/lib/cards'
 
 function parseQuantity(raw: string): number | null {
@@ -132,11 +133,12 @@ export function SetCardGrid({
             const owned = savedQuantities[card.code]
             const isSaving = pendingCodes[card.code] === true
             const error = errors[card.code]
+            const sideBorderClassName = sideTypeInfo(card.sideCode)?.borderClassName ?? 'border-default'
             return (
               <li
                 key={card.code}
-                className={`flex items-center gap-3 rounded border p-3 ${
-                  owned > 0 ? 'border-default' : 'border-subtle opacity-50'
+                className={`flex items-center gap-3 rounded border p-3 ${sideBorderClassName} ${
+                  owned > 0 ? '' : 'opacity-50'
                 }`}
               >
                 <CardDetailPopup card={card} />
@@ -163,10 +165,8 @@ export function SetCardGrid({
                           event.currentTarget.blur()
                         }
                       }}
-                      className={`w-16 rounded border bg-surface px-2 py-1 text-center ${
-                        card.quantity !== null && owned < card.quantity
-                          ? 'border-red-400 bg-red-500/10'
-                          : 'border-default'
+                      className={`w-16 rounded border border-default bg-surface px-2 py-1 text-center ${
+                        card.quantity !== null && owned < card.quantity ? 'border-dashed' : ''
                       }`}
                     />
                     {card.quantity !== null && <span className="text-xs text-faint">of {card.quantity}</span>}

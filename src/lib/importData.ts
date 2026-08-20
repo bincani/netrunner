@@ -53,6 +53,7 @@ interface RawCard {
   faction_cost?: number
   text?: string
   deck_limit?: number
+  agenda_points?: number
   keywords?: string
   strength?: number
   uniqueness?: boolean
@@ -147,6 +148,7 @@ export async function importAllCardData(
             factionCost: card.faction_cost ?? null,
             text: card.text ?? null,
             deckLimit: card.deck_limit ?? null,
+            agendaPoints: card.agenda_points ?? null,
             keywords: card.keywords ?? null,
             strength: card.strength ?? null,
             uniqueness: card.uniqueness ?? false,

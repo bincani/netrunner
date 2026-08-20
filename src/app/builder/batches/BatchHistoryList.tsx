@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { approveBatch, revertApprovedBatch } from '@/actions/batchActions'
 import { formatElapsedMs, type BatchSummary } from '@/lib/batches'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
+import { SideBadge } from '@/components/SideBadge'
 
 export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSummary[] }) {
   const [batches, setBatches] = useState<BatchSummary[]>(initialBatches)
@@ -122,6 +123,7 @@ export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSu
               <ul className="space-y-1 border-t border-subtle p-3 text-sm">
                 {batch.cards.map((card) => (
                   <li key={card.code} className="flex items-center gap-3 text-muted">
+                    <SideBadge sideCode={card.sideCode} />
                     <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
                     <span className="shrink-0 ml-auto">{card.quantity}</span>
                   </li>

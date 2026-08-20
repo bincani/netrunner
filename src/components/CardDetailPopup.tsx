@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { cardImageUrl } from '@/lib/cardImage'
 import { CardThumbnail } from './CardThumbnail'
 import { CardText } from './CardText'
+import { SideBadge } from './SideBadge'
 import type { CardPrinting, PackCardEntry } from '@/lib/cards'
 
 /** A card list that only has code/title/quantity (batch and deck card lists) — the popup fetches the rest on open. */
@@ -216,8 +217,9 @@ export function CardDetailPopup({
 
                     {activeTab === 'info' && (
                       <div role="tabpanel" className="space-y-2">
-                        <div className="text-sm text-muted">
-                          {detail.factionName} · {detail.typeName} · {detail.sideCode}
+                        <div className="flex items-center gap-2 text-sm text-muted">
+                          <SideBadge sideCode={detail.sideCode} />
+                          {detail.factionName} · {detail.typeName}
                         </div>
 
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">

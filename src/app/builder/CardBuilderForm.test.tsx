@@ -79,6 +79,17 @@ describe('CardBuilderForm', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/cards/search?q=corro')
   })
 
+  it('shows a side badge on each search result', async () => {
+    const user = userEvent.setup()
+    render(<CardBuilderForm />)
+
+    await user.type(screen.getByPlaceholderText('Search for a card by title...'), 'corro')
+    await waitFor(() => screen.getByText('Corroder'))
+
+    const row = within(screen.getByText('Corroder').closest('li')!)
+    expect(row.getByRole('img', { name: 'Runner' })).toBeInTheDocument()
+  })
+
   it('links the set name to that set\'s page', async () => {
     const user = userEvent.setup()
     render(<CardBuilderForm />)
@@ -100,7 +111,7 @@ describe('CardBuilderForm', () => {
     await user.click(screen.getByRole('button', { name: 'Show details for Corroder' }))
 
     expect(screen.getByRole('heading', { name: /Corroder/ })).toBeInTheDocument()
-    expect(screen.getByText('Anarch · Program · runner')).toBeInTheDocument()
+    expect(screen.getByText('Anarch · Program')).toBeInTheDocument()
     expect(screen.getByText('Icebreaker - Killer')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
   })

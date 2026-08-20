@@ -11,7 +11,7 @@ describe('DeckCompletionBar', () => {
 
   it('sizes the progress bar fill to the percent owned', () => {
     const { container } = render(<DeckCompletionBar ownedCount={2} totalCount={3} percentOwned={67} />)
-    const fill = container.querySelector('.bg-blue-600') as HTMLElement
+    const fill = container.querySelector('.bg-success') as HTMLElement
     expect(fill.style.width).toBe('67%')
   })
 })

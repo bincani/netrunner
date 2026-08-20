@@ -31,7 +31,7 @@ const batches: BatchSummary[] = [
     elapsedMs: 65000,
     collectionId: 1,
     collectionName: 'My Collection',
-    cards: [{ code: '01001', title: 'Card A', quantity: 3 }],
+    cards: [{ code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3 }],
   },
   {
     id: 2,
@@ -42,7 +42,7 @@ const batches: BatchSummary[] = [
     elapsedMs: 5000,
     collectionId: 2,
     collectionName: 'Trade Binder',
-    cards: [{ code: '01002', title: 'Card B', quantity: 1 }],
+    cards: [{ code: '01002', title: 'Card B', sideCode: 'runner', quantity: 1 }],
   },
 ]
 
@@ -94,6 +94,15 @@ describe('BatchHistoryList', () => {
     await user.click(screen.getByRole('button', { name: /Batch A/ }))
 
     expect(screen.getByText('Card A')).toBeInTheDocument()
+  })
+
+  it('shows a side badge for each card in an opened batch', async () => {
+    const user = userEvent.setup()
+    render(<BatchHistoryList batches={batches} />)
+
+    await user.click(screen.getByRole('button', { name: /Batch A/ }))
+
+    expect(screen.getByRole('img', { name: 'Runner' })).toBeInTheDocument()
   })
 
   it('opening one batch closes a previously-open one', async () => {

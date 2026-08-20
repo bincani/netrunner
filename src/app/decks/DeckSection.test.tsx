@@ -43,10 +43,26 @@ const sampleDeck: DeckSummary = {
   totalCount: 3,
   percentOwned: 67,
   factionCode: 'anarch',
+  identity: null,
   cards: [
-    { code: '01001', title: 'Card A', factionName: 'Anarch', neededQuantity: 3, ownedQuantity: 2, found: true },
+    {
+      code: '01001',
+      title: 'Card A',
+      factionName: 'Anarch',
+      typeCode: 'program',
+      typeName: 'Program',
+      sideCode: 'runner',
+      keywords: null,
+      influenceCost: 0,
+      neededQuantity: 3,
+      ownedQuantity: 2,
+      found: true,
+    },
   ],
   formatLegality: [],
+  packsUsed: [],
+  influenceSpent: 0,
+  agendaPoints: null,
 }
 
 const secondDeck: DeckSummary = {
@@ -90,6 +106,12 @@ describe('DeckSection', () => {
     expect(screen.queryByText('Card A')).not.toBeInTheDocument()
   })
 
+  it('renders a View link to the deck detail page', () => {
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
+
+    expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute('href', '/decks/1')
+  })
+
   it("links the faction logo to that faction's NetrunnerDB page, opening in a new tab", () => {
     render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
 
@@ -107,6 +129,49 @@ describe('DeckSection', () => {
     // perspective) means the link comes first in DOM order — visually to
     // the left in this left-to-right, non-reversed flex row.
     expect(link.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('colors the faction logo blue for a corp deck', () => {
+    const corpDeck: DeckSummary = {
+      ...sampleDeck,
+      identity: {
+        code: '01001',
+        title: 'Some Corp',
+        factionName: 'Haas-Bioroid',
+        sideCode: 'corp',
+        influenceLimit: 15,
+        minimumDeckSize: 45,
+      },
+    }
+    render(<DeckSection initialDecks={[corpDeck]} factionOptions={factionOptions} />)
+
+    const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
+    expect(link.className).toContain('text-blue-600')
+  })
+
+  it('colors the faction logo red for a runner deck', () => {
+    const runnerDeck: DeckSummary = {
+      ...sampleDeck,
+      identity: {
+        code: '01002',
+        title: 'Some Runner',
+        factionName: 'Anarch',
+        sideCode: 'runner',
+        influenceLimit: 15,
+        minimumDeckSize: 30,
+      },
+    }
+    render(<DeckSection initialDecks={[runnerDeck]} factionOptions={factionOptions} />)
+
+    const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
+    expect(link.className).toContain('text-red-600')
+  })
+
+  it('falls back to a neutral color for the faction logo when the side is unknown', () => {
+    render(<DeckSection initialDecks={[sampleDeck]} factionOptions={factionOptions} />)
+
+    const link = screen.getByRole('link', { name: 'View anarch faction on NetrunnerDB' })
+    expect(link.className).toContain('text-faint')
   })
 
   it('shows no faction logo when the deck has no identity card locally', () => {
@@ -162,7 +227,21 @@ describe('DeckSection', () => {
   it('shows an unknown-card label for a card code not found locally, with no popup link', async () => {
     const deckWithUnknown: DeckSummary = {
       ...sampleDeck,
-      cards: [{ code: 'zzzzz', title: null, factionName: null, neededQuantity: 1, ownedQuantity: 0, found: false }],
+      cards: [
+        {
+          code: 'zzzzz',
+          title: null,
+          factionName: null,
+          typeCode: null,
+          typeName: null,
+          sideCode: null,
+          keywords: null,
+          influenceCost: null,
+          neededQuantity: 1,
+          ownedQuantity: 0,
+          found: false,
+        },
+      ],
     }
     const user = userEvent.setup()
     render(<DeckSection initialDecks={[deckWithUnknown]} factionOptions={factionOptions} />)
@@ -436,9 +515,9 @@ describe('DeckSection', () => {
     const deckWithLegality: DeckSummary = {
       ...sampleDeck,
       formatLegality: [
-        { formatCode: 'standard', formatName: 'Standard', legal: true },
-        { formatCode: 'startup', formatName: 'Startup', legal: false },
-        { formatCode: 'eternal', formatName: 'Eternal', legal: null },
+        { formatCode: 'standard', formatName: 'Standard', legal: true, activeRestrictionName: null, isPreRotation: null },
+        { formatCode: 'startup', formatName: 'Startup', legal: false, activeRestrictionName: null, isPreRotation: null },
+        { formatCode: 'eternal', formatName: 'Eternal', legal: null, activeRestrictionName: null, isPreRotation: null },
       ],
     }
     const user = userEvent.setup()

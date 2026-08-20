@@ -93,7 +93,8 @@ describe('CardDetailPopup', () => {
     await user.click(screen.getByRole('button', { name: 'Show details for Zed 2.0' }))
 
     expect(screen.getByRole('heading', { name: /Zed 2\.0/ })).toBeInTheDocument()
-    expect(screen.getByText('Haas-Bioroid · Ice · corp')).toBeInTheDocument()
+    expect(screen.getByText('Haas-Bioroid · Ice')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Corp' })).toBeInTheDocument()
     expect(screen.getByText('Cost: 6')).toBeInTheDocument()
     expect(screen.getByText('Influence: 3')).toBeInTheDocument()
     expect(screen.getByText('Strength: 4')).toBeInTheDocument()
@@ -343,7 +344,7 @@ describe('CardDetailPopup', () => {
 
       resolveDetailFetch({ ok: true, json: async () => fullCard })
 
-      expect(await screen.findByText('Haas-Bioroid · Ice · corp')).toBeInTheDocument()
+      expect(await screen.findByText('Haas-Bioroid · Ice')).toBeInTheDocument()
       expect(screen.getByText('Owned: 2')).toBeInTheDocument()
       expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/cards/detail?code=12010'))
     })
@@ -368,7 +369,7 @@ describe('CardDetailPopup', () => {
 
       expect(screen.getByRole('tab', { name: 'Card Info' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('tab', { name: 'Format' })).toHaveAttribute('aria-selected', 'false')
-      expect(screen.getByText('Haas-Bioroid · Ice · corp')).toBeInTheDocument()
+      expect(screen.getByText('Haas-Bioroid · Ice')).toBeInTheDocument()
       expect(screen.queryByText('Format legality unavailable')).not.toBeInTheDocument()
     })
 
@@ -380,7 +381,7 @@ describe('CardDetailPopup', () => {
       await user.click(screen.getByRole('tab', { name: 'Format' }))
 
       expect(screen.getByRole('tab', { name: 'Format' })).toHaveAttribute('aria-selected', 'true')
-      expect(screen.queryByText('Haas-Bioroid · Ice · corp')).not.toBeInTheDocument()
+      expect(screen.queryByText('Haas-Bioroid · Ice')).not.toBeInTheDocument()
       expect(screen.getByText('Format legality unavailable')).toBeInTheDocument()
     })
 

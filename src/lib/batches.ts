@@ -5,6 +5,7 @@ export type BatchStatus = 'running' | 'paused' | 'stopped' | 'approved' | 'disca
 export interface BatchCardEntry {
   code: string
   title: string
+  sideCode: string
   quantity: number
 }
 
@@ -46,7 +47,7 @@ interface BatchWithCards {
   lastResumedAt: Date | null
   collectionId: number
   collection: { name: string }
-  cards: { cardCode: string; quantity: number; card: { title: string } }[]
+  cards: { cardCode: string; quantity: number; card: { title: string; sideCode: string } }[]
 }
 
 function toSummary(batch: BatchWithCards): BatchSummary {
@@ -57,14 +58,19 @@ function toSummary(batch: BatchWithCards): BatchSummary {
     status: batch.status as BatchStatus,
     currentCount: batch.cards.reduce((sum, card) => sum + card.quantity, 0),
     elapsedMs: liveElapsedMs(batch.elapsedMs, batch.lastResumedAt),
-    cards: batch.cards.map((card) => ({ code: card.cardCode, title: card.card.title, quantity: card.quantity })),
+    cards: batch.cards.map((card) => ({
+      code: card.cardCode,
+      title: card.card.title,
+      sideCode: card.card.sideCode,
+      quantity: card.quantity,
+    })),
     collectionId: batch.collectionId,
     collectionName: batch.collection.name,
   }
 }
 
 const BATCH_CARDS_INCLUDE = {
-  cards: { include: { card: { select: { title: true } } }, orderBy: { cardCode: 'asc' as const } },
+  cards: { include: { card: { select: { title: true, sideCode: true } } }, orderBy: { cardCode: 'asc' as const } },
   collection: { select: { name: true } },
 }
 

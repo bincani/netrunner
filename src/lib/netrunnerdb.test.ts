@@ -62,13 +62,42 @@ describe('fetchDecklist', () => {
       status: 200,
       json: async () => ({
         success: true,
+        data: [
+          {
+            id: 1,
+            uuid: 'abc-123',
+            name: 'Test Deck',
+            date_creation: '2020-05-05T21:27:41+00:00',
+            cards: { '01001': 3 },
+          },
+        ],
+      }),
+    })) as unknown as typeof fetch
+
+    const result = await fetchDecklist('1')
+
+    expect(result).toEqual({
+      id: 1,
+      uuid: 'abc-123',
+      name: 'Test Deck',
+      dateCreation: '2020-05-05T21:27:41+00:00',
+      cards: { '01001': 3 },
+    })
+  })
+
+  it('reports dateCreation as null when the API response omits it', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
         data: [{ id: 1, uuid: 'abc-123', name: 'Test Deck', cards: { '01001': 3 } }],
       }),
     })) as unknown as typeof fetch
 
     const result = await fetchDecklist('1')
 
-    expect(result).toEqual({ id: 1, uuid: 'abc-123', name: 'Test Deck', cards: { '01001': 3 } })
+    expect(result.dateCreation).toBeNull()
   })
 
   it('fetches from the exact expected NetrunnerDB URL', async () => {

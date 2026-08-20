@@ -23,7 +23,19 @@ const sampleDeck: DiscoverDeck = {
   percentOwned: 100,
   missingCopies: 0,
   cards: [
-    { code: '01001', title: 'Card A', factionName: 'Anarch', neededQuantity: 3, ownedQuantity: 3, found: true },
+    {
+      code: '01001',
+      title: 'Card A',
+      factionName: 'Anarch',
+      typeCode: 'program',
+      typeName: 'Program',
+      sideCode: 'runner',
+      keywords: null,
+      influenceCost: 0,
+      neededQuantity: 3,
+      ownedQuantity: 3,
+      found: true,
+    },
   ],
   formatLegality: [],
 }
@@ -349,8 +361,8 @@ describe('DiscoverSection format legality badges', () => {
     const deckWithLegality: DiscoverDeck = {
       ...sampleDeck,
       formatLegality: [
-        { formatCode: 'standard', formatName: 'Standard', legal: true },
-        { formatCode: 'startup', formatName: 'Startup', legal: false },
+        { formatCode: 'standard', formatName: 'Standard', legal: true, activeRestrictionName: null, isPreRotation: null },
+        { formatCode: 'startup', formatName: 'Startup', legal: false, activeRestrictionName: null, isPreRotation: null },
       ],
     }
     const user = userEvent.setup()

@@ -68,6 +68,39 @@ describe('importAllCardData', () => {
     expect(pack.setType).toBe('core')
   })
 
+  it('imports agendaPoints for agenda cards and leaves it null for other types', async () => {
+    await importAllCardData(
+      prisma,
+      makeFetch({
+        'types.json': [
+          { code: 'program', name: 'Program', side_code: 'runner' },
+          { code: 'agenda', name: 'Agenda', side_code: 'corp' },
+        ],
+        'pack/core.json': [
+          {
+            code: '01055',
+            title: 'Accelerated Beta Test',
+            type_code: 'agenda',
+            faction_code: 'anarch',
+            pack_code: 'core',
+            side_code: 'corp',
+            agenda_points: 2,
+            quantity: 3,
+            position: 55,
+            uniqueness: false,
+          },
+        ],
+      })
+    )
+
+    const card = await prisma.card.findUniqueOrThrow({ where: { code: '01055' } })
+    expect(card.agendaPoints).toBe(2)
+
+    // This suite has no beforeEach cleanup — other tests assume a single
+    // '01007' card total, so remove the row this test introduced.
+    await prisma.card.delete({ where: { code: '01055' } })
+  })
+
   it('leaves setType null when a pack has no matching entry in the v2 card_sets data', async () => {
     await importAllCardData(
       prisma,

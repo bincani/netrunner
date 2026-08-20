@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { addToCollection, updateCollectionQuantity } from '@/actions/collectionActions'
 import { CardDetailPopup } from '@/components/CardDetailPopup'
+import { SideBadge } from '@/components/SideBadge'
 import type { CardSearchResult } from '@/lib/cards'
 
 export function CardBuilderForm() {
@@ -92,7 +93,10 @@ export function CardBuilderForm() {
             <li key={card.code} className="flex items-center gap-4 p-3">
               <CardDetailPopup card={card} />
               <div className="flex-1">
-                <div className="font-medium">{card.title}</div>
+                <div className="flex items-center gap-2 font-medium">
+                  <SideBadge sideCode={card.sideCode} />
+                  {card.title}
+                </div>
                 <div className="text-sm text-muted">
                   {card.factionCode} ·{' '}
                   <Link href={`/sets/${card.packCode}`} className="underline hover:text-primary">
