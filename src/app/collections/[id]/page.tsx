@@ -31,7 +31,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
   ])
 
   return (
-    <main className="p-8 max-w-7xl mx-auto space-y-8">
+    <main className="w-3/5 space-y-8 p-8">
       <div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
