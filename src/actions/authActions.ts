@@ -15,6 +15,8 @@ import {
   deleteSession,
   consumeVerificationToken,
   markEmailVerified,
+  updateUserPassword,
+  deleteAllSessionsForUser,
 } from '@/lib/auth'
 import { sendEmail } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -111,4 +113,33 @@ export async function verifyEmail(token: string): Promise<void> {
     throw new Error('This link has expired or is invalid')
   }
   await markEmailVerified(prisma, result.userId)
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const normalizedEmail = normalizeEmail(email)
+  assertRateLimit('requestPasswordReset', await clientIp(), normalizedEmail, 5, 60 * 60 * 1000)
+
+  const user = await findUserByEmail(prisma, normalizedEmail)
+  if (user) {
+    const token = await createVerificationToken(prisma, user.id, 'password_reset')
+    await sendEmail(
+      normalizedEmail,
+      'Reset your password',
+      `Click to reset your password: ${await baseUrl()}/reset-password?token=${token}`
+    )
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
+  }
+
+  const result = await consumeVerificationToken(prisma, token, 'password_reset')
+  if (!result) {
+    throw new Error('This link has expired or is invalid')
+  }
+
+  await updateUserPassword(prisma, result.userId, hashPassword(newPassword))
+  await deleteAllSessionsForUser(prisma, result.userId)
 }

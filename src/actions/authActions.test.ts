@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
-import { createUser, hashPassword, createSession, createVerificationToken } from '@/lib/auth'
+import { createUser, hashPassword, createSession, createVerificationToken, verifyCredentials } from '@/lib/auth'
 
 vi.mock('server-only', () => ({}))
 
@@ -35,7 +35,7 @@ vi.mock('@/lib/email', () => ({
   },
 }))
 
-const { signUp, logIn, logOut, verifyEmail } = await import('./authActions')
+const { signUp, logIn, logOut, verifyEmail, requestPasswordReset, resetPassword } = await import('./authActions')
 
 let prisma: PrismaClient
 
@@ -148,5 +148,43 @@ describe('verifyEmail', () => {
 
   it('throws for an invalid token', async () => {
     await expect(verifyEmail('not-a-real-token')).rejects.toThrow(/expired or is invalid/)
+  })
+})
+
+describe('requestPasswordReset', () => {
+  it('sends a reset email for a known address', async () => {
+    await createUser(prisma, 'xena@example.com', hashPassword('password123'))
+    await requestPasswordReset('xena@example.com')
+    expect(sentEmails).toHaveLength(1)
+    expect(sentEmails[0].subject).toMatch(/reset/i)
+  })
+
+  it('resolves the same way for an unknown address, sending no email', async () => {
+    await expect(requestPasswordReset('nobody@example.com')).resolves.toBeUndefined()
+    expect(sentEmails).toHaveLength(0)
+  })
+})
+
+describe('resetPassword', () => {
+  it('sets a new password and invalidates existing sessions', async () => {
+    const userId = await createUser(prisma, 'yves@example.com', hashPassword('old-password'))
+    const { token: sessionToken } = await createSession(prisma, userId)
+    const resetToken = await createVerificationToken(prisma, userId, 'password_reset')
+
+    await resetPassword(resetToken, 'new-password-123')
+
+    expect(await verifyCredentials(prisma, 'yves@example.com', 'old-password')).toBeNull()
+    expect(await verifyCredentials(prisma, 'yves@example.com', 'new-password-123')).not.toBeNull()
+    expect(await prisma.session.findUnique({ where: { id: sessionToken } })).toBeNull()
+  })
+
+  it('rejects a new password under 8 characters', async () => {
+    const userId = await createUser(prisma, 'zara@example.com', hashPassword('old-password'))
+    const resetToken = await createVerificationToken(prisma, userId, 'password_reset')
+    await expect(resetPassword(resetToken, 'short')).rejects.toThrow(/8 characters/)
+  })
+
+  it('throws for an invalid or already-used token', async () => {
+    await expect(resetPassword('not-a-real-token', 'new-password-123')).rejects.toThrow(/expired or is invalid/)
   })
 })
