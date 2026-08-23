@@ -199,3 +199,40 @@ model BatchCard {
 
   @@id([batchId, cardCode])
 }
+
+model User {
+  id                 Int                  @id @default(autoincrement())
+  /// Always stored lowercased/trimmed — lookups normalize the same way.
+  email              String               @unique
+  /// "<saltHex>:<derivedKeyHex>" — see hashPassword/verifyPasswordHash in src/lib/auth.ts.
+  passwordHash       String
+  emailVerifiedAt    DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  sessions           Session[]
+  verificationTokens VerificationToken[]
+}
+
+model Session {
+  /// The random token itself is the primary key and the cookie value.
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  /// The random token itself, same pattern as Session.id.
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 'email_verify' | 'password_reset'
+  purpose   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose])
+}
