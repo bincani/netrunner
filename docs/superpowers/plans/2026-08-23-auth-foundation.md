@@ -1007,6 +1007,8 @@ Both throw a plain `Error` on failure (see Global Constraints) and never call `r
 
 - [ ] **Step 1: Write the failing test**
 
+This file uses **one shared `beforeAll`/`afterAll`/`beforeEach`** at the top of the file — matching `src/lib/auth.test.ts`'s and `src/lib/batches.test.ts`'s existing convention of a single `createTestDb()` per file, not one per `describe` block (a fresh temp SQLite DB is a real subprocess call — `testDb.ts` shells out to `npx prisma db push` — so creating one per `describe` would make this file needlessly slow, on top of being inconsistent with the rest of the codebase). Tasks 10 and 11 extend this same shared block rather than adding their own.
+
 ```ts
 // src/actions/authActions.test.ts
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
@@ -1031,10 +1033,6 @@ vi.mock('next/headers', () => ({
   headers: async () => new Map([['x-forwarded-for', '127.0.0.1']]),
 }))
 
-vi.mock('next/navigation', () => ({
-  redirect: vi.fn(),
-}))
-
 const sentEmails: { to: string; subject: string; html: string }[] = []
 vi.mock('@/lib/email', () => ({
   sendEmail: async (to: string, subject: string, html: string) => {
@@ -1044,26 +1042,26 @@ vi.mock('@/lib/email', () => ({
 
 const { signUp, logIn } = await import('./authActions')
 
+let prisma: PrismaClient
+
+beforeAll(() => {
+  prisma = createTestDb()
+  dbHolder.prisma = prisma
+})
+
+afterAll(async () => {
+  await prisma.$disconnect()
+})
+
+beforeEach(async () => {
+  cookieStore.clear()
+  sentEmails.length = 0
+  await prisma.session.deleteMany()
+  await prisma.verificationToken.deleteMany()
+  await prisma.user.deleteMany()
+})
+
 describe('signUp', () => {
-  let prisma: PrismaClient
-
-  beforeAll(() => {
-    prisma = createTestDb()
-    dbHolder.prisma = prisma
-  })
-
-  afterAll(async () => {
-    await prisma.$disconnect()
-  })
-
-  beforeEach(async () => {
-    cookieStore.clear()
-    sentEmails.length = 0
-    await prisma.session.deleteMany()
-    await prisma.verificationToken.deleteMany()
-    await prisma.user.deleteMany()
-  })
-
   it('creates a user, logs them in, and sends a verification email', async () => {
     await signUp('quinn@example.com', 'password123')
 
@@ -1094,23 +1092,6 @@ describe('signUp', () => {
 })
 
 describe('logIn', () => {
-  let prisma: PrismaClient
-
-  beforeAll(() => {
-    prisma = createTestDb()
-    dbHolder.prisma = prisma
-  })
-
-  afterAll(async () => {
-    await prisma.$disconnect()
-  })
-
-  beforeEach(async () => {
-    cookieStore.clear()
-    await prisma.session.deleteMany()
-    await prisma.user.deleteMany()
-  })
-
   it('logs in with correct credentials', async () => {
     await createUser(prisma, 'tara@example.com', hashPassword('password123'))
     await logIn('tara@example.com', 'password123')
@@ -1270,48 +1251,46 @@ git commit -m "Add signUp and logIn actions"
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `src/actions/authActions.test.ts` (extend the `next/navigation` mock to capture the redirect target, and add new imports/describe blocks):
+Extend `src/actions/authActions.test.ts` (established in Task 9) in place — do not create a second `beforeAll`/`afterAll`/`beforeEach` block; this file keeps exactly one of each, shared by every `describe` block, per Task 9's note on test-file structure.
+
+1. Add a `next/navigation` mock, right after the existing `next/headers` mock:
 
 ```ts
-// Replace the existing `vi.mock('next/navigation', ...)` block with:
 const redirectSpy = vi.fn()
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => redirectSpy(url),
 }))
 ```
 
+2. Extend the existing `@/lib/auth` import to also pull in `createSession, createVerificationToken`:
+
 ```ts
 import { createUser, hashPassword, createSession, createVerificationToken } from '@/lib/auth'
 ```
 
-(add `createSession, createVerificationToken` to the existing `@/lib/auth` import)
+3. Replace the existing destructured-import line with:
 
 ```ts
 const { signUp, logIn, logOut, verifyEmail } = await import('./authActions')
 ```
 
-(replace the existing destructured import line with this one)
+4. Add `redirectSpy.mockClear()` into the existing shared `beforeEach` (alongside `cookieStore.clear()` and the rest) — it now reads:
+
+```ts
+beforeEach(async () => {
+  cookieStore.clear()
+  redirectSpy.mockClear()
+  sentEmails.length = 0
+  await prisma.session.deleteMany()
+  await prisma.verificationToken.deleteMany()
+  await prisma.user.deleteMany()
+})
+```
+
+5. Add two new `describe` blocks (no new `beforeAll`/`afterAll`/`beforeEach` inside them — they use the file's shared ones):
 
 ```ts
 describe('logOut', () => {
-  let prisma: PrismaClient
-
-  beforeAll(() => {
-    prisma = createTestDb()
-    dbHolder.prisma = prisma
-  })
-
-  afterAll(async () => {
-    await prisma.$disconnect()
-  })
-
-  beforeEach(async () => {
-    cookieStore.clear()
-    redirectSpy.mockClear()
-    await prisma.session.deleteMany()
-    await prisma.user.deleteMany()
-  })
-
   it('deletes the session, clears the cookie, and redirects to /login', async () => {
     const userId = await createUser(prisma, 'vic@example.com', hashPassword('password123'))
     const { token } = await createSession(prisma, userId)
@@ -1331,23 +1310,6 @@ describe('logOut', () => {
 })
 
 describe('verifyEmail', () => {
-  let prisma: PrismaClient
-
-  beforeAll(() => {
-    prisma = createTestDb()
-    dbHolder.prisma = prisma
-  })
-
-  afterAll(async () => {
-    await prisma.$disconnect()
-  })
-
-  beforeEach(async () => {
-    await prisma.verificationToken.deleteMany()
-    await prisma.session.deleteMany()
-    await prisma.user.deleteMany()
-  })
-
   it('marks the email verified for a valid token', async () => {
     const userId = await createUser(prisma, 'wren@example.com', hashPassword('password123'))
     const token = await createVerificationToken(prisma, userId, 'email_verify')
@@ -1437,38 +1399,24 @@ git commit -m "Add logOut and verifyEmail actions"
 
 - [ ] **Step 1: Write the failing test**
 
+Extend `src/actions/authActions.test.ts` in place — same rule as Task 10: one shared `beforeAll`/`afterAll`/`beforeEach` for the whole file, no new ones per `describe`. This task doesn't need to touch the shared `beforeEach` (it already clears `verificationToken`, `session`, `user`, and `sentEmails`, which is everything these tests need).
+
+1. Extend the existing `@/lib/auth` import to also pull in `verifyCredentials`:
+
 ```ts
 import { createUser, hashPassword, createSession, createVerificationToken, verifyCredentials } from '@/lib/auth'
 ```
 
-(add `verifyCredentials` to the existing `@/lib/auth` import)
+2. Replace the existing destructured-import line with:
 
 ```ts
 const { signUp, logIn, logOut, verifyEmail, requestPasswordReset, resetPassword } = await import('./authActions')
 ```
 
-(replace the existing destructured import line with this one)
+3. Add two new `describe` blocks:
 
 ```ts
 describe('requestPasswordReset', () => {
-  let prisma: PrismaClient
-
-  beforeAll(() => {
-    prisma = createTestDb()
-    dbHolder.prisma = prisma
-  })
-
-  afterAll(async () => {
-    await prisma.$disconnect()
-  })
-
-  beforeEach(async () => {
-    sentEmails.length = 0
-    await prisma.verificationToken.deleteMany()
-    await prisma.session.deleteMany()
-    await prisma.user.deleteMany()
-  })
-
   it('sends a reset email for a known address', async () => {
     await createUser(prisma, 'xena@example.com', hashPassword('password123'))
     await requestPasswordReset('xena@example.com')
@@ -1483,23 +1431,6 @@ describe('requestPasswordReset', () => {
 })
 
 describe('resetPassword', () => {
-  let prisma: PrismaClient
-
-  beforeAll(() => {
-    prisma = createTestDb()
-    dbHolder.prisma = prisma
-  })
-
-  afterAll(async () => {
-    await prisma.$disconnect()
-  })
-
-  beforeEach(async () => {
-    await prisma.verificationToken.deleteMany()
-    await prisma.session.deleteMany()
-    await prisma.user.deleteMany()
-  })
-
   it('sets a new password and invalidates existing sessions', async () => {
     const userId = await createUser(prisma, 'yves@example.com', hashPassword('old-password'))
     const { token: sessionToken } = await createSession(prisma, userId)
