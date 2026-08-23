@@ -12,9 +12,15 @@ export function ForgotPasswordForm() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setIsSubmitting(true)
-    await requestPasswordReset(email)
-    setIsSubmitting(false)
-    setSubmitted(true)
+    try {
+      await requestPasswordReset(email)
+    } catch {
+      // Same confirmation regardless of outcome (including rate-limiting) —
+      // this form must never reveal server-side state to whoever submitted it.
+    } finally {
+      setIsSubmitting(false)
+      setSubmitted(true)
+    }
   }
 
   if (submitted) {
