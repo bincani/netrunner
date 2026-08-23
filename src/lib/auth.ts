@@ -29,7 +29,7 @@ export interface UserSummary {
   createdAt: Date
 }
 
-export function toUserSummary(user: { id: number; email: string; emailVerifiedAt: Date | null; createdAt: Date }): UserSummary {
+function toUserSummary(user: { id: number; email: string; emailVerifiedAt: Date | null; createdAt: Date }): UserSummary {
   return { id: user.id, email: user.email, emailVerifiedAt: user.emailVerifiedAt, createdAt: user.createdAt }
 }
 
