@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
-import { createUser, hashPassword } from '@/lib/auth'
+import { createUser, hashPassword, createSession, createVerificationToken } from '@/lib/auth'
 
 vi.mock('server-only', () => ({}))
 
@@ -23,6 +23,11 @@ vi.mock('next/headers', () => ({
   headers: async () => new Map([['x-forwarded-for', '127.0.0.1']]),
 }))
 
+const redirectSpy = vi.fn()
+vi.mock('next/navigation', () => ({
+  redirect: (url: string) => redirectSpy(url),
+}))
+
 const sentEmails: { to: string; subject: string; html: string }[] = []
 vi.mock('@/lib/email', () => ({
   sendEmail: async (to: string, subject: string, html: string) => {
@@ -30,7 +35,7 @@ vi.mock('@/lib/email', () => ({
   },
 }))
 
-const { signUp, logIn } = await import('./authActions')
+const { signUp, logIn, logOut, verifyEmail } = await import('./authActions')
 
 let prisma: PrismaClient
 
@@ -45,6 +50,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   cookieStore.clear()
+  redirectSpy.mockClear()
   sentEmails.length = 0
   await prisma.session.deleteMany()
   await prisma.verificationToken.deleteMany()
@@ -107,5 +113,40 @@ describe('logIn', () => {
 
     expect(wrongPasswordError).toBe('Invalid email or password')
     expect(unknownEmailError).toBe('Invalid email or password')
+  })
+})
+
+describe('logOut', () => {
+  it('deletes the session, clears the cookie, and redirects to /login', async () => {
+    const userId = await createUser(prisma, 'vic@example.com', hashPassword('password123'))
+    const { token } = await createSession(prisma, userId)
+    cookieStore.set('session', { value: token })
+
+    await logOut()
+
+    expect(cookieStore.get('session')).toBeUndefined()
+    expect(await prisma.session.findUnique({ where: { id: token } })).toBeNull()
+    expect(redirectSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('does not throw when there is no session cookie', async () => {
+    await expect(logOut()).resolves.toBeUndefined()
+    expect(redirectSpy).toHaveBeenCalledWith('/login')
+  })
+})
+
+describe('verifyEmail', () => {
+  it('marks the email verified for a valid token', async () => {
+    const userId = await createUser(prisma, 'wren@example.com', hashPassword('password123'))
+    const token = await createVerificationToken(prisma, userId, 'email_verify')
+
+    await verifyEmail(token)
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
+    expect(user.emailVerifiedAt).not.toBeNull()
+  })
+
+  it('throws for an invalid token', async () => {
+    await expect(verifyEmail('not-a-real-token')).rejects.toThrow(/expired or is invalid/)
   })
 })

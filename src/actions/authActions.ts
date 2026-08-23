@@ -1,6 +1,7 @@
 // src/actions/authActions.ts
 'use server'
 
+import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
 import { prisma } from '@/lib/db'
 import {
@@ -11,6 +12,9 @@ import {
   verifyCredentials,
   createSession,
   createVerificationToken,
+  deleteSession,
+  consumeVerificationToken,
+  markEmailVerified,
 } from '@/lib/auth'
 import { sendEmail } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -89,4 +93,22 @@ export async function logIn(email: string, password: string): Promise<void> {
 
   const { token, expiresAt } = await createSession(prisma, user.id)
   ;(await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt))
+}
+
+export async function logOut(): Promise<void> {
+  const store = await cookies()
+  const token = store.get(SESSION_COOKIE)?.value
+  if (token) {
+    await deleteSession(prisma, token)
+  }
+  store.delete(SESSION_COOKIE)
+  redirect('/login')
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  const result = await consumeVerificationToken(prisma, token, 'email_verify')
+  if (!result) {
+    throw new Error('This link has expired or is invalid')
+  }
+  await markEmailVerified(prisma, result.userId)
 }
