@@ -13,6 +13,9 @@ import {
   getSessionUser,
   deleteSession,
   deleteAllSessionsForUser,
+  createVerificationToken,
+  consumeVerificationToken,
+  markEmailVerified,
 } from './auth'
 
 describe('normalizeEmail', () => {
@@ -167,5 +170,44 @@ describe('deleteSession / deleteAllSessionsForUser', () => {
     expect(await getSessionUser(prisma, a1.token)).toBeNull()
     expect(await getSessionUser(prisma, a2.token)).toBeNull()
     expect(await getSessionUser(prisma, b1.token)).not.toBeNull()
+  })
+})
+
+describe('createVerificationToken / consumeVerificationToken', () => {
+  it('consumes a valid token exactly once', async () => {
+    const userId = await createUser(prisma, 'kim@example.com', hashPassword('password123'))
+    const token = await createVerificationToken(prisma, userId, 'email_verify')
+
+    const first = await consumeVerificationToken(prisma, token, 'email_verify')
+    expect(first?.userId).toBe(userId)
+
+    const second = await consumeVerificationToken(prisma, token, 'email_verify')
+    expect(second).toBeNull()
+  })
+
+  it('returns null for the wrong purpose', async () => {
+    const userId = await createUser(prisma, 'liam@example.com', hashPassword('password123'))
+    const token = await createVerificationToken(prisma, userId, 'email_verify')
+    expect(await consumeVerificationToken(prisma, token, 'password_reset')).toBeNull()
+  })
+
+  it('returns null for an expired token', async () => {
+    const userId = await createUser(prisma, 'mia@example.com', hashPassword('password123'))
+    const token = await createVerificationToken(prisma, userId, 'password_reset')
+    await prisma.verificationToken.update({ where: { id: token }, data: { expiresAt: new Date(Date.now() - 1000) } })
+    expect(await consumeVerificationToken(prisma, token, 'password_reset')).toBeNull()
+  })
+
+  it('returns null for an unknown token', async () => {
+    expect(await consumeVerificationToken(prisma, 'not-a-real-token', 'email_verify')).toBeNull()
+  })
+})
+
+describe('markEmailVerified', () => {
+  it('sets emailVerifiedAt', async () => {
+    const userId = await createUser(prisma, 'nina@example.com', hashPassword('password123'))
+    await markEmailVerified(prisma, userId)
+    const found = await findUserByEmail(prisma, 'nina@example.com')
+    expect(found?.emailVerifiedAt).not.toBeNull()
   })
 })
