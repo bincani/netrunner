@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
 import { getNavStyle } from '@/actions/settingsMutations'
 import { SettingsMenu } from '@/components/SettingsMenu'
+import { LogoutButton } from '@/components/LogoutButton'
 import { NavTopBar } from '@/components/NavTopBar'
 import { NavSidebar } from '@/components/NavSidebar'
 
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <NavSidebar />
             <div className="flex flex-1 flex-col">
               <div className="flex items-center justify-end gap-3 border-b border-subtle px-8 py-4">
+                <LogoutButton />
                 <SettingsMenu />
               </div>
               {children}
@@ -52,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <NavTopBar />
               </div>
               <div className="flex items-center gap-3">
+                <LogoutButton />
                 <SettingsMenu />
               </div>
             </nav>
