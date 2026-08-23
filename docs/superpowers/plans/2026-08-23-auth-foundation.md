@@ -323,7 +323,7 @@ export async function updateUserPassword(prisma: PrismaClient, userId: number, p
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/auth.test.ts`
-Expected: PASS (11 tests total)
+Expected: PASS (10 tests total)
 
 - [ ] **Step 5: Commit**
 
@@ -490,7 +490,7 @@ export async function deleteAllSessionsForUser(prisma: PrismaClient, userId: num
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/auth.test.ts`
-Expected: PASS (19 tests total)
+Expected: PASS (18 tests total)
 
 - [ ] **Step 5: Commit**
 
@@ -607,7 +607,7 @@ export async function markEmailVerified(prisma: PrismaClient, userId: number): P
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/auth.test.ts`
-Expected: PASS (24 tests total)
+Expected: PASS (23 tests total)
 
 - [ ] **Step 5: Commit**
 
