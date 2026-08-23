@@ -9,6 +9,10 @@ import {
   findUserByEmail,
   verifyCredentials,
   updateUserPassword,
+  createSession,
+  getSessionUser,
+  deleteSession,
+  deleteAllSessionsForUser,
 } from './auth'
 
 describe('normalizeEmail', () => {
@@ -89,5 +93,79 @@ describe('updateUserPassword', () => {
     await updateUserPassword(prisma, userId, hashPassword('new-password'))
     expect(await verifyCredentials(prisma, 'carol@example.com', 'old-password')).toBeNull()
     expect(await verifyCredentials(prisma, 'carol@example.com', 'new-password')).not.toBeNull()
+  })
+})
+
+describe('createSession / getSessionUser', () => {
+  it('returns the session owner for a freshly created session', async () => {
+    const userId = await createUser(prisma, 'dave@example.com', hashPassword('password123'))
+    const { token } = await createSession(prisma, userId)
+    const result = await getSessionUser(prisma, token)
+    expect(result?.user.email).toBe('dave@example.com')
+    expect(result?.refreshedExpiresAt).toBeNull()
+  })
+
+  it('returns null for an unknown token', async () => {
+    expect(await getSessionUser(prisma, 'not-a-real-token')).toBeNull()
+  })
+
+  it('returns null for an expired session', async () => {
+    const userId = await createUser(prisma, 'erin@example.com', hashPassword('password123'))
+    const { token } = await createSession(prisma, userId)
+    await prisma.session.update({ where: { id: token }, data: { expiresAt: new Date(Date.now() - 1000) } })
+    expect(await getSessionUser(prisma, token)).toBeNull()
+  })
+
+  it('extends expiresAt and reports refreshedExpiresAt when under 15 days remain', async () => {
+    const userId = await createUser(prisma, 'frank@example.com', hashPassword('password123'))
+    const { token } = await createSession(prisma, userId)
+    const soon = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) // 10 days left
+    await prisma.session.update({ where: { id: token }, data: { expiresAt: soon } })
+
+    const result = await getSessionUser(prisma, token)
+    expect(result?.refreshedExpiresAt).not.toBeNull()
+    expect(result!.refreshedExpiresAt!.getTime()).toBeGreaterThan(soon.getTime())
+
+    const stored = await prisma.session.findUniqueOrThrow({ where: { id: token } })
+    expect(stored.expiresAt.getTime()).toBe(result!.refreshedExpiresAt!.getTime())
+  })
+
+  it('does not refresh when more than 15 days remain', async () => {
+    const userId = await createUser(prisma, 'gina@example.com', hashPassword('password123'))
+    const { token } = await createSession(prisma, userId)
+    const farOut = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000) // 20 days left
+    await prisma.session.update({ where: { id: token }, data: { expiresAt: farOut } })
+
+    const result = await getSessionUser(prisma, token)
+    expect(result?.refreshedExpiresAt).toBeNull()
+  })
+})
+
+describe('deleteSession / deleteAllSessionsForUser', () => {
+  it('deleteSession removes only that session', async () => {
+    const userId = await createUser(prisma, 'henry@example.com', hashPassword('password123'))
+    const a = await createSession(prisma, userId)
+    const b = await createSession(prisma, userId)
+    await deleteSession(prisma, a.token)
+    expect(await getSessionUser(prisma, a.token)).toBeNull()
+    expect(await getSessionUser(prisma, b.token)).not.toBeNull()
+  })
+
+  it('deleteSession on an already-gone token does not throw', async () => {
+    await expect(deleteSession(prisma, 'never-existed')).resolves.toBeUndefined()
+  })
+
+  it('deleteAllSessionsForUser removes every session for that user and none for another', async () => {
+    const userA = await createUser(prisma, 'iris@example.com', hashPassword('password123'))
+    const userB = await createUser(prisma, 'jack@example.com', hashPassword('password123'))
+    const a1 = await createSession(prisma, userA)
+    const a2 = await createSession(prisma, userA)
+    const b1 = await createSession(prisma, userB)
+
+    await deleteAllSessionsForUser(prisma, userA)
+
+    expect(await getSessionUser(prisma, a1.token)).toBeNull()
+    expect(await getSessionUser(prisma, a2.token)).toBeNull()
+    expect(await getSessionUser(prisma, b1.token)).not.toBeNull()
   })
 })

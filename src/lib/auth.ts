@@ -29,7 +29,7 @@ export interface UserSummary {
   createdAt: Date
 }
 
-function toUserSummary(user: { id: number; email: string; emailVerifiedAt: Date | null; createdAt: Date }): UserSummary {
+export function toUserSummary(user: { id: number; email: string; emailVerifiedAt: Date | null; createdAt: Date }): UserSummary {
   return { id: user.id, email: user.email, emailVerifiedAt: user.emailVerifiedAt, createdAt: user.createdAt }
 }
 
@@ -56,4 +56,46 @@ export async function verifyCredentials(
 
 export async function updateUserPassword(prisma: PrismaClient, userId: number, passwordHash: string): Promise<void> {
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
+}
+
+const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+const SESSION_REFRESH_THRESHOLD_MS = 15 * 24 * 60 * 60 * 1000 // refresh once under 15 days remain
+
+function generateToken(): string {
+  return randomBytes(32).toString('base64url')
+}
+
+export interface SessionResult {
+  user: UserSummary
+  refreshedExpiresAt: Date | null
+}
+
+export async function createSession(prisma: PrismaClient, userId: number): Promise<{ token: string; expiresAt: Date }> {
+  const token = generateToken()
+  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+  await prisma.session.create({ data: { id: token, userId, expiresAt } })
+  return { token, expiresAt }
+}
+
+export async function getSessionUser(prisma: PrismaClient, token: string): Promise<SessionResult | null> {
+  const session = await prisma.session.findUnique({ where: { id: token }, include: { user: true } })
+  if (!session) return null
+  if (session.expiresAt.getTime() <= Date.now()) return null
+
+  let refreshedExpiresAt: Date | null = null
+  const remainingMs = session.expiresAt.getTime() - Date.now()
+  if (remainingMs < SESSION_REFRESH_THRESHOLD_MS) {
+    refreshedExpiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+    await prisma.session.update({ where: { id: token }, data: { expiresAt: refreshedExpiresAt } })
+  }
+
+  return { user: toUserSummary(session.user), refreshedExpiresAt }
+}
+
+export async function deleteSession(prisma: PrismaClient, token: string): Promise<void> {
+  await prisma.session.deleteMany({ where: { id: token } })
+}
+
+export async function deleteAllSessionsForUser(prisma: PrismaClient, userId: number): Promise<void> {
+  await prisma.session.deleteMany({ where: { userId } })
 }
