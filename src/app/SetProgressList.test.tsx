@@ -60,6 +60,22 @@ describe('SetProgressList', () => {
     expect(screen.getByText('(2013)')).toBeInTheDocument()
   })
 
+  it('gives a partially-owned set a bold diagonal-striped fill and a fully-owned one a flat fill', () => {
+    const fullSet: SetCompletion = { ...sets[0], packCode: 'full', ownedCount: 10, totalCount: 10, percentOwned: 100 }
+    const { container } = render(<SetProgressList sets={[fullSet, sets[0]]} collectionId={1} />)
+
+    const fills = container.querySelectorAll('.bg-success') as NodeListOf<HTMLElement>
+    expect(fills[0].style.backgroundImage).toBe('')
+    expect(fills[1].style.backgroundImage).toContain('repeating-linear-gradient')
+    expect(fills[1].style.backgroundImage).toContain('rgba(0, 0, 0, 0.3)')
+  })
+
+  it('renders the remaining (unfilled) track as grey', () => {
+    const { container } = render(<SetProgressList sets={sets} collectionId={1} />)
+
+    expect(container.querySelector('.bg-default')).not.toBeNull()
+  })
+
   it("shows each set's type badge next to its name", () => {
     render(<SetProgressList sets={sets} collectionId={1} />)
 
