@@ -259,7 +259,11 @@ export async function importCsvAsBatch(
       startedAt: now,
       elapsedMs: 0,
       lastResumedAt: null,
-      cards: { createMany: { data: toInsert.map((row) => ({ cardCode: row.cardCode, quantity: row.quantity })) } },
+      cards: {
+        createMany: {
+          data: toInsert.map((row, index) => ({ cardCode: row.cardCode, quantity: row.quantity, sortIndex: index })),
+        },
+      },
     },
   })
 

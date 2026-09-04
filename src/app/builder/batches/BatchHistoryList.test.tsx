@@ -29,6 +29,7 @@ const batches: BatchSummary[] = [
     status: 'approved',
     currentCount: 3,
     elapsedMs: 65000,
+    activeDurationMs: null,
     collectionId: 1,
     collectionName: 'My Collection',
     cards: [{ code: '01001', title: 'Card A', sideCode: 'runner', quantity: 3, packName: 'Core Set' }],
@@ -40,6 +41,7 @@ const batches: BatchSummary[] = [
     status: 'discarded',
     currentCount: 1,
     elapsedMs: 5000,
+    activeDurationMs: null,
     collectionId: 2,
     collectionName: 'Trade Binder',
     cards: [{ code: '01002', title: 'Card B', sideCode: 'runner', quantity: 1, packName: 'Core Set' }],
@@ -103,6 +105,45 @@ describe('BatchHistoryList', () => {
     await user.click(screen.getByRole('button', { name: /Batch A/ }))
 
     expect(screen.getByRole('img', { name: 'Runner' })).toBeInTheDocument()
+  })
+
+  it('shows a sort toggle for an opened batch\'s card list', async () => {
+    const user = userEvent.setup()
+    render(<BatchHistoryList batches={batches} />)
+
+    await user.click(screen.getByRole('button', { name: /Batch A/ }))
+
+    expect(screen.getByRole('button', { name: 'Added order' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Set name' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Card name' })).toBeInTheDocument()
+  })
+
+  it('shows the set name to the left of each card in an opened batch', async () => {
+    const user = userEvent.setup()
+    render(<BatchHistoryList batches={batches} />)
+
+    await user.click(screen.getByRole('button', { name: /Batch A/ }))
+
+    expect(screen.getByText('Core Set')).toBeInTheDocument()
+  })
+
+  it('shows the editing time (elapsedMs), labeled', () => {
+    render(<BatchHistoryList batches={batches} />)
+
+    expect(screen.getByText(/Editing 1:05/)).toBeInTheDocument()
+  })
+
+  it('shows the active-for duration when archivedAt was recorded', () => {
+    const withDuration: BatchSummary = { ...batches[0], activeDurationMs: 2 * 3600000 + 15 * 60000 }
+    render(<BatchHistoryList batches={[withDuration]} />)
+
+    expect(screen.getByText(/Active for 2h 15m/)).toBeInTheDocument()
+  })
+
+  it('shows a placeholder for active-for duration when archivedAt was never recorded', () => {
+    render(<BatchHistoryList batches={[batches[0]]} />)
+
+    expect(screen.getByText(/Active for —/)).toBeInTheDocument()
   })
 
   it('opening one batch closes a previously-open one', async () => {

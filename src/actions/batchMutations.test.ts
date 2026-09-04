@@ -181,8 +181,27 @@ describe('addCardToBatch', () => {
 
     await addCardToBatch(prisma, batchId, '01002', 1)
 
-    const cards = await prisma.batchCard.findMany({ where: { batchId }, orderBy: { createdAt: 'asc' } })
+    const cards = await prisma.batchCard.findMany({ where: { batchId }, orderBy: { sortIndex: 'asc' } })
     expect(cards.map((card) => card.cardCode)).toEqual(['01002', '01001'])
+  })
+
+  it('assigns each newly added card the next sortIndex, starting at 0', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
+    await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
+    await seedCard(prisma, { code: '01003', title: 'Card C', packCode: 'core' })
+    const batchId = await startBatch(prisma, collectionId, 60)
+
+    await addCardToBatch(prisma, batchId, '01003', 1)
+    await addCardToBatch(prisma, batchId, '01002', 1)
+    await addCardToBatch(prisma, batchId, '01001', 1)
+
+    const cards = await prisma.batchCard.findMany({ where: { batchId }, orderBy: { sortIndex: 'asc' } })
+    expect(cards.map((card) => ({ cardCode: card.cardCode, sortIndex: card.sortIndex }))).toEqual([
+      { cardCode: '01003', sortIndex: 0 },
+      { cardCode: '01002', sortIndex: 1 },
+      { cardCode: '01001', sortIndex: 2 },
+    ])
   })
 
   it('does not report newSet again when adding more of the same card already in the batch', async () => {
@@ -293,6 +312,17 @@ describe('discardBatch', () => {
 
     await expect(discardBatch(prisma, batchId)).rejects.toThrow('status "running"')
   })
+
+  it('sets archivedAt', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await pauseBatch(prisma, batchId)
+
+    await discardBatch(prisma, batchId)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.archivedAt).not.toBeNull()
+  })
 })
 
 describe('approveBatch', () => {
@@ -346,6 +376,17 @@ describe('approveBatch', () => {
     await expect(approveBatch(prisma, collectionId, batchId)).rejects.toThrow('status "running"')
   })
 
+  it('sets archivedAt', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await pauseBatch(prisma, batchId)
+
+    await approveBatch(prisma, collectionId, batchId)
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.archivedAt).not.toBeNull()
+  })
+
   it('allows re-approving a reverted (discarded) batch, re-merging its cards', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
@@ -361,6 +402,24 @@ describe('approveBatch', () => {
     expect(await getOwnedQuantity(prisma, collectionId, '01001')).toBe(3)
     const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
     expect(batch.status).toBe('approved')
+  })
+
+  it("does not move archivedAt when a reverted batch is re-approved — it marks when building first finished, not later toggling", async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+    const batchId = await startBatch(prisma, collectionId, 60)
+    await pauseBatch(prisma, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+    const firstApproval = (await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })).archivedAt
+
+    vi.setSystemTime(new Date('2026-01-02T00:00:00Z'))
+    await revertApprovedBatch(prisma, collectionId, batchId)
+    await approveBatch(prisma, collectionId, batchId)
+    vi.useRealTimers()
+
+    const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+    expect(batch.archivedAt).toEqual(firstApproval)
   })
 
   it('rejects approving a batch into a collection it does not belong to', async () => {

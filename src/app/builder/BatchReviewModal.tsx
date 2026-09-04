@@ -2,8 +2,7 @@
 
 import { useEffect } from 'react'
 import type { BatchCardEntry } from '@/lib/batches'
-import { CardDetailPopup } from '@/components/CardDetailPopup'
-import { SideBadge } from '@/components/SideBadge'
+import { BatchCardList } from './BatchCardList'
 
 export function BatchReviewModal({
   batchName,
@@ -38,7 +37,7 @@ export function BatchReviewModal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-lg bg-surface p-4"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-lg bg-surface p-4"
       >
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-lg font-bold">{batchName}</h3>
@@ -52,29 +51,7 @@ export function BatchReviewModal({
           </button>
         </div>
 
-        <ul className="space-y-1 text-sm">
-          {cards.map((card) => (
-            <li key={card.code} className="flex items-center gap-3">
-              <SideBadge sideCode={card.sideCode} />
-              <span className="w-24 shrink-0 truncate text-xs text-muted" title={card.packName}>
-                {card.packName}
-              </span>
-              <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
-              <span className="ml-auto flex shrink-0 items-center gap-2">
-                <span>{card.quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveCard(card.code)}
-                  aria-label={`Remove ${card.title}`}
-                  className="cursor-pointer text-faint hover:text-danger"
-                >
-                  ✕
-                </button>
-              </span>
-            </li>
-          ))}
-          {cards.length === 0 && <li className="text-faint">No cards were added to this batch.</li>}
-        </ul>
+        <BatchCardList cards={cards} onRemoveCard={onRemoveCard} />
 
         <div className="flex justify-end gap-2 pt-2">
           <button

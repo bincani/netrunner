@@ -77,6 +77,41 @@ describe('BatchReviewModal', () => {
     expect(screen.getByText('Card B')).toBeInTheDocument()
   })
 
+  it('widens the modal panel to fit the set name column', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    const panel = screen.getByRole('presentation').firstElementChild as HTMLElement
+    expect(panel.className).toContain('max-w-lg')
+  })
+
+  it('renders a sort toggle for the card list', () => {
+    render(
+      <BatchReviewModal
+        batchName="Batch Test"
+        cards={cards}
+        isSubmitting={false}
+        onDiscard={vi.fn()}
+        onApprove={vi.fn()}
+        onRemoveCard={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Added order' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Set name' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Card name' })).toBeInTheDocument()
+  })
+
   it('shows the set name to the left of each card name', () => {
     render(
       <BatchReviewModal

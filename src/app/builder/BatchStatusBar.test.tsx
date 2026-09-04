@@ -12,6 +12,7 @@ const runningBatch: BatchSummary = {
   status: 'running',
   currentCount: 23,
   elapsedMs: 65000,
+  activeDurationMs: null,
   collectionId: 1,
   collectionName: 'My Collection',
   cards: [],

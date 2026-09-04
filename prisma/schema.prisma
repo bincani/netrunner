@@ -184,18 +184,26 @@ model Batch {
   /// Set when status is 'running'; null otherwise. Live elapsed while
   /// running = elapsedMs + (now - lastResumedAt).
   lastResumedAt DateTime?
+  /// Set once, the first time this batch leaves the active states (via
+  /// approveBatch or discardBatch) — never touched again by a later
+  /// revert/re-approve toggle. archivedAt - startedAt is the batch's total
+  /// wall-clock lifetime, including paused time (unlike elapsedMs).
+  archivedAt    DateTime?
   cards         BatchCard[]
 }
 
 model BatchCard {
   batchId   Int
-  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch     Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
   cardCode  String
-  card      Card     @relation(fields: [cardCode], references: [code])
+  card      Card   @relation(fields: [cardCode], references: [code])
   quantity  Int
-  /// Set once, at first add — an increment-only upsert never rewrites it, so
-  /// this stays the batch's card-add order even as quantity accumulates.
-  createdAt DateTime @default(now())
+  /// Set once, at first add, to one more than the batch's current max —
+  /// an increment-only upsert never rewrites it, so this stays the
+  /// batch's card-add order even as quantity accumulates. Deliberately
+  /// an app-assigned counter rather than a timestamp: rows created in
+  /// the same millisecond (CSV import, rapid clicks) would otherwise tie.
+  sortIndex Int    @default(0)
 
   @@id([batchId, cardCode])
 }

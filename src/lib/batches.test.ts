@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard, seedCollection } from './testFixtures'
-import { getActiveBatch, listArchivedBatches, formatElapsedMs, formatBatchName } from './batches'
+import { getActiveBatch, listArchivedBatches, formatElapsedMs, formatBatchName, formatDurationLong } from './batches'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -86,8 +86,8 @@ describe('getActiveBatch', () => {
         lastResumedAt: new Date(),
       },
     })
-    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01002', quantity: 1 } })
-    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01001', quantity: 1 } })
+    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01002', quantity: 1, sortIndex: 0 } })
+    await prisma.batchCard.create({ data: { batchId: batch.id, cardCode: '01001', quantity: 1, sortIndex: 1 } })
 
     const active = await getActiveBatch(prisma, collectionId)
 
@@ -146,6 +146,36 @@ describe('listArchivedBatches', () => {
   it('returns an empty list when nothing is archived', async () => {
     const { id: collectionId } = await seedCollection(prisma)
     expect(await listArchivedBatches(prisma, collectionId)).toEqual([])
+  })
+
+  it('computes activeDurationMs from startedAt and archivedAt', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.batch.create({
+      data: {
+        collectionId,
+        name: 'Batch',
+        expectedCount: 10,
+        status: 'approved',
+        elapsedMs: 0,
+        startedAt: new Date('2026-01-01T00:00:00Z'),
+        archivedAt: new Date('2026-01-01T00:05:00Z'),
+      },
+    })
+
+    const [batch] = await listArchivedBatches(prisma, collectionId)
+
+    expect(batch.activeDurationMs).toBe(5 * 60000)
+  })
+
+  it('reports null activeDurationMs when archivedAt was never set (pre-migration batches)', async () => {
+    const { id: collectionId } = await seedCollection(prisma)
+    await prisma.batch.create({
+      data: { collectionId, name: 'Batch', expectedCount: 10, status: 'approved', elapsedMs: 0 },
+    })
+
+    const [batch] = await listArchivedBatches(prisma, collectionId)
+
+    expect(batch.activeDurationMs).toBeNull()
   })
 
   it('returns approved and discarded batches, most recent first', async () => {
@@ -248,5 +278,27 @@ describe('formatElapsedMs', () => {
 
   it('formats over an hour as accumulated minutes, not hours', () => {
     expect(formatElapsedMs(3665000)).toBe('61:05')
+  })
+})
+
+describe('formatDurationLong', () => {
+  it('formats under a minute as seconds', () => {
+    expect(formatDurationLong(45000)).toBe('45s')
+  })
+
+  it('formats zero as 0s', () => {
+    expect(formatDurationLong(0)).toBe('0s')
+  })
+
+  it('formats under an hour as minutes and seconds', () => {
+    expect(formatDurationLong(5 * 60000 + 12000)).toBe('5m 12s')
+  })
+
+  it('formats under a day as hours and minutes', () => {
+    expect(formatDurationLong(2 * 3600000 + 15 * 60000)).toBe('2h 15m')
+  })
+
+  it('formats a day or more as days and hours', () => {
+    expect(formatDurationLong(3 * 86400000 + 4 * 3600000)).toBe('3d 4h')
   })
 })

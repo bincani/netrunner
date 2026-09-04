@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { approveBatch, revertApprovedBatch } from '@/actions/batchActions'
-import { formatElapsedMs, type BatchSummary } from '@/lib/batches'
-import { CardDetailPopup } from '@/components/CardDetailPopup'
-import { SideBadge } from '@/components/SideBadge'
+import { formatElapsedMs, formatDurationLong, type BatchSummary } from '@/lib/batches'
+import { BatchCardList } from '../BatchCardList'
 
 export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSummary[] }) {
   const [batches, setBatches] = useState<BatchSummary[]>(initialBatches)
@@ -65,8 +64,9 @@ export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSu
                     </span>
                   </div>
                   <p className="text-sm text-muted">
-                    {batch.collectionName} · {formatElapsedMs(batch.elapsedMs)} · {batch.currentCount} of{' '}
-                    {batch.expectedCount}
+                    {batch.collectionName} · Editing {formatElapsedMs(batch.elapsedMs)} · Active for{' '}
+                    {batch.activeDurationMs !== null ? formatDurationLong(batch.activeDurationMs) : '—'} ·{' '}
+                    {batch.currentCount} of {batch.expectedCount}
                   </p>
                 </div>
                 <span className="shrink-0 text-faint" aria-hidden="true">
@@ -120,16 +120,9 @@ export function BatchHistoryList({ batches: initialBatches }: { batches: BatchSu
             )}
 
             {isOpen && (
-              <ul className="space-y-1 border-t border-subtle p-3 text-sm">
-                {batch.cards.map((card) => (
-                  <li key={card.code} className="flex items-center gap-3 text-muted">
-                    <SideBadge sideCode={card.sideCode} />
-                    <CardDetailPopup card={{ code: card.code, title: card.title }} trigger="text" />
-                    <span className="shrink-0 ml-auto">{card.quantity}</span>
-                  </li>
-                ))}
-                {batch.cards.length === 0 && <li className="text-faint">No cards were added to this batch.</li>}
-              </ul>
+              <div className="border-t border-subtle p-3">
+                <BatchCardList cards={batch.cards} />
+              </div>
             )}
           </li>
         )

@@ -79,9 +79,15 @@ export async function addCardToBatch(
     }
   }
 
+  // An app-assigned counter, not a timestamp — rows created in the same
+  // millisecond (rapid clicks, CSV import) would otherwise tie and fall
+  // back to the cardCode order this is meant to replace.
+  const maxSortIndex = await prisma.batchCard.aggregate({ where: { batchId }, _max: { sortIndex: true } })
+  const nextSortIndex = (maxSortIndex._max.sortIndex ?? -1) + 1
+
   await prisma.batchCard.upsert({
     where: { batchId_cardCode: { batchId, cardCode } },
-    create: { batchId, cardCode, quantity: amount },
+    create: { batchId, cardCode, quantity: amount, sortIndex: nextSortIndex },
     update: { quantity: { increment: amount } },
   })
 
@@ -116,7 +122,9 @@ export async function discardBatch(prisma: PrismaClient, batchId: number): Promi
   if (batch.status !== 'paused' && batch.status !== 'stopped') {
     throw new Error(`Cannot discard a batch with status "${batch.status}"`)
   }
-  await prisma.batch.update({ where: { id: batchId }, data: { status: 'discarded' } })
+  // Only reachable from 'paused'/'stopped' (never already-archived), so
+  // this is always the batch's first archive — always safe to set fresh.
+  await prisma.batch.update({ where: { id: batchId }, data: { status: 'discarded', archivedAt: new Date() } })
 }
 
 export async function approveBatch(prisma: PrismaClient, collectionId: number, batchId: number): Promise<void> {
@@ -143,7 +151,13 @@ export async function approveBatch(prisma: PrismaClient, collectionId: number, b
         update: { quantityOwned: { increment: batchCard.quantity } },
       })
     ),
-    prisma.batch.update({ where: { id: batchId }, data: { status: 'approved' } }),
+    // Only set on the batch's first archive — a re-approve of an already-
+    // once-archived (discarded, via revertApprovedBatch) batch preserves
+    // the original timestamp rather than overwriting it.
+    prisma.batch.update({
+      where: { id: batchId },
+      data: { status: 'approved', archivedAt: batch.archivedAt ?? new Date() },
+    }),
     touchCollection(prisma, collectionId),
   ])
 }

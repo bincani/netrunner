@@ -17,6 +17,13 @@ export interface BatchSummary {
   status: BatchStatus
   currentCount: number
   elapsedMs: number
+  /**
+   * Wall-clock time from startedAt to archivedAt — the batch's total
+   * lifetime including any paused time, unlike elapsedMs. Null while the
+   * batch is still active, or if it was archived before archivedAt
+   * existed.
+   */
+  activeDurationMs: number | null
   cards: BatchCardEntry[]
   collectionId: number
   collectionName: string
@@ -34,6 +41,20 @@ export function formatElapsedMs(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+/** Tiered human-readable duration (e.g. "3d 4h", "2h 15m", "5m 12s", "45s") for spans that can run from seconds to multiple days. */
+export function formatDurationLong(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m ${seconds}s`
+  return `${seconds}s`
+}
+
 function liveElapsedMs(elapsedMs: number, lastResumedAt: Date | null): number {
   if (!lastResumedAt) return elapsedMs
   return elapsedMs + (Date.now() - lastResumedAt.getTime())
@@ -44,8 +65,10 @@ interface BatchWithCards {
   name: string
   expectedCount: number
   status: string
+  startedAt: Date
   elapsedMs: number
   lastResumedAt: Date | null
+  archivedAt: Date | null
   collectionId: number
   collection: { name: string }
   cards: {
@@ -63,6 +86,7 @@ function toSummary(batch: BatchWithCards): BatchSummary {
     status: batch.status as BatchStatus,
     currentCount: batch.cards.reduce((sum, card) => sum + card.quantity, 0),
     elapsedMs: liveElapsedMs(batch.elapsedMs, batch.lastResumedAt),
+    activeDurationMs: batch.archivedAt ? batch.archivedAt.getTime() - batch.startedAt.getTime() : null,
     cards: batch.cards.map((card) => ({
       code: card.cardCode,
       title: card.card.title,
@@ -78,10 +102,10 @@ function toSummary(batch: BatchWithCards): BatchSummary {
 const BATCH_CARDS_INCLUDE = {
   cards: {
     include: { card: { select: { title: true, sideCode: true, pack: { select: { name: true } } } } },
-    // createdAt is set once, at first add, and never rewritten by later
-    // increments (see BatchCard.createdAt) — so this reflects add order.
-    // cardCode is a tie-breaker for the (extremely unlikely) same-instant case.
-    orderBy: [{ createdAt: 'asc' as const }, { cardCode: 'asc' as const }],
+    // sortIndex is set once, at first add, and never rewritten by later
+    // increments (see BatchCard.sortIndex) — so this reflects add order.
+    // cardCode is a defensive tie-breaker; sortIndex alone should already be unique per batch.
+    orderBy: [{ sortIndex: 'asc' as const }, { cardCode: 'asc' as const }],
   },
   collection: { select: { name: true } },
 }
