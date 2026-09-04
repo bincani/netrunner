@@ -31,18 +31,40 @@ disposable.
   owned quantities directly.
 
 **Out of scope for now:** full deckbuilding / "what can I build with this"
-(in-app deck editing, flagging illegal cards while building) and
-multi-user accounts or auth (single user, no login — this holds even when
-deployed behind nginx,
-see below). `importCsvToCollection`, `approveImportBatch`,
-`removeFromImportBatch`, `removeFromBatch`, `approveBatch`,
+(in-app deck editing, flagging illegal cards while building). Accounts
+now exist (see "Auth" below), but per-account data scoping does not —
+every account still reads/writes the same shared `Collection`/`Deck`/
+`Batch`/`Setting` data, so this is still effectively a single shared
+collection, just one that requires logging in to reach.
+`importCsvToCollection`, `approveImportBatch`, `removeFromImportBatch`,
+`removeFromBatch`, `approveBatch`,
 `quickAddSet`/`clearSet`/`undoQuickSetChange` (`src/actions/quickSetActions.ts`),
 and the CSV export route's `?collectionId=` param all currently accept a
 client-supplied `collectionId`/`batchId` with only a batch-to-collection
 ownership check (a batch must belong to the given collection) and no
-user/access-control check — correct for today's single-user no-auth
-design, but this is the list to revisit first if a login model is ever
-added.
+user/access-control check. This is no longer a purely hypothetical gap —
+any account can now log in and act on any `collectionId`/`batchId` it can
+guess or enumerate — but closing it is deliberately deferred to the
+Phase 2 (data scoping) work called out in
+`docs/superpowers/specs/2026-08-23-auth-foundation-design.md`, not yet
+planned/spec'd itself.
+
+**Auth (shipped, Phase 1 of 2):** account creation and login are live —
+sign up, log in, log out, email verification, password reset
+(`src/lib/auth.ts`, `src/actions/authActions.ts`, pages under `/signup`,
+`/login`, `/verify-email`, `/forgot-password`, `/reset-password`),
+backed by new `User`/`Session`/`VerificationToken` tables. `src/proxy.ts`
+gates every other route behind a valid session, redirecting to
+`/login?next=<path>` when one is missing. Full design:
+`docs/superpowers/specs/2026-08-23-auth-foundation-design.md`. This is
+**open self-registration** — anyone who reaches the deployed instance can
+create their own account — not an invite-only gate, which raises the
+security bar accordingly (email enumeration protection, rate limiting on
+login/signup/forgot-password, and TLS being effectively required rather
+than optional for any deployment reachable outside localhost). Critically,
+this phase is additive only: it does not change who owns any existing
+data (see "Out of scope" above) — every account currently sees the exact
+same collection, decks, and batches as every other account.
 
 **Phase 2 (shipped):** deck tracking — import a published NetrunnerDB
 decklist by URL/ID (`src/lib/netrunnerdb.ts`) and see ownership completion
@@ -92,9 +114,12 @@ URL/ID).
 
 An nginx + systemd production deployment option was added after phase 1
 shipped — see `README.md`'s "Production deployment" section and the
-`deploy/` directory. This doesn't change the single-user/no-auth design;
-it's still a local-database app, just reachable over the network if you
-choose to expose it that way.
+`deploy/` directory. It's still a local-database app — one shared
+`Collection`/`Deck`/`Batch` dataset behind whichever accounts can log in
+(see "Auth" above) — just reachable over the network if you choose to
+expose it that way. Given open self-registration, TLS (nginx + Certbot)
+should be treated as required, not optional, for any such deployment —
+passwords otherwise cross the network in the clear on every login.
 
 ## Data source
 
