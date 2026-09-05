@@ -25,7 +25,7 @@ model Pack {
   /// e.g. "core", "data_pack", "deluxe", "expansion", "booster_pack", "campaign", "draft", "promo" — see src/lib/setTypes.ts
   setType           String?
   cards             Card[]
-  hiddenFromBuilder HiddenBuilderPack?
+  hiddenFromBuilder HiddenBuilderPack[]
 }
 
 model Faction {
@@ -121,8 +121,21 @@ model CollectionEntry {
 }
 
 model HiddenBuilderPack {
-  packCode String @id
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packCode String
   pack     Pack   @relation(fields: [packCode], references: [code])
+
+  @@unique([userId, packCode])
+}
+
+/// Global (instance-wide, not per-account) process state — currently
+/// only the npm run sync-decks background job's resume checkpoint. Kept
+/// separate from Setting specifically because it has no owning user.
+model SyncCheckpoint {
+  key   String @id
+  value String
 }
 
 model Deck {
@@ -179,8 +192,13 @@ model TournamentDeckCard {
 }
 
 model Setting {
-  key   String @id
-  value String
+  id     Int    @id @default(autoincrement())
+  userId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  value  String
+
+  @@unique([userId, key])
 }
 
 model Batch {
@@ -234,6 +252,8 @@ model User {
   verificationTokens VerificationToken[]
   collections        Collection[]
   decks              Deck[]
+  settings           Setting[]
+  hiddenBuilderPacks HiddenBuilderPack[]
 }
 
 model Session {
