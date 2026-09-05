@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import { fetchDecklistsByDate } from './netrunnerdb'
 import { saveTournamentDeck } from '@/actions/tournamentDeckMutations'
-import { getSetting, setSetting } from '@/actions/settingsMutations'
+import { getSyncCheckpoint, setSyncCheckpoint } from './syncCheckpoint'
 
 export const SYNC_CHECKPOINT_KEY = 'tournamentDecksSyncedThrough'
 export const FLOOR_DATE = '2012-01-01'
@@ -36,7 +36,7 @@ export interface SyncOptions {
 /**
  * Walks NetrunnerDB's public decklists/by_date endpoint one calendar day
  * at a time, persisting tournament-flagged decks and advancing the
- * SYNC_CHECKPOINT_KEY setting after each successfully-synced day (not
+ * SYNC_CHECKPOINT_KEY checkpoint after each successfully-synced day (not
  * batched to the end), so an interrupted run resumes at the next
  * unsynced day rather than re-walking from the last full success.
  */
@@ -44,7 +44,7 @@ export async function syncTournamentDecks(prisma: PrismaClient, options: SyncOpt
   const delayMs = options.delayMs ?? 150
   const endDate = options.endDate ?? addDays(todayUtc(), -1)
 
-  const checkpoint = await getSetting(prisma, SYNC_CHECKPOINT_KEY)
+  const checkpoint = await getSyncCheckpoint(prisma)
   let cursor = checkpoint ? addDays(checkpoint, 1) : FLOOR_DATE
 
   let daysWalked = 0
@@ -71,7 +71,7 @@ export async function syncTournamentDecks(prisma: PrismaClient, options: SyncOpt
       tournamentDecksSaved += 1
     }
 
-    await setSetting(prisma, SYNC_CHECKPOINT_KEY, cursor)
+    await setSyncCheckpoint(prisma, cursor)
     options.onProgress?.({ date: cursor, totalDecks: dayDecks.length, tournamentDecks: tournamentDecks.length })
     daysWalked += 1
 

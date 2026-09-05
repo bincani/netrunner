@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
 import { seedCard } from './testFixtures'
-import { getSetting, setSetting } from '@/actions/settingsMutations'
-import { syncTournamentDecks, SYNC_CHECKPOINT_KEY, FLOOR_DATE } from './tournamentDeckSync'
+import { getSyncCheckpoint, setSyncCheckpoint } from './syncCheckpoint'
+import { syncTournamentDecks, FLOOR_DATE } from './tournamentDeckSync'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -18,7 +18,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await prisma.tournamentDeckCard.deleteMany()
   await prisma.tournamentDeck.deleteMany()
-  await prisma.setting.deleteMany()
+  await prisma.syncCheckpoint.deleteMany()
   await prisma.card.deleteMany()
   vi.resetAllMocks()
 })
@@ -55,7 +55,7 @@ describe('syncTournamentDecks', () => {
   })
 
   it('resumes from the day after the checkpoint', async () => {
-    await setSetting(prisma, SYNC_CHECKPOINT_KEY, '2012-01-01')
+    await setSyncCheckpoint(prisma, '2012-01-01')
     mockFetchByDate({ '2012-01-02': [tournamentEntry({ id: 2, uuid: 'uuid-2' })] })
 
     await syncTournamentDecks(prisma, { endDate: '2012-01-02', delayMs: 0 })
@@ -77,7 +77,7 @@ describe('syncTournamentDecks', () => {
   it("replaces an already-synced day's deck cards rather than appending, on re-sync", async () => {
     mockFetchByDate({ [FLOOR_DATE]: [tournamentEntry({ cards: { '01001': 3 } })] })
     await syncTournamentDecks(prisma, { endDate: FLOOR_DATE, delayMs: 0 })
-    await prisma.setting.deleteMany()
+    await prisma.syncCheckpoint.deleteMany()
 
     mockFetchByDate({ [FLOOR_DATE]: [tournamentEntry({ cards: { '01002': 1 } })] })
     await syncTournamentDecks(prisma, { endDate: FLOOR_DATE, delayMs: 0 })
@@ -110,7 +110,7 @@ describe('syncTournamentDecks', () => {
 
     await syncTournamentDecks(prisma, { endDate: '2012-01-02', delayMs: 0 })
 
-    expect(await getSetting(prisma, SYNC_CHECKPOINT_KEY)).toBe('2012-01-02')
+    expect(await getSyncCheckpoint(prisma)).toBe('2012-01-02')
   })
 
   it('stops without advancing the checkpoint past a day that fails to fetch', async () => {
@@ -123,7 +123,7 @@ describe('syncTournamentDecks', () => {
 
     await expect(syncTournamentDecks(prisma, { endDate: '2012-01-03', delayMs: 0 })).rejects.toThrow()
 
-    expect(await getSetting(prisma, SYNC_CHECKPOINT_KEY)).toBe(FLOOR_DATE)
+    expect(await getSyncCheckpoint(prisma)).toBe(FLOOR_DATE)
   })
 
   it('reports per-day progress via onProgress', async () => {
