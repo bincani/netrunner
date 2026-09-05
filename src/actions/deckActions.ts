@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { parseDecklistId, fetchDecklist } from '@/lib/netrunnerdb'
 import { getDeckWithOwnership, type DeckSummary } from '@/lib/decks'
 import { getDefaultCollectionId } from '@/lib/collections'
@@ -15,13 +16,14 @@ export async function importDeck(
     return { ok: false, error: 'Enter a valid NetrunnerDB decklist URL or ID' }
   }
 
+  const { id: userId } = await requireCurrentUser()
   try {
     const decklist = await fetchDecklist(decklistId)
-    await saveDeck(prisma, decklist.id, decklist.uuid, decklist.name, decklist.dateCreation, decklist.cards)
+    const deckId = await saveDeck(prisma, userId, decklist.id, decklist.uuid, decklist.name, decklist.dateCreation, decklist.cards)
     revalidatePath('/decks')
 
-    const collectionId = await getDefaultCollectionId(prisma)
-    const summary = await getDeckWithOwnership(prisma, collectionId, decklist.id)
+    const collectionId = await getDefaultCollectionId(prisma, userId)
+    const summary = await getDeckWithOwnership(prisma, userId, collectionId, deckId)
     if (!summary) {
       return { ok: false, error: 'Failed to load the imported deck' }
     }
@@ -32,15 +34,17 @@ export async function importDeck(
 }
 
 export async function deleteDeck(id: number): Promise<void> {
-  await removeDeck(prisma, id)
+  const { id: userId } = await requireCurrentUser()
+  await removeDeck(prisma, userId, id)
   revalidatePath('/decks')
 }
 
 export type SimpleActionResult = { ok: true } | { ok: false; error: string }
 
 export async function reorderDecks(orderedIds: number[]): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await reorderDecksMutation(prisma, orderedIds)
+    await reorderDecksMutation(prisma, userId, orderedIds)
     revalidatePath('/decks')
     return { ok: true }
   } catch (err) {

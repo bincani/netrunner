@@ -10,6 +10,15 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+// saveDiscoveredDeck resolves its own userId via requireCurrentUser() rather
+// than accepting one as an argument, so tests fix it to a single known id
+// and seed a matching User row (see TEST_USER_ID below).
+vi.mock('@/lib/currentUser', () => ({
+  requireCurrentUser: vi.fn().mockResolvedValue({ id: 1, email: 'test@example.com', emailVerifiedAt: null, createdAt: new Date() }),
+}))
+
+const TEST_USER_ID = 1
+
 // saveDiscoveredDeck calls revalidatePath, which throws ("static
 // generation store missing") outside a real Next.js request — there's no
 // request context in this unit test. Stub it out; what's under test here
@@ -33,9 +42,12 @@ const { saveDeck } = await import('./deckMutations')
 describe('saveDiscoveredDeck', () => {
   let prisma: PrismaClient
 
-  beforeAll(() => {
+  beforeAll(async () => {
     prisma = createTestDb()
     dbHolder.prisma = prisma
+    // Matches the fixed userId requireCurrentUser() is mocked to resolve —
+    // saveDeck's Deck.userId FK requires an actual User row.
+    await prisma.user.create({ data: { id: TEST_USER_ID, email: 'test@example.com', passwordHash: 'not-a-real-hash' } })
   })
 
   afterAll(async () => {
