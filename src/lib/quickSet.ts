@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
-import { touchCollection } from './collections'
+import { touchCollection, requireOwnedCollection } from './collections'
 
 export interface QuickSetChange {
   cardCode: string
@@ -34,9 +34,11 @@ async function applyChanges(
 /** Raises every card in packCode to its printed quantity, never lowering an already-higher count. Returns only the cards that changed. */
 export async function quickAddSet(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   packCode: string
 ): Promise<QuickSetChange[]> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const cards = await prisma.card.findMany({
     where: { packCode },
     select: {
@@ -63,7 +65,8 @@ export async function quickAddSet(
 }
 
 /** Zeros every card in packCode that currently has a nonzero owned quantity. Returns only the cards that changed. */
-export async function clearSet(prisma: PrismaClient, collectionId: number, packCode: string): Promise<QuickSetChange[]> {
+export async function clearSet(prisma: PrismaClient, userId: number, collectionId: number, packCode: string): Promise<QuickSetChange[]> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const cards = await prisma.card.findMany({
     where: { packCode },
     select: {
@@ -90,9 +93,11 @@ export async function clearSet(prisma: PrismaClient, collectionId: number, packC
 /** Restores each listed card to its previousQuantity exactly. Shared by Quick Add's and Clear Set's Undo. */
 export async function undoQuickSetChange(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   changes: QuickSetChange[]
 ): Promise<void> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   await applyChanges(
     prisma,
     collectionId,
