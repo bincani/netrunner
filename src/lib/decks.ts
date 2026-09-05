@@ -43,6 +43,7 @@ export interface DeckAgendaPoints {
 
 export interface DeckSummary {
   id: number
+  netrunnerdbId: number
   uuid: string
   name: string
   importedAt: Date
@@ -60,6 +61,7 @@ export interface DeckSummary {
 
 interface DeckWithCards {
   id: number
+  netrunnerdbId: number
   uuid: string
   name: string
   importedAt: Date
@@ -182,6 +184,7 @@ async function computeDeckSummary(
 
   return {
     id: deck.id,
+    netrunnerdbId: deck.netrunnerdbId,
     uuid: deck.uuid,
     name: deck.name,
     importedAt: deck.importedAt,
@@ -219,6 +222,13 @@ export async function getDeckWithOwnership(
     return null
   }
   return computeDeckSummary(prisma, collectionId, deck)
+}
+
+export async function requireOwnedDeck(prisma: PrismaClient, userId: number, deckId: number): Promise<void> {
+  const deck = await prisma.deck.findFirst({ where: { id: deckId, userId } })
+  if (!deck) {
+    throw new Error('Deck not found')
+  }
 }
 
 export async function exportDeckCsv(prisma: PrismaClient, collectionId: number, id: number): Promise<string | null> {

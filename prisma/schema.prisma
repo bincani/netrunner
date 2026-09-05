@@ -126,14 +126,25 @@ model HiddenBuilderPack {
 }
 
 model Deck {
-  id           Int        @id
-  uuid         String
-  name         String
-  importedAt   DateTime   @default(now())
+  /// Internal, autoincrement — was NetrunnerDB's decklist id directly
+  /// before multi-account data scoping. Two different accounts can now
+  /// each hold their own row for the same public decklist.
+  id            Int        @id @default(autoincrement())
+  /// The original NetrunnerDB decklist id — still used for the outbound
+  /// netrunnerdb.com/en/decklist/<id> link and to detect a re-import by
+  /// the same account.
+  netrunnerdbId Int
+  userId        Int
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uuid          String
+  name          String
+  importedAt    DateTime   @default(now())
   /// The decklist's own creation date on NetrunnerDB (date_creation) — distinct from importedAt, which is when this app first pulled it. Null for decks imported before this field existed. Used to flag pre-rotation decklists.
-  dateCreation DateTime?
-  sortOrder    Int        @default(0)
-  cards        DeckCard[]
+  dateCreation  DateTime?
+  sortOrder     Int        @default(0)
+  cards         DeckCard[]
+
+  @@unique([userId, netrunnerdbId])
 }
 
 model DeckCard {
@@ -222,6 +233,7 @@ model User {
   sessions           Session[]
   verificationTokens VerificationToken[]
   collections        Collection[]
+  decks              Deck[]
 }
 
 model Session {

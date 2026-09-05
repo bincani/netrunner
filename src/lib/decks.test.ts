@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
-import { seedCard, seedCollection } from './testFixtures'
+import { seedCard, seedCollection, seedUser } from './testFixtures'
 import { incrementOwned } from './collection'
-import { getDecksWithOwnership, getDeckWithOwnership, exportDeckCsv } from './decks'
+import { getDecksWithOwnership, getDeckWithOwnership, exportDeckCsv, requireOwnedDeck } from './decks'
 import { reorderDecks } from '@/actions/deckMutations'
 import type { PrismaClient } from '@prisma/client'
 
@@ -28,10 +28,11 @@ beforeEach(async () => {
 
 describe('getDecksWithOwnership', () => {
   it('computes aggregate and per-card ownership', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', factionCode: 'anarch' })
     await incrementOwned(prisma, collectionId, '01001', 2)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -58,10 +59,11 @@ describe('getDecksWithOwnership', () => {
   })
 
   it("caps a card's contribution at the needed quantity, not what is owned beyond it", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await incrementOwned(prisma, collectionId, '01001', 5)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -71,8 +73,9 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('flags a deck card whose code is not in the local card database, without crashing', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -95,9 +98,14 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('orders decks by most recently imported first', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Older', importedAt: new Date('2026-01-01') } })
-    await prisma.deck.create({ data: { id: 2, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') } })
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
+    await prisma.deck.create({
+      data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Older', importedAt: new Date('2026-01-01') },
+    })
+    await prisma.deck.create({
+      data: { id: 2, netrunnerdbId: 2, userId: user.id, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') },
+    })
 
     const decks = await getDecksWithOwnership(prisma, collectionId)
 
@@ -105,23 +113,30 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('orders by sortOrder ascending once decks have been manually reordered', async () => {
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Older', importedAt: new Date('2026-01-01') } })
-    await prisma.deck.create({ data: { id: 2, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') } })
+    const user = await seedUser(prisma)
+    await prisma.deck.create({
+      data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Older', importedAt: new Date('2026-01-01') },
+    })
+    await prisma.deck.create({
+      data: { id: 2, netrunnerdbId: 2, userId: user.id, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') },
+    })
 
     await reorderDecks(prisma, [1, 2])
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
 
     const decks = await getDecksWithOwnership(prisma, collectionId)
     expect(decks.map((d) => d.name)).toEqual(['Older', 'Newer'])
   })
 
   it('returns an empty list when no decks are imported', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     expect(await getDecksWithOwnership(prisma, collectionId)).toEqual([])
   })
 
   it("derives factionCode from the deck's identity card", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', typeCode: 'program', factionCode: 'anarch' })
     await seedCard(prisma, {
       code: '01002',
@@ -130,7 +145,7 @@ describe('getDecksWithOwnership', () => {
       typeCode: 'identity',
       factionCode: 'anarch',
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
 
@@ -140,9 +155,10 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('reports factionCode as null when the deck has no identity card locally', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -151,11 +167,12 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('keeps ownership independent across two different collections', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const user = await seedUser(prisma)
+    const a = await seedCollection(prisma, user.id, { name: 'A' })
+    const b = await seedCollection(prisma, user.id, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await incrementOwned(prisma, a.id, '01001', 3)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deckA] = await getDecksWithOwnership(prisma, a.id)
@@ -166,13 +183,14 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('includes a per-format legality rollup for the deck', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
     await prisma.cardFormatLegality.create({
       data: { cardCode: '01001', formatCode: 'standard', status: 'banned', detail: null },
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -183,12 +201,13 @@ describe('getDecksWithOwnership', () => {
   })
 
   it("passes through the format's active restriction name in the legality rollup", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.format.create({
       data: { code: 'standard', name: 'Standard', activeRestrictionName: 'Standard Balance Update 26.08' },
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -197,11 +216,19 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('flags a deck as pre-rotation when its NetrunnerDB creation date predates the current snapshot', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard', currentSnapshotDate: '2026-08-01' } })
     await prisma.deck.create({
-      data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01') },
+      data: {
+        id: 1,
+        netrunnerdbId: 1,
+        userId: user.id,
+        uuid: 'uuid-1',
+        name: 'Test Deck',
+        dateCreation: new Date('2020-01-01'),
+      },
     })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
@@ -211,10 +238,11 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('reports isPreRotation as null when the deck has no known creation date', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard', currentSnapshotDate: '2026-08-01' } })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -223,7 +251,8 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('derives identity details, including influence limit and minimum deck size', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01002',
       title: 'Haas-Bioroid: Engineering the Future',
@@ -234,7 +263,7 @@ describe('getDecksWithOwnership', () => {
       influenceLimit: 15,
       minimumDeckSize: 45,
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -250,9 +279,10 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('reports identity as null when the deck has no identity card locally', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -261,7 +291,8 @@ describe('getDecksWithOwnership', () => {
   })
 
   it("sums influence spent on cards outside the identity's faction, treating own-faction cards as free", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01002',
       title: 'Az McCaffrey',
@@ -286,7 +317,7 @@ describe('getDecksWithOwnership', () => {
       factionCode: 'shaper',
       factionCost: 2,
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01003', quantity: 3 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01004', quantity: 2 } })
@@ -304,8 +335,9 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('reports influenceCost as null for a card not found locally', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -314,7 +346,8 @@ describe('getDecksWithOwnership', () => {
   })
 
   it("exposes a card's keywords for subtype grouping", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01001',
       title: 'Ice Wall',
@@ -322,7 +355,7 @@ describe('getDecksWithOwnership', () => {
       typeCode: 'ice',
       keywords: 'Barrier',
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 1 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -331,7 +364,8 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('groups deck cards into packsUsed with per-pack counts, sorted by release date', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01001',
       title: 'Card A',
@@ -347,7 +381,7 @@ describe('getDecksWithOwnership', () => {
       packDateRelease: '2020-11-19',
       cycleCode: 'sg',
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '02001', quantity: 2 } })
 
@@ -360,7 +394,8 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('computes agendaPoints for a corp deck: total in the deck vs. the required range', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01002',
       title: 'Haas-Bioroid: Engineering the Future',
@@ -387,7 +422,7 @@ describe('getDecksWithOwnership', () => {
       factionCode: 'haas-bioroid',
       sideCode: 'corp',
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01055', quantity: 3 } })
     // Pads the deck to the 45-card minimum without inflating agenda points,
@@ -401,7 +436,8 @@ describe('getDecksWithOwnership', () => {
   })
 
   it('reports agendaPoints as null for a runner deck', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01002',
       title: 'Az McCaffrey',
@@ -411,7 +447,7 @@ describe('getDecksWithOwnership', () => {
       sideCode: 'runner',
       minimumDeckSize: 30,
     })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
 
     const [deck] = await getDecksWithOwnership(prisma, collectionId)
@@ -422,9 +458,10 @@ describe('getDecksWithOwnership', () => {
 
 describe('getDeckWithOwnership', () => {
   it('returns the ownership summary for a single deck', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 2 } })
 
     const deck = await getDeckWithOwnership(prisma, collectionId, 1)
@@ -434,14 +471,16 @@ describe('getDeckWithOwnership', () => {
   })
 
   it('returns null for a deck id that does not exist', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     expect(await getDeckWithOwnership(prisma, collectionId, 999)).toBeNull()
   })
 })
 
 describe('exportDeckCsv', () => {
   it('returns a CSV with a header row and one row per deck card', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01001',
       title: 'Card A',
@@ -450,7 +489,7 @@ describe('exportDeckCsv', () => {
       factionCode: 'anarch',
     })
     await incrementOwned(prisma, collectionId, '01001', 2)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
     const csv = await exportDeckCsv(prisma, collectionId, 1)
@@ -461,8 +500,9 @@ describe('exportDeckCsv', () => {
   })
 
   it('leaves title/faction/type blank for a card not found locally', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'Test Deck' } })
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
     const csv = await exportDeckCsv(prisma, collectionId, 1)
@@ -471,7 +511,35 @@ describe('exportDeckCsv', () => {
   })
 
   it('returns null for a deck id that does not exist', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     expect(await exportDeckCsv(prisma, collectionId, 999)).toBeNull()
+  })
+})
+
+describe('requireOwnedDeck', () => {
+  it('resolves without throwing when the deck belongs to the given user', async () => {
+    const user = await seedUser(prisma)
+    const deck = await prisma.deck.create({
+      data: { netrunnerdbId: 1001, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' },
+    })
+
+    await expect(requireOwnedDeck(prisma, user.id, deck.id)).resolves.toBeUndefined()
+  })
+
+  it('throws when the deck belongs to a different user', async () => {
+    const owner = await seedUser(prisma, { email: 'owner@example.com' })
+    const stranger = await seedUser(prisma, { email: 'stranger@example.com' })
+    const deck = await prisma.deck.create({
+      data: { netrunnerdbId: 1001, userId: owner.id, uuid: 'uuid-1', name: 'Test Deck' },
+    })
+
+    await expect(requireOwnedDeck(prisma, stranger.id, deck.id)).rejects.toThrow('Deck not found')
+  })
+
+  it('throws the identical message when the deck does not exist at all', async () => {
+    const user = await seedUser(prisma)
+
+    await expect(requireOwnedDeck(prisma, user.id, 999999)).rejects.toThrow('Deck not found')
   })
 })
