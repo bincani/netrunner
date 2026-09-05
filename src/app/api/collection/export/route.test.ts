@@ -4,6 +4,7 @@ import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
 import { seedCard, seedCollection } from '@/lib/testFixtures'
 import { incrementOwned } from '@/lib/collection'
+import { getCurrentUser } from '@/lib/currentUser'
 
 // route.ts imports a module-level `prisma` singleton from '@/lib/db'. To
 // exercise the real route handler against an isolated, seeded test
@@ -17,14 +18,26 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+// route.ts resolves the current user via getCurrentUser() and returns a
+// 401 when it's null — mock it so tests control the current-user state
+// per case rather than depending on real session cookies/handling.
+vi.mock('@/lib/currentUser', () => ({
+  getCurrentUser: vi.fn().mockResolvedValue({ id: 1, email: 'test@example.com', emailVerifiedAt: null, createdAt: new Date() }),
+}))
+
+const TEST_USER_ID = 1
+
 const { GET } = await import('./route')
 
 describe('GET /api/collection/export', () => {
   let prisma: PrismaClient
 
-  beforeAll(() => {
+  beforeAll(async () => {
     prisma = createTestDb()
     dbHolder.prisma = prisma
+    // Matches the fixed userId getCurrentUser() is mocked to resolve —
+    // real ownership checks in the lib layer require an actual User row.
+    await prisma.user.create({ data: { id: TEST_USER_ID, email: 'test@example.com', passwordHash: 'not-a-real-hash' } })
   })
 
   afterAll(async () => {
@@ -38,7 +51,7 @@ describe('GET /api/collection/export', () => {
   })
 
   it('responds with a CSV content type and a download filename', async () => {
-    await seedCollection(prisma)
+    await seedCollection(prisma, TEST_USER_ID)
 
     const request = new NextRequest('http://localhost/api/collection/export')
     const response = await GET(request)
@@ -48,9 +61,9 @@ describe('GET /api/collection/export', () => {
   })
 
   it('returns the default collection as CSV when no collectionId param is given', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, TEST_USER_ID)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
-    await incrementOwned(prisma, collectionId, '01007', 2)
+    await incrementOwned(prisma, TEST_USER_ID, collectionId, '01007', 2)
 
     const request = new NextRequest('http://localhost/api/collection/export')
     const response = await GET(request)
@@ -61,11 +74,11 @@ describe('GET /api/collection/export', () => {
   })
 
   it('returns the specified collection as CSV when a collectionId param is given', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, TEST_USER_ID, { name: 'A' })
+    const b = await seedCollection(prisma, TEST_USER_ID, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
-    await incrementOwned(prisma, a.id, '01007', 1)
-    await incrementOwned(prisma, b.id, '01007', 2)
+    await incrementOwned(prisma, TEST_USER_ID, a.id, '01007', 1)
+    await incrementOwned(prisma, TEST_USER_ID, b.id, '01007', 2)
 
     const request = new NextRequest(`http://localhost/api/collection/export?collectionId=${b.id}`)
     const response = await GET(request)
@@ -82,9 +95,9 @@ describe('GET /api/collection/export', () => {
   })
 
   it('falls back to the default collection when collectionId param is an empty string', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, TEST_USER_ID)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
-    await incrementOwned(prisma, collectionId, '01007', 2)
+    await incrementOwned(prisma, TEST_USER_ID, collectionId, '01007', 2)
 
     const request = new NextRequest('http://localhost/api/collection/export?collectionId=')
     const response = await GET(request)
@@ -99,5 +112,14 @@ describe('GET /api/collection/export', () => {
     const response = await GET(request)
 
     expect(response.status).toBe(404)
+  })
+
+  it('returns 401 when there is no current user', async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null)
+    const request = new NextRequest('http://localhost/api/collection/export')
+
+    const response = await GET(request)
+
+    expect(response.status).toBe(401)
   })
 })

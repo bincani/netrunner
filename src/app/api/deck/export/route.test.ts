@@ -4,6 +4,7 @@ import type { PrismaClient } from '@prisma/client'
 import { createTestDb } from '@/lib/testDb'
 import { seedCard, seedCollection } from '@/lib/testFixtures'
 import { incrementOwned } from '@/lib/collection'
+import { getCurrentUser } from '@/lib/currentUser'
 
 // route.ts imports a module-level `prisma` singleton from '@/lib/db'. To
 // exercise the real route handler against an isolated, seeded test
@@ -17,14 +18,26 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+// route.ts resolves the current user via getCurrentUser() and returns a
+// 401 when it's null — mock it so tests control the current-user state
+// per case rather than depending on real session cookies/handling.
+vi.mock('@/lib/currentUser', () => ({
+  getCurrentUser: vi.fn().mockResolvedValue({ id: 1, email: 'test@example.com', emailVerifiedAt: null, createdAt: new Date() }),
+}))
+
+const TEST_USER_ID = 1
+
 const { GET } = await import('./route')
 
 describe('GET /api/deck/export', () => {
   let prisma: PrismaClient
 
-  beforeAll(() => {
+  beforeAll(async () => {
     prisma = createTestDb()
     dbHolder.prisma = prisma
+    // Matches the fixed userId getCurrentUser() is mocked to resolve —
+    // real ownership checks in the lib layer require an actual User row.
+    await prisma.user.create({ data: { id: TEST_USER_ID, email: 'test@example.com', passwordHash: 'not-a-real-hash' } })
   })
 
   afterAll(async () => {
@@ -40,8 +53,8 @@ describe('GET /api/deck/export', () => {
   })
 
   it('responds with a CSV content type and a download filename', async () => {
-    await seedCollection(prisma)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'My Test Deck' } })
+    await seedCollection(prisma, TEST_USER_ID)
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: TEST_USER_ID, uuid: 'uuid-1', name: 'My Test Deck' } })
 
     const request = new NextRequest('http://localhost/api/deck/export?deckId=1')
     const response = await GET(request)
@@ -51,10 +64,10 @@ describe('GET /api/deck/export', () => {
   })
 
   it('returns the deck as CSV', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, TEST_USER_ID)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01007', 2)
-    await prisma.deck.create({ data: { id: 1, uuid: 'uuid-1', name: 'My Test Deck' } })
+    await incrementOwned(prisma, TEST_USER_ID, collectionId, '01007', 2)
+    await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: TEST_USER_ID, uuid: 'uuid-1', name: 'My Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01007', quantity: 3 } })
 
     const request = new NextRequest('http://localhost/api/deck/export?deckId=1')
@@ -84,5 +97,14 @@ describe('GET /api/deck/export', () => {
     const response = await GET(request)
 
     expect(response.status).toBe(404)
+  })
+
+  it('returns 401 when there is no current user', async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null)
+    const request = new NextRequest('http://localhost/api/deck/export?deckId=1')
+
+    const response = await GET(request)
+
+    expect(response.status).toBe(401)
   })
 })

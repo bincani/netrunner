@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { searchCards } from '@/lib/cards'
 import { getDefaultCollectionId } from '@/lib/collections'
+import { getCurrentUser } from '@/lib/currentUser'
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get('q') ?? ''
@@ -10,7 +11,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([])
   }
 
-  const collectionId = await getDefaultCollectionId(prisma)
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const collectionId = await getDefaultCollectionId(prisma, user.id)
   const results = await searchCards(prisma, collectionId, {
     query,
     factionCode: request.nextUrl.searchParams.get('faction') ?? undefined,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCardDetail } from '@/lib/cards'
 import { getDefaultCollectionId } from '@/lib/collections'
+import { getCurrentUser } from '@/lib/currentUser'
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
@@ -10,7 +11,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'code is required' }, { status: 400 })
   }
 
-  const collectionId = await getDefaultCollectionId(prisma)
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const collectionId = await getDefaultCollectionId(prisma, user.id)
   const card = await getCardDetail(prisma, collectionId, code)
 
   if (!card) {
