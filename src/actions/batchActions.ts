@@ -74,8 +74,8 @@ export async function continueBatch(batchId: number): Promise<BatchActionResult>
 }
 
 export async function discardBatch(batchId: number): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    const { id: userId } = await requireCurrentUser()
     await discardBatchMutation(prisma, userId, batchId)
     revalidatePath('/builder')
     revalidatePath('/builder/batches')
@@ -87,8 +87,8 @@ export async function discardBatch(batchId: number): Promise<SimpleActionResult>
 }
 
 export async function approveBatch(batchId: number): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    const { id: userId } = await requireCurrentUser()
     const collectionId = await getDefaultCollectionId(prisma, userId)
     await approveBatchMutation(prisma, userId, collectionId, batchId)
     revalidatePath('/')
@@ -118,8 +118,8 @@ export type ImportCsvActionResult =
   | { ok: false; error: string }
 
 export async function importCsv(csvText: string): Promise<ImportCsvActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    const { id: userId } = await requireCurrentUser()
     const collectionId = await getDefaultCollectionId(prisma, userId)
     const { skipped } = await importCsvAsBatch(prisma, userId, collectionId, csvText)
     const batch = await getActiveBatch(prisma, userId, collectionId)
@@ -135,8 +135,8 @@ export async function importCsv(csvText: string): Promise<ImportCsvActionResult>
 }
 
 export async function revertApprovedBatch(batchId: number): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    const { id: userId } = await requireCurrentUser()
     const collectionId = await getDefaultCollectionId(prisma, userId)
     await revertApprovedBatchMutation(prisma, userId, collectionId, batchId)
     revalidatePath('/')
