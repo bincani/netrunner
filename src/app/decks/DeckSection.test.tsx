@@ -36,7 +36,7 @@ const factionOptions = [
 
 const sampleDeck: DeckSummary = {
   id: 1,
-  netrunnerdbId: 1,
+  netrunnerdbId: 1001,
   uuid: 'uuid-1',
   name: 'Test Deck',
   importedAt: new Date('2026-01-01'),
@@ -101,7 +101,7 @@ describe('DeckSection', () => {
     expect(screen.getByText('Test Deck')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View Test Deck on NetrunnerDB' })).toHaveAttribute(
       'href',
-      'https://netrunnerdb.com/en/decklist/1'
+      'https://netrunnerdb.com/en/decklist/1001'
     )
     expect(screen.getByText('2/3 owned (67%)')).toBeInTheDocument()
     expect(screen.queryByText('Card A')).not.toBeInTheDocument()

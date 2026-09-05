@@ -31,7 +31,7 @@ describe('searchCards', () => {
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
     await seedCard(prisma, { code: '01011', title: 'Mimic', packCode: 'core' })
 
-    const results = await searchCards(prisma, collectionId, { query: 'corro' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'corro' })
 
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Corroder')
@@ -43,7 +43,7 @@ describe('searchCards', () => {
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
     await incrementOwned(prisma, user.id, collectionId, '01007', 2)
 
-    const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
 
     expect(results[0].ownedQuantity).toBe(2)
   })
@@ -53,7 +53,7 @@ describe('searchCards', () => {
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
 
-    const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
 
     expect(results[0].ownedQuantity).toBe(0)
   })
@@ -65,7 +65,7 @@ describe('searchCards', () => {
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
     await incrementOwned(prisma, user.id, other.id, '01007', 4)
 
-    const results = await searchCards(prisma, mine.id, { query: 'Corroder' })
+    const results = await searchCards(prisma, user.id, mine.id, { query: 'Corroder' })
 
     expect(results[0].ownedQuantity).toBe(0)
   })
@@ -76,7 +76,7 @@ describe('searchCards', () => {
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', factionCode: 'anarch' })
     await seedCard(prisma, { code: '02001', title: 'Corroder Alt', packCode: 'core', factionCode: 'shaper' })
 
-    const results = await searchCards(prisma, collectionId, { query: 'Corroder', factionCode: 'anarch' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder', factionCode: 'anarch' })
 
     expect(results).toHaveLength(1)
     expect(results[0].code).toBe('01007')
@@ -89,9 +89,22 @@ describe('searchCards', () => {
     await seedCard(prisma, { code: '02007', title: 'Corroder Alt', packCode: 'sg' })
     await prisma.hiddenBuilderPack.create({ data: { userId: user.id, packCode: 'core' } })
 
-    const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
 
     expect(results.map((r) => r.code)).toEqual(['02007'])
+  })
+
+  it("does not hide another account's hidden pack from this account's search", async () => {
+    const user = await seedUser(prisma)
+    const otherUser = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
+    await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
+    await seedCard(prisma, { code: '02007', title: 'Corroder Alt', packCode: 'sg' })
+    await prisma.hiddenBuilderPack.create({ data: { userId: otherUser.id, packCode: 'core' } })
+
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
+
+    expect(results.map((r) => r.code)).toEqual(['01007', '02007'])
   })
 
   it('is unaffected when no packs are hidden', async () => {
@@ -99,7 +112,7 @@ describe('searchCards', () => {
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
 
-    const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
 
     expect(results.map((r) => r.code)).toEqual(['01007'])
   })
@@ -115,7 +128,7 @@ describe('searchCards', () => {
       typeCode: 'program',
     })
 
-    const [card] = await searchCards(prisma, collectionId, { query: 'Corroder' })
+    const [card] = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
 
     expect(card.factionName).toBe('anarch')
     expect(card.typeName).toBe('program')
@@ -136,7 +149,7 @@ describe('searchCards', () => {
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
 
-    const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
+    const results = await searchCards(prisma, user.id, collectionId, { query: 'Corroder' })
 
     expect(results[0].quantity).toBe(3)
   })

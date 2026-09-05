@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
   const collectionId = await getDefaultCollectionId(prisma, user.id)
-  const results = await searchCards(prisma, collectionId, {
+  const results = await searchCards(prisma, user.id, collectionId, {
     query,
     factionCode: request.nextUrl.searchParams.get('faction') ?? undefined,
     typeCode: request.nextUrl.searchParams.get('type') ?? undefined,

@@ -68,10 +68,11 @@ export interface CardSearchResult {
 
 export async function searchCards(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   filters: CardSearchFilters
 ): Promise<CardSearchResult[]> {
-  const hiddenPacks = await prisma.hiddenBuilderPack.findMany({ select: { packCode: true } })
+  const hiddenPacks = await prisma.hiddenBuilderPack.findMany({ where: { userId }, select: { packCode: true } })
   const hiddenPackCodes = hiddenPacks.map((row) => row.packCode)
 
   const cards = await prisma.card.findMany({

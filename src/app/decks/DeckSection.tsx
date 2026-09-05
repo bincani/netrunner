@@ -282,7 +282,7 @@ export function DeckSection({
                     View
                   </Link>
                   <a
-                    href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
+                    href={`https://netrunnerdb.com/en/decklist/${deck.netrunnerdbId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`View ${deck.name} on NetrunnerDB`}
