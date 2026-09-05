@@ -1,12 +1,14 @@
 import type { PrismaClient } from '@prisma/client'
-import { touchCollection } from './collections'
+import { requireOwnedCollection, touchCollection } from './collections'
 
 export async function incrementOwned(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   cardCode: string,
   amount: number
 ): Promise<number> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   if (!Number.isInteger(amount) || amount < 1) {
     throw new Error(`amount must be a positive integer, got ${amount}`)
   }
@@ -25,10 +27,12 @@ export async function incrementOwned(
 
 export async function setOwned(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   cardCode: string,
   quantity: number
 ): Promise<number> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   if (!Number.isInteger(quantity) || quantity < 0) {
     throw new Error(`quantity must be a non-negative integer, got ${quantity}`)
   }
@@ -45,7 +49,8 @@ export async function setOwned(
   return entry.quantityOwned
 }
 
-export async function getOwnedQuantity(prisma: PrismaClient, collectionId: number, cardCode: string): Promise<number> {
+export async function getOwnedQuantity(prisma: PrismaClient, userId: number, collectionId: number, cardCode: string): Promise<number> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const entry = await prisma.collectionEntry.findUnique({
     where: { collectionId_cardCode: { collectionId, cardCode } },
   })
@@ -60,7 +65,8 @@ export function csvEscape(value: string): string {
 }
 
 /** CSV of every owned card in a collection: code, title, faction, set, owned quantity, and printed quantity. */
-export async function exportCollectionCsv(prisma: PrismaClient, collectionId: number): Promise<string> {
+export async function exportCollectionCsv(prisma: PrismaClient, userId: number, collectionId: number): Promise<string> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const entries = await prisma.collectionEntry.findMany({
     where: { collectionId },
     include: { card: { include: { pack: true, faction: true } } },
