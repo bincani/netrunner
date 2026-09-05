@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { getActiveBatch, type BatchSummary } from '@/lib/batches'
 import { getDefaultCollectionId, importCsvAsBatch } from '@/lib/collections'
 import {
@@ -27,10 +28,14 @@ type MutateResult = { newSet?: { code: string; name: string } | null } | number 
 // a thrown error (Prisma or otherwise) always converts to { ok: false }
 // instead of escaping the Server Action uncaught (where production builds
 // strip it to a generic minified message).
-async function withActiveBatch(collectionId: number, mutate: () => Promise<MutateResult>): Promise<BatchActionResult> {
+async function withActiveBatch(
+  userId: number,
+  collectionId: number,
+  mutate: () => Promise<MutateResult>
+): Promise<BatchActionResult> {
   try {
     const mutateResult = await mutate()
-    const batch = await getActiveBatch(prisma, collectionId)
+    const batch = await getActiveBatch(prisma, userId, collectionId)
     if (!batch) {
       return { ok: false, error: 'No active batch' }
     }
@@ -43,28 +48,35 @@ async function withActiveBatch(collectionId: number, mutate: () => Promise<Mutat
 }
 
 export async function startBatch(expectedCount: number): Promise<BatchActionResult> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  return withActiveBatch(collectionId, () => startBatchMutation(prisma, collectionId, expectedCount))
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
+  return withActiveBatch(userId, collectionId, () => startBatchMutation(prisma, userId, collectionId, expectedCount))
 }
 
 export async function addCardToBatch(batchId: number, cardCode: string, amount: number): Promise<BatchActionResult> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  return withActiveBatch(collectionId, () => addCardToBatchMutation(prisma, batchId, cardCode, amount))
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
+  return withActiveBatch(userId, collectionId, () =>
+    addCardToBatchMutation(prisma, userId, batchId, cardCode, amount)
+  )
 }
 
 export async function pauseBatch(batchId: number): Promise<BatchActionResult> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  return withActiveBatch(collectionId, () => pauseBatchMutation(prisma, batchId))
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
+  return withActiveBatch(userId, collectionId, () => pauseBatchMutation(prisma, userId, batchId))
 }
 
 export async function continueBatch(batchId: number): Promise<BatchActionResult> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  return withActiveBatch(collectionId, () => continueBatchMutation(prisma, batchId))
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
+  return withActiveBatch(userId, collectionId, () => continueBatchMutation(prisma, userId, batchId))
 }
 
 export async function discardBatch(batchId: number): Promise<SimpleActionResult> {
   try {
-    await discardBatchMutation(prisma, batchId)
+    const { id: userId } = await requireCurrentUser()
+    await discardBatchMutation(prisma, userId, batchId)
     revalidatePath('/builder')
     revalidatePath('/builder/batches')
     revalidatePath('/collections')
@@ -76,8 +88,9 @@ export async function discardBatch(batchId: number): Promise<SimpleActionResult>
 
 export async function approveBatch(batchId: number): Promise<SimpleActionResult> {
   try {
-    const collectionId = await getDefaultCollectionId(prisma)
-    await approveBatchMutation(prisma, collectionId, batchId)
+    const { id: userId } = await requireCurrentUser()
+    const collectionId = await getDefaultCollectionId(prisma, userId)
+    await approveBatchMutation(prisma, userId, collectionId, batchId)
     revalidatePath('/')
     revalidatePath('/sets/[packCode]', 'page')
     revalidatePath('/builder')
@@ -93,8 +106,11 @@ export async function removeFromBatch(
   cardCode: string,
   amount: number
 ): Promise<BatchActionResult> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  return withActiveBatch(collectionId, () => removeFromBatchMutation(prisma, collectionId, batchId, cardCode, amount))
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
+  return withActiveBatch(userId, collectionId, () =>
+    removeFromBatchMutation(prisma, userId, collectionId, batchId, cardCode, amount)
+  )
 }
 
 export type ImportCsvActionResult =
@@ -103,9 +119,10 @@ export type ImportCsvActionResult =
 
 export async function importCsv(csvText: string): Promise<ImportCsvActionResult> {
   try {
-    const collectionId = await getDefaultCollectionId(prisma)
-    const { skipped } = await importCsvAsBatch(prisma, collectionId, csvText)
-    const batch = await getActiveBatch(prisma, collectionId)
+    const { id: userId } = await requireCurrentUser()
+    const collectionId = await getDefaultCollectionId(prisma, userId)
+    const { skipped } = await importCsvAsBatch(prisma, userId, collectionId, csvText)
+    const batch = await getActiveBatch(prisma, userId, collectionId)
     if (!batch) {
       return { ok: false, error: 'Failed to load the created batch' }
     }
@@ -119,8 +136,9 @@ export async function importCsv(csvText: string): Promise<ImportCsvActionResult>
 
 export async function revertApprovedBatch(batchId: number): Promise<SimpleActionResult> {
   try {
-    const collectionId = await getDefaultCollectionId(prisma)
-    await revertApprovedBatchMutation(prisma, collectionId, batchId)
+    const { id: userId } = await requireCurrentUser()
+    const collectionId = await getDefaultCollectionId(prisma, userId)
+    await revertApprovedBatchMutation(prisma, userId, collectionId, batchId)
     revalidatePath('/')
     revalidatePath('/sets/[packCode]', 'page')
     revalidatePath('/builder/batches')
