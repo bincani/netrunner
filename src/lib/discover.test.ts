@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
-import { seedCard, seedCollection } from './testFixtures'
+import { seedCard, seedCollection, seedUser } from './testFixtures'
 import { incrementOwned } from './collection'
 import { getDiscoverDecks } from './discover'
 import type { PrismaClient } from '@prisma/client'
@@ -29,9 +29,10 @@ const defaultFilters = { sort: 'percentOwned' as const, limit: 25, offset: 0 }
 
 describe('getDiscoverDecks', () => {
   it('computes aggregate and per-card ownership', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', factionCode: 'anarch' })
-    await incrementOwned(prisma, collectionId, '01001', 2)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 2)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -62,9 +63,10 @@ describe('getDiscoverDecks', () => {
   })
 
   it('excludes a deck with missing copies when the fully-buildable default applies', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01001', 2)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 2)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Partial', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -77,9 +79,10 @@ describe('getDiscoverDecks', () => {
   })
 
   it('includes a fully-buildable deck under the default (unset maxMissingCards) filter', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01001', 3)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 3)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Full', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -91,7 +94,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('flags a deck card whose code is not in the local card database, without crashing', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -115,7 +119,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it("computes per-card influenceCost against the tournament deck's own factionCode, free for own-faction cards", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01003', title: 'Own Faction Card', packCode: 'core', factionCode: 'anarch', factionCost: 3 })
     await seedCard(prisma, { code: '01004', title: 'Off Faction Card', packCode: 'core', factionCode: 'shaper', factionCost: 2 })
     await prisma.tournamentDeck.create({
@@ -140,7 +145,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it("returns a deck's cards in cardCode order", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Test Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -154,7 +160,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('filters by faction', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: {
         id: 1,
@@ -186,9 +193,10 @@ describe('getDiscoverDecks', () => {
   })
 
   it('sorts by percent owned descending', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01001', 1)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 1)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Low', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -204,7 +212,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('sorts by newest', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Older', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -222,7 +231,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('sorts by name', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Zebra', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -240,7 +250,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('treats a deck with zero cards as fully buildable at 0% owned, not a crash or an omission', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Empty Deck', dateCreation: new Date('2020-01-01'), userName: 'alice' },
     })
@@ -252,7 +263,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('filters by name, case-insensitively', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Aggressive Anarch', dateCreation: new Date('2020-01-01'), userName: 'a' },
     })
@@ -270,7 +282,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('treats % and _ in the name query as literal characters, not SQL LIKE wildcards', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: '100% Aggro', dateCreation: new Date('2020-01-01'), userName: 'a' },
     })
@@ -288,7 +301,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('an empty or unset name query does not filter anything out', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await prisma.tournamentDeck.create({
       data: { id: 1, uuid: 'uuid-1', name: 'Deck A', dateCreation: new Date('2020-01-01'), userName: 'a' },
     })
@@ -303,7 +317,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('paginates with limit/offset while total reflects the full filtered count', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     for (let i = 1; i <= 3; i++) {
       await prisma.tournamentDeck.create({
         data: { id: i, uuid: `uuid-${i}`, name: `Deck ${i}`, dateCreation: new Date('2020-01-01'), userName: 'a' },
@@ -322,7 +337,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it('includes a per-format legality rollup for the deck', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
     await prisma.cardFormatLegality.create({
@@ -341,7 +357,8 @@ describe('getDiscoverDecks', () => {
   })
 
   it("flags a deck as pre-rotation using the tournament deck's own creation date", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard', currentSnapshotDate: '2026-08-01' } })
     await prisma.tournamentDeck.create({

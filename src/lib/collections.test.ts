@@ -232,7 +232,7 @@ describe('deleteCollection', () => {
     const user = await seedUser(prisma)
     const { id } = await seedCollection(prisma, user.id, { isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, id, '01001', 2)
+    await incrementOwned(prisma, user.id, id, '01001', 2)
 
     await deleteCollection(prisma, user.id, id)
 
@@ -347,10 +347,10 @@ describe('importCsvAsBatch', () => {
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01001', 3)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 3)
     await prisma.collectionEntry.create({ data: { collectionId, cardCode: '01002', quantityOwned: 0 } })
 
-    const csv = await exportCollectionCsv(prisma, collectionId)
+    const csv = await exportCollectionCsv(prisma, user.id, collectionId)
     const other = await createCollection(prisma, user.id, 'Other')
     const result = await importCsvAsBatch(prisma, user.id, other, csv)
 
@@ -408,13 +408,13 @@ describe('importCsvAsBatch', () => {
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', quantity: 3 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', quantity: 2 })
-    await incrementOwned(prisma, collectionId, '01001', 2)
-    await incrementOwned(prisma, collectionId, '01002', 1)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 2)
+    await incrementOwned(prisma, user.id, collectionId, '01002', 1)
 
-    const csv = await exportCollectionCsv(prisma, collectionId)
+    const csv = await exportCollectionCsv(prisma, user.id, collectionId)
     const other = await createCollection(prisma, user.id, 'Other')
     const result = await importCsvAsBatch(prisma, user.id, other, csv)
-    await approveBatch(prisma, other, result.batchId)
+    await approveBatch(prisma, user.id, other, result.batchId)
 
     const entries = await prisma.collectionEntry.findMany({
       where: { collectionId: other },
@@ -445,7 +445,7 @@ describe('listCollectionsWithStats', () => {
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 2, position: 1 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 2, position: 2 })
-    await incrementOwned(prisma, collectionId, '01001', 1)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 1)
 
     const [entry] = await listCollectionsWithStats(prisma, user.id)
 
@@ -459,7 +459,7 @@ describe('listCollectionsWithStats', () => {
     const a = await seedCollection(prisma, user.id, { name: 'A' })
     const b = await seedCollection(prisma, user.id, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
-    await incrementOwned(prisma, a.id, '01001', 1)
+    await incrementOwned(prisma, user.id, a.id, '01001', 1)
 
     const list = await listCollectionsWithStats(prisma, user.id)
 
@@ -495,7 +495,7 @@ describe('listCollectionsWithStats', () => {
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
     const { batchId } = await importCsvAsBatch(prisma, user.id, collectionId, csv)
-    await approveBatch(prisma, collectionId, batchId)
+    await approveBatch(prisma, user.id, collectionId, batchId)
 
     const [entry] = await listCollectionsWithStats(prisma, user.id)
 

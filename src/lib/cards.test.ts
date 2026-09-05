@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
-import { seedCard, seedCollection } from './testFixtures'
+import { seedCard, seedCollection, seedUser } from './testFixtures'
 import { incrementOwned } from './collection'
 import { searchCards, listCardsInPack, getOtherPrintings, getAllPrintings, getCardDetail } from './cards'
 import type { PrismaClient } from '@prisma/client'
@@ -26,7 +26,8 @@ beforeEach(async () => {
 
 describe('searchCards', () => {
   it('finds cards by a case-insensitive partial title match', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
     await seedCard(prisma, { code: '01011', title: 'Mimic', packCode: 'core' })
 
@@ -37,9 +38,10 @@ describe('searchCards', () => {
   })
 
   it('includes owned quantity in results', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01007', 2)
+    await incrementOwned(prisma, user.id, collectionId, '01007', 2)
 
     const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
 
@@ -47,7 +49,8 @@ describe('searchCards', () => {
   })
 
   it('returns 0 owned quantity for cards not in the collection', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
 
     const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
@@ -56,10 +59,11 @@ describe('searchCards', () => {
   })
 
   it('only reflects the given collection\'s ownership, not another collection\'s', async () => {
-    const mine = await seedCollection(prisma, { name: 'Mine' })
-    const other = await seedCollection(prisma, { name: 'Other', isDefault: false })
+    const user = await seedUser(prisma)
+    const mine = await seedCollection(prisma, user.id, { name: 'Mine' })
+    const other = await seedCollection(prisma, user.id, { name: 'Other', isDefault: false })
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
-    await incrementOwned(prisma, other.id, '01007', 4)
+    await incrementOwned(prisma, user.id, other.id, '01007', 4)
 
     const results = await searchCards(prisma, mine.id, { query: 'Corroder' })
 
@@ -67,7 +71,8 @@ describe('searchCards', () => {
   })
 
   it('filters by faction when provided', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', factionCode: 'anarch' })
     await seedCard(prisma, { code: '02001', title: 'Corroder Alt', packCode: 'core', factionCode: 'shaper' })
 
@@ -78,10 +83,11 @@ describe('searchCards', () => {
   })
 
   it('excludes cards from a hidden pack in the general search', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
     await seedCard(prisma, { code: '02007', title: 'Corroder Alt', packCode: 'sg' })
-    await prisma.hiddenBuilderPack.create({ data: { packCode: 'core' } })
+    await prisma.hiddenBuilderPack.create({ data: { userId: user.id, packCode: 'core' } })
 
     const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
 
@@ -89,7 +95,8 @@ describe('searchCards', () => {
   })
 
   it('is unaffected when no packs are hidden', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core' })
 
     const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
@@ -98,7 +105,8 @@ describe('searchCards', () => {
   })
 
   it('includes full card-detail fields, joining faction and type names', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01007',
       title: 'Corroder',
@@ -124,7 +132,8 @@ describe('searchCards', () => {
   })
 
   it("includes the card's declared printed quantity", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01007', title: 'Corroder', packCode: 'core', quantity: 3 })
 
     const results = await searchCards(prisma, collectionId, { query: 'Corroder' })
@@ -135,10 +144,11 @@ describe('searchCards', () => {
 
 describe('listCardsInPack', () => {
   it('lists cards in a pack ordered by position with owned quantities', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', position: 2 })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', position: 1 })
-    await incrementOwned(prisma, collectionId, '01001', 3)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 3)
 
     const cards = await listCardsInPack(prisma, collectionId, 'core')
 
@@ -148,7 +158,8 @@ describe('listCardsInPack', () => {
   })
 
   it('includes card-detail fields, joining faction and type names', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: '01001',
       title: 'Card A',
@@ -175,7 +186,8 @@ describe('listCardsInPack', () => {
   })
 
   it("includes each card's declared printed quantity", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Corroder', packCode: 'core', quantity: 2 })
 
     const [card] = await listCardsInPack(prisma, collectionId, 'core')
@@ -221,7 +233,8 @@ describe('getOtherPrintings', () => {
 
 describe('getAllPrintings', () => {
   it('includes the queried printing alongside its other printings, each with its own owned quantity', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, {
       code: 'allp-1',
       title: 'Corroder Allp',
@@ -234,7 +247,7 @@ describe('getAllPrintings', () => {
       packCode: 'allp-su21',
       packName: 'Allp System Update',
     })
-    await incrementOwned(prisma, collectionId, 'allp-2', 3)
+    await incrementOwned(prisma, user.id, collectionId, 'allp-2', 3)
 
     const printings = await getAllPrintings(prisma, collectionId, 'allp-1')
 
@@ -245,7 +258,8 @@ describe('getAllPrintings', () => {
   })
 
   it('returns just the one printing for a card with no reprints', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: 'allp-3', title: 'Mimic Allp', packCode: 'allp-core2', packName: 'Allp Core 2' })
 
     const printings = await getAllPrintings(prisma, collectionId, 'allp-3')
@@ -256,10 +270,11 @@ describe('getAllPrintings', () => {
   })
 
   it('keeps ownership scoped to the given collection, not any other collection', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const user = await seedUser(prisma)
+    const a = await seedCollection(prisma, user.id, { name: 'A' })
+    const b = await seedCollection(prisma, user.id, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: 'allp-4', title: 'Scoped Allp', packCode: 'allp-core3', packName: 'Allp Core 3' })
-    await incrementOwned(prisma, a.id, 'allp-4', 2)
+    await incrementOwned(prisma, user.id, a.id, 'allp-4', 2)
 
     const printingsForA = await getAllPrintings(prisma, a.id, 'allp-4')
     const printingsForB = await getAllPrintings(prisma, b.id, 'allp-4')
@@ -269,7 +284,8 @@ describe('getAllPrintings', () => {
   })
 
   it('returns an empty list for a card code that does not exist', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
 
     const printings = await getAllPrintings(prisma, collectionId, 'nonexistent')
 
@@ -279,7 +295,8 @@ describe('getAllPrintings', () => {
 
 describe('formatLegalities', () => {
   it('getCardDetail includes each format the card has a legality row for', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core' })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
     await prisma.cardFormatLegality.create({
@@ -294,7 +311,8 @@ describe('formatLegalities', () => {
   })
 
   it('getCardDetail returns an empty array for a card with no legality data', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core' })
 
     const detail = await getCardDetail(prisma, collectionId, '01001')
@@ -303,7 +321,8 @@ describe('formatLegalities', () => {
   })
 
   it('listCardsInPack attaches formatLegalities per card without an N+1 query per card', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const user = await seedUser(prisma)
+    const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Sure Gamble', packCode: 'core', position: 1 })
     await seedCard(prisma, { code: '01002', title: 'Easy Mark', packCode: 'core', position: 2 })
     await prisma.format.create({ data: { code: 'standard', name: 'Standard' } })
