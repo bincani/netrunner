@@ -94,7 +94,7 @@ export async function listCollectionsWithStats(prisma: PrismaClient, userId: num
     collections.map(async (collection) => {
       const [totals, activeBatch] = await Promise.all([
         computeCollectionTotals(prisma, collection.id),
-        getActiveBatch(prisma, collection.id),
+        getActiveBatch(prisma, userId, collection.id),
       ])
       const pendingBatch = activeBatch?.status === 'running' ? null : activeBatch
       return { ...collection, ...totals, pendingBatch }
@@ -245,7 +245,7 @@ export async function importCsvAsBatch(
     throw new Error('CSV must have cardCode and quantityOwned columns')
   }
 
-  const existingBatch = await getActiveBatch(prisma, collectionId)
+  const existingBatch = await getActiveBatch(prisma, userId, collectionId)
   if (existingBatch) {
     throw new Error('A batch is already active — review or finish it before starting a new one')
   }

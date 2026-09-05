@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCurrentUser } from '@/lib/currentUser'
 import {
   getDefaultCollectionId,
   createCollection as createCollectionMutation,
@@ -21,8 +22,9 @@ import {
 import { addToCollectionMutation, updateCollectionQuantityMutation } from './collectionMutations'
 
 export async function addToCollection(cardCode: string, amount: number): Promise<number> {
-  const collectionId = await getDefaultCollectionId(prisma)
-  const quantity = await addToCollectionMutation(prisma, collectionId, cardCode, amount)
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
+  const quantity = await addToCollectionMutation(prisma, userId, collectionId, cardCode, amount)
   revalidatePath('/')
   revalidatePath('/sets/[packCode]', 'page')
   revalidatePath('/collections/[id]', 'page')
@@ -34,8 +36,9 @@ export async function updateCollectionQuantity(
   quantity: number,
   collectionId?: number
 ): Promise<number> {
-  const resolvedCollectionId = collectionId ?? (await getDefaultCollectionId(prisma))
-  const updated = await updateCollectionQuantityMutation(prisma, resolvedCollectionId, cardCode, quantity)
+  const { id: userId } = await requireCurrentUser()
+  const resolvedCollectionId = collectionId ?? (await getDefaultCollectionId(prisma, userId))
+  const updated = await updateCollectionQuantityMutation(prisma, userId, resolvedCollectionId, cardCode, quantity)
   revalidatePath('/')
   revalidatePath('/sets/[packCode]', 'page')
   revalidatePath('/collections/[id]', 'page')
@@ -49,8 +52,9 @@ export type ImportCsvResult =
   | { ok: false; error: string }
 
 export async function createCollection(name: string): Promise<CreateCollectionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    const id = await createCollectionMutation(prisma, name)
+    const id = await createCollectionMutation(prisma, userId, name)
     const collection = await prisma.collection.findUniqueOrThrow({ where: { id } })
     const totals = await computeCollectionTotals(prisma, id)
     revalidatePath('/collections')
@@ -72,8 +76,9 @@ export async function createCollection(name: string): Promise<CreateCollectionRe
 }
 
 export async function renameCollection(collectionId: number, name: string): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await renameCollectionMutation(prisma, collectionId, name)
+    await renameCollectionMutation(prisma, userId, collectionId, name)
     revalidatePath('/collections')
     revalidatePath('/', 'layout')
     return { ok: true }
@@ -83,8 +88,9 @@ export async function renameCollection(collectionId: number, name: string): Prom
 }
 
 export async function deleteCollection(collectionId: number): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await deleteCollectionMutation(prisma, collectionId)
+    await deleteCollectionMutation(prisma, userId, collectionId)
     revalidatePath('/collections')
     return { ok: true }
   } catch (err) {
@@ -93,8 +99,9 @@ export async function deleteCollection(collectionId: number): Promise<SimpleActi
 }
 
 export async function setDefaultCollection(collectionId: number): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await setDefaultCollectionMutation(prisma, collectionId)
+    await setDefaultCollectionMutation(prisma, userId, collectionId)
     revalidatePath('/collections')
     revalidatePath('/collections/[id]', 'page')
     revalidatePath('/', 'layout')
@@ -105,8 +112,9 @@ export async function setDefaultCollection(collectionId: number): Promise<Simple
 }
 
 export async function reorderCollections(orderedIds: number[]): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await reorderCollectionsMutation(prisma, orderedIds)
+    await reorderCollectionsMutation(prisma, userId, orderedIds)
     revalidatePath('/collections')
     revalidatePath('/', 'layout')
     return { ok: true }
@@ -116,9 +124,10 @@ export async function reorderCollections(orderedIds: number[]): Promise<SimpleAc
 }
 
 export async function importCsvToCollection(collectionId: number, csvText: string): Promise<ImportCsvResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    const { skipped } = await importCsvAsBatch(prisma, collectionId, csvText)
-    const batch = await getActiveBatch(prisma, collectionId)
+    const { skipped } = await importCsvAsBatch(prisma, userId, collectionId, csvText)
+    const batch = await getActiveBatch(prisma, userId, collectionId)
     if (!batch) {
       return { ok: false, error: 'Failed to load the created batch' }
     }
@@ -140,9 +149,10 @@ export async function removeFromImportBatch(
   cardCode: string,
   amount: number
 ): Promise<{ ok: true; batch: BatchSummary } | { ok: false; error: string }> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await removeFromBatchMutation(prisma, collectionId, batchId, cardCode, amount)
-    const batch = await getActiveBatch(prisma, collectionId)
+    await removeFromBatchMutation(prisma, userId, collectionId, batchId, cardCode, amount)
+    const batch = await getActiveBatch(prisma, userId, collectionId)
     if (!batch) {
       return { ok: false, error: 'Failed to load the updated batch' }
     }
@@ -153,8 +163,9 @@ export async function removeFromImportBatch(
 }
 
 export async function approveImportBatch(collectionId: number, batchId: number): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await approveBatchMutation(prisma, collectionId, batchId)
+    await approveBatchMutation(prisma, userId, collectionId, batchId)
     revalidatePath('/')
     revalidatePath('/sets/[packCode]', 'page')
     revalidatePath('/collections')

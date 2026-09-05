@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCurrentUser } from '@/lib/currentUser'
 import {
   quickAddSet as quickAddSetMutation,
   clearSet as clearSetMutation,
@@ -13,9 +14,10 @@ export type QuickSetResult = { ok: true; changes: QuickSetChange[] } | { ok: fal
 export type SimpleActionResult = { ok: true } | { ok: false; error: string }
 
 export async function quickAddSet(collectionId: number, packCode: string): Promise<QuickSetResult> {
+  const { id: userId } = await requireCurrentUser()
   let changes: QuickSetChange[]
   try {
-    changes = await quickAddSetMutation(prisma, collectionId, packCode)
+    changes = await quickAddSetMutation(prisma, userId, collectionId, packCode)
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to quick add set' }
   }
@@ -25,9 +27,10 @@ export async function quickAddSet(collectionId: number, packCode: string): Promi
 }
 
 export async function clearSet(collectionId: number, packCode: string): Promise<QuickSetResult> {
+  const { id: userId } = await requireCurrentUser()
   let changes: QuickSetChange[]
   try {
-    changes = await clearSetMutation(prisma, collectionId, packCode)
+    changes = await clearSetMutation(prisma, userId, collectionId, packCode)
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to clear set' }
   }
@@ -40,8 +43,9 @@ export async function undoQuickSetChange(
   collectionId: number,
   changes: QuickSetChange[]
 ): Promise<SimpleActionResult> {
+  const { id: userId } = await requireCurrentUser()
   try {
-    await undoQuickSetChangeMutation(prisma, collectionId, changes)
+    await undoQuickSetChangeMutation(prisma, userId, collectionId, changes)
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to undo' }
   }
