@@ -2258,34 +2258,95 @@ git commit -m "Author the userId-required tighten migration and one-time claim s
 
 ---
 
-### Task 18: Sign up for real (checkpoint — requires your action)
+### Task 18: Migrate the real database to the nullable state, then sign up for real (checkpoint — requires your action)
+
+**Amended after the final whole-branch review** found the original Task 18/19 split unworkable: none of this plan's migrations were ever applied to the real `data/netrunner.db` (Tasks 1-3's "apply directly to real data/netrunner.db" instructions were retargeted, by an earlier ruling, to each worktree's own disposable local dev database — see the ledger). The real database is still on its pre-this-plan schema entirely. Signing up (this task) needs at least the nullable `userId` columns to exist before `getDefaultCollection` can run; the claim script (Task 19) needs the same; and the tighten migration (`require_user_id`, from Task 17) must NOT be applied until every row is claimed. Since `npx prisma migrate deploy` always applies every pending migration in the folder in one shot, the tighten migration is temporarily moved out of `prisma/migrations/` for this task and Task 19's early steps, then moved back and applied last.
 
 This step cannot be automated — it's you creating your own real account with your own password.
 
-- [ ] **Step 1: Start the dev server**
+- [ ] **Step 1: Back up the real database first**
+
+```bash
+cp data/netrunner.db "data/netrunner.db.pre-data-scoping-backup-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+- [ ] **Step 2: Temporarily set aside the tighten migration**
+
+```bash
+mv prisma/migrations/20260905084959_require_user_id /tmp/require_user_id_migration_holding
+```
+
+(Adjust the migration folder name if `npx prisma migrate status` — next step — shows a different exact timestamp than the one committed at plan-writing time.)
+
+- [ ] **Step 3: Apply the three nullable migrations to the real database**
+
+```bash
+npx prisma migrate status
+npx prisma migrate deploy
+```
+
+Expected: with the tighten migration moved aside, `migrate deploy` applies exactly the three nullable migrations (`add_user_id_to_collection`, `reshape_deck_primary_key`, `add_user_id_to_settings`) and reports no pending migrations afterward — Prisma has no way to know the fourth one exists while it's sitting outside `prisma/migrations/`.
+
+- [ ] **Step 4: Verify against the real database**
+
+```bash
+npx tsx -e "
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
+async function main() {
+  const collections = await prisma.collection.findMany({ select: { id: true, name: true } })
+  console.log('collections:', collections)
+  const deckCount = await prisma.deck.count()
+  console.log('deck count:', deckCount)
+  await prisma.\$disconnect()
+}
+main()
+"
+```
+
+Expected: same collection/deck data as before this task (this migration only adds nullable columns — nothing here changes or removes a row). Every `Collection`/`Deck`/`Setting`/`HiddenBuilderPack` row now has `userId: null` at the database level (not visible in this query since `schema.prisma`'s type says `userId` is required and Prisma's generated types reflect that — this is the same deliberate, temporary schema/database mismatch every earlier task in this plan already relied on).
+
+- [ ] **Step 5: Start the dev server**
 
 ```bash
 npm run dev
 ```
 
-- [ ] **Step 2: Sign up**
+- [ ] **Step 6: Sign up**
 
-Visit `http://localhost:3000/signup` and create your account with your real email address. Verify the email if you have `RESEND_API_KEY` configured; otherwise (this project's current dev default) the verification link is logged to the server console — either way, verification isn't required to proceed, since Phase 1 explicitly doesn't block usage on it.
+Visit `http://localhost:3000/signup` and create your account with your real email address. Verify the email if you have `RESEND_API_KEY` configured; otherwise (this project's current dev default) the verification link is logged to the server console — either way, verification isn't required to proceed, since Phase 1 explicitly doesn't block usage on it. Confirm you can reach `/` afterward (it will show an empty, freshly auto-created default collection — that's expected, your real data isn't claimed yet).
 
-- [ ] **Step 3: Confirm before proceeding**
+- [ ] **Step 7: Confirm before proceeding**
 
 **Stop here and confirm with the user which email address they signed up with**, and get explicit confirmation to proceed to Task 19 — the next task assigns every existing row of the real collection to that account and then permanently tightens the schema around it. Do not proceed without that confirmation, per `CLAUDE.md`'s standing rule on real collection data.
 
 ---
 
-### Task 19: Claim and tighten the real database (checkpoint — explicit confirmation required)
+### Task 19: Move the sync checkpoint, claim, and tighten the real database (checkpoint — explicit confirmation required)
 
-**Only proceed once Task 18's confirmation has been given.** Every step here acts on the real `data/netrunner.db`.
+**Only proceed once Task 18's confirmation has been given.** Every step here acts on the real `data/netrunner.db`, already migrated to the nullable state by Task 18.
 
-- [ ] **Step 1: Back up first**
+- [ ] **Step 1: Move the existing sync checkpoint row, if one exists**
+
+Task 3 moved the `tournamentDecksSyncedThrough` checkpoint out of the per-user `Setting` table into the new global `SyncCheckpoint` table — but that move was only ever run against each worktree's disposable dev database, never the real one (the real `Setting` table still has this row, if `npm run sync-decks` has ever been run against this project's real data). Move it now, before the claim step, so it isn't accidentally claimed as if it were a per-user preference:
 
 ```bash
-cp data/netrunner.db "data/netrunner.db.pre-data-scoping-backup-$(date -u +%Y%m%dT%H%M%SZ)"
+npx tsx -e "
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
+async function main() {
+  const existing = await prisma.setting.findFirst({ where: { key: 'tournamentDecksSyncedThrough' } })
+  if (existing) {
+    await prisma.syncCheckpoint.create({ data: { key: existing.key, value: existing.value } })
+    await prisma.setting.delete({ where: { id: existing.id } })
+    console.log('Moved checkpoint:', existing.value)
+  } else {
+    console.log('No existing checkpoint row — nothing to move.')
+  }
+  await prisma.\$disconnect()
+}
+main()
+"
 ```
 
 - [ ] **Step 2: Run the claim script against the real database**
@@ -2294,7 +2355,7 @@ cp data/netrunner.db "data/netrunner.db.pre-data-scoping-backup-$(date -u +%Y%m%
 npx tsx scripts/claim-existing-data.ts <the email confirmed in Task 18>
 ```
 
-Expected output: `Claimed: { collections: 2, decks: 5, settings: <N>, hiddenBuilderPacks: <N> }` (exact counts will match whatever this project's real data currently holds — cross-check against Task 17 Step 6's dry-run numbers, which used a copy of the same data).
+Expected output: `Claimed: { collections: 2, decks: 5, settings: <N>, hiddenBuilderPacks: <N> }` (exact counts will match whatever this project's real data currently holds — cross-check against Task 17 Step 6's dry-run numbers, which used a copy of the same data). `settings` should now exclude the sync checkpoint (moved in Step 1), so this count reflects only real per-user preferences (`builderMode`, `navStyle`).
 
 - [ ] **Step 3: Verify zero rows remain unclaimed**
 
@@ -2315,13 +2376,14 @@ main()
 
 Expected: all four are `0`. **If any is nonzero, stop — do not run Step 4.** (`as never` sidesteps the compile-time "always required" type here deliberately, to query the actual nullable-at-the-SQL-level column state directly.)
 
-- [ ] **Step 4: Apply the tighten migration**
+- [ ] **Step 4: Restore and apply the tighten migration**
 
 ```bash
+mv /tmp/require_user_id_migration_holding prisma/migrations/20260905084959_require_user_id
 npx prisma migrate deploy
 ```
 
-Expected: the `require_user_id` migration from Task 17 applies successfully (it will, since Step 3 just confirmed there's nothing left for its `NOT NULL` constraints to reject).
+Expected: the `require_user_id` migration applies successfully (it will, since Step 3 just confirmed there's nothing left for its `NOT NULL` constraints to reject).
 
 - [ ] **Step 5: Verify against the real database**
 

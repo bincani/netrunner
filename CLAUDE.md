@@ -31,29 +31,15 @@ disposable.
   owned quantities directly.
 
 **Out of scope for now:** full deckbuilding / "what can I build with this"
-(in-app deck editing, flagging illegal cards while building). Accounts
-now exist (see "Auth" below), but per-account data scoping does not —
-every account still reads/writes the same shared `Collection`/`Deck`/
-`Batch`/`Setting` data, so this is still effectively a single shared
-collection, just one that requires logging in to reach.
-`importCsvToCollection`, `approveImportBatch`, `removeFromImportBatch`,
-`removeFromBatch`, `approveBatch`,
-`quickAddSet`/`clearSet`/`undoQuickSetChange` (`src/actions/quickSetActions.ts`),
-and the CSV export route's `?collectionId=` param all currently accept a
-client-supplied `collectionId`/`batchId` with only a batch-to-collection
-ownership check (a batch must belong to the given collection) and no
-user/access-control check. This is no longer a purely hypothetical gap —
-any account can now log in and act on any `collectionId`/`batchId` it can
-guess or enumerate — but closing it is deliberately deferred to the
-Phase 2 (data scoping) work called out in
-`docs/superpowers/specs/2026-08-23-auth-foundation-design.md`, not yet
-planned/spec'd itself.
+(in-app deck editing, flagging illegal cards while building), and any
+sharing/collaboration between accounts — isolation is strict (see
+"Multi-account data scoping" below), never shared/household access.
 
 **Auth (shipped, Phase 1 of 2):** account creation and login are live —
 sign up, log in, log out, email verification, password reset
 (`src/lib/auth.ts`, `src/actions/authActions.ts`, pages under `/signup`,
 `/login`, `/verify-email`, `/forgot-password`, `/reset-password`),
-backed by new `User`/`Session`/`VerificationToken` tables. `src/proxy.ts`
+backed by `User`/`Session`/`VerificationToken` tables. `src/proxy.ts`
 gates every other route behind a valid session, redirecting to
 `/login?next=<path>` when one is missing. Full design:
 `docs/superpowers/specs/2026-08-23-auth-foundation-design.md`. This is
@@ -61,10 +47,47 @@ gates every other route behind a valid session, redirecting to
 create their own account — not an invite-only gate, which raises the
 security bar accordingly (email enumeration protection, rate limiting on
 login/signup/forgot-password, and TLS being effectively required rather
-than optional for any deployment reachable outside localhost). Critically,
-this phase is additive only: it does not change who owns any existing
-data (see "Out of scope" above) — every account currently sees the exact
-same collection, decks, and batches as every other account.
+than optional for any deployment reachable outside localhost).
+
+**Multi-account data scoping (Phase 2, code shipped — see "Real-database
+migration status" below for what's still pending):** every account now
+gets its own private `Collection`(s), `Deck`s, and `Setting`/
+`HiddenBuilderPack` preferences — `Batch`/`CollectionEntry` scope
+transitively through `Collection.userId`. Full design:
+`docs/superpowers/specs/2026-09-04-multi-account-data-scoping-design.md`;
+implementation plan (including the real-database migration steps):
+`docs/superpowers/plans/2026-09-04-multi-account-data-scoping.md`.
+`requireOwnedCollection`/`requireOwnedDeck` (`src/lib/collections.ts`/
+`src/lib/decks.ts`) are the shared ownership guards — every data-layer
+function that resolves, lists, creates, or accepts a client-supplied
+`collectionId`/`batchId`/`deckId` calls one of them internally (not just
+at the Server Action boundary), specifically so a future caller can't
+reintroduce a cross-account gap by forgetting a check. Every previously
+open access-control gap this file used to list by name
+(`importCsvToCollection`, `approveImportBatch`, `removeFromImportBatch`,
+`removeFromBatch`, `approveBatch`, `quickAddSet`/`clearSet`/
+`undoQuickSetChange`, the CSV export routes' `?collectionId=`/`?deckId=`
+params) is now closed this way. `Deck`'s primary key was reshaped off
+NetrunnerDB's own decklist id (now `Deck.netrunnerdbId`, with a fresh
+internal autoincrement `Deck.id`) specifically so two different accounts
+can each import the same public decklist independently — code reading a
+deck's id for this app's own routing/CSV export uses `id`; code linking
+out to `netrunnerdb.com` uses `netrunnerdbId`.
+
+**Real-database migration status:** the application code above assumes
+`userId` is always present everywhere. `data/netrunner.db` itself does
+**not** have this migration applied yet — check
+`docs/superpowers/plans/2026-09-04-multi-account-data-scoping.md`'s
+Tasks 18-19 before running this app against real data or before assuming
+any account can see the real collection. Those two tasks are deliberately
+human-supervised checkpoints (per this file's standing rule on real
+collection data, below) — signing up for a real account, then running a
+one-time claim script and a final schema-tightening migration against the
+real database. Until Task 19 completes, do not assume the codebase's
+"every account has a private collection" behavior is actually observable
+against `data/netrunner.db` — a fresh `npm run dev` against the
+unmigrated real file will fail the moment any page queries `Collection`
+by `userId`.
 
 **Phase 2 (shipped):** deck tracking — import a published NetrunnerDB
 decklist by URL/ID (`src/lib/netrunnerdb.ts`) and see ownership completion
@@ -114,12 +137,13 @@ URL/ID).
 
 An nginx + systemd production deployment option was added after phase 1
 shipped — see `README.md`'s "Production deployment" section and the
-`deploy/` directory. It's still a local-database app — one shared
-`Collection`/`Deck`/`Batch` dataset behind whichever accounts can log in
-(see "Auth" above) — just reachable over the network if you choose to
-expose it that way. Given open self-registration, TLS (nginx + Certbot)
-should be treated as required, not optional, for any such deployment —
-passwords otherwise cross the network in the clear on every login.
+`deploy/` directory. It's still a local-database app — every account's
+data lives in the same `data/netrunner.db` file, just private to that
+account (see "Multi-account data scoping" above) — just reachable over
+the network if you choose to expose it that way. Given open
+self-registration, TLS (nginx + Certbot) should be treated as required,
+not optional, for any such deployment — passwords otherwise cross the
+network in the clear on every login.
 
 ## Data source
 
@@ -165,14 +189,22 @@ be able to build directly on this codebase.
   `/builder` — `BuilderPage` shows `BatchBuilderForm` whenever
   `getActiveBatch` returns non-null, regardless of the stored setting, so
   a batch can never be stranded by flipping the setting mid-batch.
-- `Setting` (`src/actions/settingsMutations.ts`) is a generic key/value
-  table — it's the one place all future `/settings` additions should be
-  persisted, not a new dedicated table per setting.
-- Every function that touches `CollectionEntry` takes an explicit
-  `collectionId` as an early parameter (immediately after `prisma`).
-  Callers resolve it via `getDefaultCollectionId(prisma)`
-  (`src/lib/collections.ts`) — never hardcode or inline a
-  default-collection lookup elsewhere in the data layer.
+- `Setting` (`src/actions/settingsMutations.ts`) is a generic per-user
+  key/value table — it's the one place all future `/settings` additions
+  should be persisted, not a new dedicated table per setting.
+  `SyncCheckpoint` is the one exception: genuinely global (not per-user)
+  process state for the `npm run sync-decks` background job — never route
+  a new per-account preference through it, and never route new global
+  process state through `Setting`.
+- Every function that touches `CollectionEntry`/`Collection`/`Batch`/
+  `Deck` takes explicit `userId` and `collectionId` (or `deckId`) as early
+  parameters, in that order, immediately after `prisma`. Callers resolve
+  `userId` via `requireCurrentUser()`/`getCurrentUser()`
+  (`src/lib/currentUser.ts`) and `collectionId` via
+  `getDefaultCollectionId(prisma, userId)` (`src/lib/collections.ts`) —
+  never hardcode or inline a default-collection lookup, or skip the
+  `requireOwnedCollection`/`requireOwnedDeck` ownership check, elsewhere
+  in the data layer.
 
 ## Commands
 
