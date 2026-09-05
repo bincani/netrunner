@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createTestDb } from './testDb'
+import { seedUser } from './testFixtures'
 import type { PrismaClient } from '@prisma/client'
 
 describe('prisma schema', () => {
@@ -48,7 +49,8 @@ describe('prisma schema', () => {
   })
 
   it('tracks a collection entry for a card, scoped to a collection', async () => {
-    const collection = await prisma.collection.create({ data: { name: 'Test Collection', isDefault: true } })
+    const user = await seedUser(prisma)
+    const collection = await prisma.collection.create({ data: { userId: user.id, name: 'Test Collection', isDefault: true } })
     await prisma.collectionEntry.create({
       data: { collectionId: collection.id, cardCode: '01007', quantityOwned: 2 },
     })
