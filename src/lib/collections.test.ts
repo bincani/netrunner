@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { createTestDb } from './testDb'
-import { seedCard, seedCollection } from './testFixtures'
+import { seedCard, seedCollection, seedUser } from './testFixtures'
 import {
   getDefaultCollection,
   getDefaultCollectionId,
@@ -13,6 +13,7 @@ import {
   importCsvAsBatch,
   listCollectionsWithStats,
   reorderCollections,
+  requireOwnedCollection,
 } from './collections'
 import { exportCollectionCsv, incrementOwned } from './collection'
 import { approveBatch } from '@/actions/batchMutations'
@@ -38,8 +39,8 @@ beforeEach(async () => {
 
 describe('getDefaultCollectionId', () => {
   it('returns the id of the collection marked default', async () => {
-    await seedCollection(prisma, { name: 'Not Default', isDefault: false })
-    const { id } = await seedCollection(prisma, { name: 'The Default', isDefault: true })
+    await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'Not Default', isDefault: false })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'The Default', isDefault: true })
 
     expect(await getDefaultCollectionId(prisma)).toBe(id)
   })
@@ -51,8 +52,8 @@ describe('getDefaultCollectionId', () => {
 
 describe('getDefaultCollection', () => {
   it('returns the collection marked default', async () => {
-    await seedCollection(prisma, { name: 'Not Default', isDefault: false })
-    const { id } = await seedCollection(prisma, { name: 'The Default', isDefault: true })
+    await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'Not Default', isDefault: false })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'The Default', isDefault: true })
 
     const collection = await getDefaultCollection(prisma)
 
@@ -72,7 +73,7 @@ describe('getDefaultCollection', () => {
 
 describe('getCollection', () => {
   it('returns the collection with that id, default or not', async () => {
-    const { id } = await seedCollection(prisma, { name: 'Trade Binder', isDefault: false })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'Trade Binder', isDefault: false })
 
     const collection = await getCollection(prisma, id)
 
@@ -96,8 +97,8 @@ describe('listCollections', () => {
   })
 
   it('lists every collection, oldest first', async () => {
-    await seedCollection(prisma, { name: 'First' })
-    await seedCollection(prisma, { name: 'Second', isDefault: false })
+    await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'First' })
+    await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'Second', isDefault: false })
 
     const collections = await listCollections(prisma)
 
@@ -105,9 +106,9 @@ describe('listCollections', () => {
   })
 
   it('orders by sortOrder ascending once collections have been reordered', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
-    const c = await seedCollection(prisma, { name: 'C', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A' })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
+    const c = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'C', isDefault: false })
 
     await reorderCollections(prisma, [c.id, a.id, b.id])
 
@@ -141,8 +142,8 @@ describe('createCollection', () => {
   })
 
   it('appends after every existing collection, even ones already reordered ahead of it', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A' })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
     await reorderCollections(prisma, [b.id, a.id])
 
     const id = await createCollection(prisma, 'C')
@@ -155,7 +156,7 @@ describe('createCollection', () => {
 
 describe('renameCollection', () => {
   it('updates the name', async () => {
-    const { id } = await seedCollection(prisma, { name: 'Old Name' })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'Old Name' })
 
     await renameCollection(prisma, id, 'New Name')
 
@@ -164,7 +165,7 @@ describe('renameCollection', () => {
   })
 
   it('rejects an empty name', async () => {
-    const { id } = await seedCollection(prisma)
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id)
 
     await expect(renameCollection(prisma, id, '')).rejects.toThrow('Collection name cannot be empty')
   })
@@ -172,7 +173,7 @@ describe('renameCollection', () => {
 
 describe('deleteCollection', () => {
   it('deletes a non-default collection', async () => {
-    const { id } = await seedCollection(prisma, { isDefault: false })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { isDefault: false })
 
     await deleteCollection(prisma, id)
 
@@ -180,13 +181,13 @@ describe('deleteCollection', () => {
   })
 
   it('rejects deleting the default collection', async () => {
-    const { id } = await seedCollection(prisma, { isDefault: true })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { isDefault: true })
 
     await expect(deleteCollection(prisma, id)).rejects.toThrow('Cannot delete the default collection')
   })
 
   it('cascades to delete its collection entries', async () => {
-    const { id } = await seedCollection(prisma, { isDefault: false })
+    const { id } = await seedCollection(prisma, (await seedUser(prisma)).id, { isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await incrementOwned(prisma, id, '01001', 2)
 
@@ -198,8 +199,8 @@ describe('deleteCollection', () => {
 
 describe('setDefaultCollection', () => {
   it('makes the given collection default and un-defaults the previous one', async () => {
-    const a = await seedCollection(prisma, { name: 'A', isDefault: true })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A', isDefault: true })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
 
     await setDefaultCollection(prisma, b.id)
 
@@ -212,7 +213,7 @@ describe('setDefaultCollection', () => {
 
 describe('importCsvAsBatch', () => {
   it('creates a stopped batch with one BatchCard per valid row', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
 
@@ -235,7 +236,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('does not touch CollectionEntry — the batch must be approved first', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
 
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,3,1\n'
@@ -245,7 +246,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('skips and reports an unknown card code rather than failing the whole import', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
 
     const csv =
@@ -260,7 +261,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('skips and reports a malformed quantity', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
 
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,not-a-number,1\n'
@@ -271,7 +272,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('silently omits a zero quantity — a legitimate export value, not an error', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
 
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,0,1\n'
@@ -282,7 +283,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('rejects a negative quantity as invalid', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
 
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,-1,1\n'
@@ -292,7 +293,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it("round-trips a collection containing a zero-quantity entry without any spurious skip — re-importing your own export shouldn't complain", async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core' })
     await incrementOwned(prisma, collectionId, '01001', 3)
@@ -308,7 +309,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('handles a quoted title containing a comma and escaped quotes', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Kate "Mac" McCaffrey', packCode: 'core' })
 
     const csv =
@@ -321,12 +322,12 @@ describe('importCsvAsBatch', () => {
   })
 
   it('throws for an empty CSV', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await expect(importCsvAsBatch(prisma, collectionId, '')).rejects.toThrow('CSV is empty')
   })
 
   it('rejects importing into a collection that already has an active batch', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
     await importCsvAsBatch(prisma, collectionId, csv)
@@ -335,8 +336,8 @@ describe('importCsvAsBatch', () => {
   })
 
   it('allows importing into a different collection while one has an active batch', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A' })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
     await importCsvAsBatch(prisma, a.id, csv)
@@ -348,7 +349,7 @@ describe('importCsvAsBatch', () => {
   })
 
   it('round-trips: exporting then importing-and-approving reproduces the same collection', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', quantity: 3 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', quantity: 2 })
     await incrementOwned(prisma, collectionId, '01001', 2)
@@ -372,8 +373,8 @@ describe('importCsvAsBatch', () => {
 
 describe('listCollectionsWithStats', () => {
   it('returns stats and default-collection order for every collection', async () => {
-    await seedCollection(prisma, { name: 'First' })
-    await seedCollection(prisma, { name: 'Second', isDefault: false })
+    await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'First' })
+    await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'Second', isDefault: false })
 
     const list = await listCollectionsWithStats(prisma)
 
@@ -383,7 +384,7 @@ describe('listCollectionsWithStats', () => {
   })
 
   it('computes ownedCards/totalCards/percentOwned per collection', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 2, position: 1 })
     await seedCard(prisma, { code: '01002', title: 'Card B', packCode: 'core', packSize: 2, position: 2 })
     await incrementOwned(prisma, collectionId, '01001', 1)
@@ -396,8 +397,8 @@ describe('listCollectionsWithStats', () => {
   })
 
   it('keeps stats independent across two different collections', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A' })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', packSize: 1, position: 1 })
     await incrementOwned(prisma, a.id, '01001', 1)
 
@@ -408,7 +409,7 @@ describe('listCollectionsWithStats', () => {
   })
 
   it('reports pendingBatch as null when there is no active batch', async () => {
-    await seedCollection(prisma)
+    await seedCollection(prisma, (await seedUser(prisma)).id)
 
     const [entry] = await listCollectionsWithStats(prisma)
 
@@ -416,7 +417,7 @@ describe('listCollectionsWithStats', () => {
   })
 
   it('reports pendingBatch when a batch is stopped awaiting review', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
     const { batchId } = await importCsvAsBatch(prisma, collectionId, csv)
@@ -428,7 +429,7 @@ describe('listCollectionsWithStats', () => {
   })
 
   it('reports pendingBatch as null again after the batch is approved', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
     const csv = 'cardCode,title,faction,packCode,packName,quantityOwned,printedQuantity\n01001,Card A,anarch,core,core,1,1\n'
     const { batchId } = await importCsvAsBatch(prisma, collectionId, csv)
@@ -440,7 +441,7 @@ describe('listCollectionsWithStats', () => {
   })
 
   it('reports pendingBatch as null for an actively-running batch — it is not awaiting review', async () => {
-    const { id: collectionId } = await seedCollection(prisma)
+    const { id: collectionId } = await seedCollection(prisma, (await seedUser(prisma)).id)
     await prisma.batch.create({
       data: { collectionId, name: 'x', expectedCount: 1, status: 'running', elapsedMs: 0 },
     })
@@ -453,8 +454,8 @@ describe('listCollectionsWithStats', () => {
 
 describe('reorderCollections', () => {
   it('persists the given order', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A' })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
 
     await reorderCollections(prisma, [b.id, a.id])
 
@@ -463,12 +464,37 @@ describe('reorderCollections', () => {
   })
 
   it('is reflected by listCollectionsWithStats too', async () => {
-    const a = await seedCollection(prisma, { name: 'A' })
-    const b = await seedCollection(prisma, { name: 'B', isDefault: false })
+    const a = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'A' })
+    const b = await seedCollection(prisma, (await seedUser(prisma)).id, { name: 'B', isDefault: false })
 
     await reorderCollections(prisma, [b.id, a.id])
 
     const list = await listCollectionsWithStats(prisma)
     expect(list.map((coll) => coll.name)).toEqual(['B', 'A'])
+  })
+})
+
+describe('requireOwnedCollection', () => {
+  it('returns the collection when it belongs to the given user', async () => {
+    const user = await seedUser(prisma)
+    const collection = await seedCollection(prisma, user.id)
+
+    const result = await requireOwnedCollection(prisma, user.id, collection.id)
+
+    expect(result.id).toBe(collection.id)
+  })
+
+  it('throws when the collection belongs to a different user', async () => {
+    const owner = await seedUser(prisma, { email: 'owner@example.com' })
+    const stranger = await seedUser(prisma, { email: 'stranger@example.com' })
+    const collection = await seedCollection(prisma, owner.id)
+
+    await expect(requireOwnedCollection(prisma, stranger.id, collection.id)).rejects.toThrow('Collection not found')
+  })
+
+  it('throws the identical message when the collection does not exist at all', async () => {
+    const user = await seedUser(prisma)
+
+    await expect(requireOwnedCollection(prisma, user.id, 999999)).rejects.toThrow('Collection not found')
   })
 })

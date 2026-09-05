@@ -99,6 +99,8 @@ model CardFormatLegality {
 
 model Collection {
   id        Int               @id @default(autoincrement())
+  userId    Int
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   isDefault Boolean           @default(false)
   sortOrder Int               @default(0)
@@ -219,6 +221,7 @@ model User {
   updatedAt          DateTime             @updatedAt
   sessions           Session[]
   verificationTokens VerificationToken[]
+  collections        Collection[]
 }
 
 model Session {

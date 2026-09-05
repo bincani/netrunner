@@ -83,11 +83,24 @@ interface SeedCollectionOptions {
   isDefault?: boolean
 }
 
-export async function seedCollection(prisma: PrismaClient, options: SeedCollectionOptions = {}) {
+export async function seedCollection(prisma: PrismaClient, userId: number, options: SeedCollectionOptions = {}) {
   return prisma.collection.create({
     data: {
+      userId,
       name: options.name ?? 'Test Collection',
       isDefault: options.isDefault ?? true,
+    },
+  })
+}
+
+let userCounter = 0
+
+export async function seedUser(prisma: PrismaClient, options: { email?: string } = {}) {
+  userCounter += 1
+  return prisma.user.create({
+    data: {
+      email: options.email ?? `test-user-${userCounter}@example.com`,
+      passwordHash: 'not-a-real-hash',
     },
   })
 }

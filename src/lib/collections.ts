@@ -54,6 +54,18 @@ export async function getCollection(prisma: PrismaClient, collectionId: number):
   return collection ? toSummary(collection) : null
 }
 
+export async function requireOwnedCollection(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number
+): Promise<CollectionSummary> {
+  const collection = await prisma.collection.findFirst({ where: { id: collectionId, userId } })
+  if (!collection) {
+    throw new Error('Collection not found')
+  }
+  return toSummary(collection)
+}
+
 export async function listCollections(prisma: PrismaClient): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
