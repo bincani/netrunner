@@ -36,6 +36,7 @@ const factionOptions = [
 
 const sampleDeck: DeckSummary = {
   id: 1,
+  netrunnerdbId: 1,
   uuid: 'uuid-1',
   name: 'Test Deck',
   importedAt: new Date('2026-01-01'),

@@ -5,6 +5,18 @@ import userEvent from '@testing-library/user-event'
 import { BatchHistoryList } from './BatchHistoryList'
 import type { BatchSummary } from '@/lib/batches'
 
+vi.mock('@/actions/batchActions', () => ({
+  startBatch: vi.fn(),
+  addCardToBatch: vi.fn(),
+  pauseBatch: vi.fn(),
+  continueBatch: vi.fn(),
+  discardBatch: vi.fn(),
+  approveBatch: vi.fn(),
+  removeFromBatch: vi.fn(),
+  importCsv: vi.fn(),
+  revertApprovedBatch: vi.fn(),
+}))
+
 vi.mock('next/image', () => ({
   default: (props: React.ComponentProps<'img'>) => <img {...props} />,
 }))
