@@ -3,7 +3,7 @@ import { createTestDb } from './testDb'
 import { seedCard, seedCollection, seedUser } from './testFixtures'
 import { incrementOwned } from './collection'
 import { getDecksWithOwnership, getDeckWithOwnership, exportDeckCsv, requireOwnedDeck } from './decks'
-import { reorderDecks } from '@/actions/deckMutations'
+import { saveDeck, reorderDecks } from '@/actions/deckMutations'
 import type { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient
@@ -24,6 +24,10 @@ beforeEach(async () => {
   await prisma.cardFormatLegality.deleteMany()
   await prisma.format.deleteMany()
   await prisma.card.deleteMany()
+  // Cleared so explicit-email fixtures (e.g. 'owner@example.com') can be
+  // reused across different `it` blocks without colliding on User.email's
+  // unique constraint — each test starts with a clean user table.
+  await prisma.user.deleteMany()
 })
 
 describe('getDecksWithOwnership', () => {
@@ -31,11 +35,11 @@ describe('getDecksWithOwnership', () => {
     const user = await seedUser(prisma)
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core', factionCode: 'anarch' })
-    await incrementOwned(prisma, collectionId, '01001', 2)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 2)
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.name).toBe('Test Deck')
     expect(deck.totalCount).toBe(3)
@@ -62,11 +66,11 @@ describe('getDecksWithOwnership', () => {
     const user = await seedUser(prisma)
     const { id: collectionId } = await seedCollection(prisma, user.id)
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, collectionId, '01001', 5)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 5)
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.ownedCount).toBe(3)
     expect(deck.cards[0].ownedQuantity).toBe(5)
@@ -78,7 +82,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.cards[0]).toEqual({
       code: 'unknown-code',
@@ -107,7 +111,7 @@ describe('getDecksWithOwnership', () => {
       data: { id: 2, netrunnerdbId: 2, userId: user.id, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') },
     })
 
-    const decks = await getDecksWithOwnership(prisma, collectionId)
+    const decks = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(decks.map((d) => d.name)).toEqual(['Newer', 'Older'])
   })
@@ -121,17 +125,17 @@ describe('getDecksWithOwnership', () => {
       data: { id: 2, netrunnerdbId: 2, userId: user.id, uuid: 'uuid-2', name: 'Newer', importedAt: new Date('2026-02-01') },
     })
 
-    await reorderDecks(prisma, [1, 2])
+    await reorderDecks(prisma, user.id, [1, 2])
     const { id: collectionId } = await seedCollection(prisma, user.id)
 
-    const decks = await getDecksWithOwnership(prisma, collectionId)
+    const decks = await getDecksWithOwnership(prisma, user.id, collectionId)
     expect(decks.map((d) => d.name)).toEqual(['Older', 'Newer'])
   })
 
   it('returns an empty list when no decks are imported', async () => {
     const user = await seedUser(prisma)
     const { id: collectionId } = await seedCollection(prisma, user.id)
-    expect(await getDecksWithOwnership(prisma, collectionId)).toEqual([])
+    expect(await getDecksWithOwnership(prisma, user.id, collectionId)).toEqual([])
   })
 
   it("derives factionCode from the deck's identity card", async () => {
@@ -149,7 +153,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.factionCode).toBe('anarch')
   })
@@ -161,7 +165,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.factionCode).toBeNull()
   })
@@ -171,12 +175,12 @@ describe('getDecksWithOwnership', () => {
     const a = await seedCollection(prisma, user.id, { name: 'A' })
     const b = await seedCollection(prisma, user.id, { name: 'B', isDefault: false })
     await seedCard(prisma, { code: '01001', title: 'Card A', packCode: 'core' })
-    await incrementOwned(prisma, a.id, '01001', 3)
+    await incrementOwned(prisma, user.id, a.id, '01001', 3)
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deckA] = await getDecksWithOwnership(prisma, a.id)
-    const [deckB] = await getDecksWithOwnership(prisma, b.id)
+    const [deckA] = await getDecksWithOwnership(prisma, user.id, a.id)
+    const [deckB] = await getDecksWithOwnership(prisma, user.id, b.id)
 
     expect(deckA.ownedCount).toBe(3)
     expect(deckB.ownedCount).toBe(0)
@@ -193,7 +197,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.formatLegality).toEqual([
       { formatCode: 'standard', formatName: 'Standard', legal: false, activeRestrictionName: null, isPreRotation: null },
@@ -210,7 +214,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.formatLegality[0].activeRestrictionName).toBe('Standard Balance Update 26.08')
   })
@@ -232,7 +236,7 @@ describe('getDecksWithOwnership', () => {
     })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.formatLegality[0].isPreRotation).toBe(true)
   })
@@ -245,7 +249,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.formatLegality[0].isPreRotation).toBeNull()
   })
@@ -266,7 +270,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.identity).toEqual({
       code: '01002',
@@ -285,7 +289,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.identity).toBeNull()
   })
@@ -322,7 +326,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01003', quantity: 3 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01004', quantity: 2 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     // Own-faction card (01003) costs 0 regardless of factionCost; off-faction
     // card (01004) costs factionCost * quantity = 2 * 2 = 4.
@@ -340,7 +344,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.cards[0].influenceCost).toBeNull()
   })
@@ -358,7 +362,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 1 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.cards[0].keywords).toBe('Barrier')
   })
@@ -385,7 +389,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '02001', quantity: 2 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.packsUsed).toEqual([
       { code: 'core', name: 'Core Set', cardCount: 3, dateRelease: '2012-09-06' },
@@ -429,7 +433,7 @@ describe('getDecksWithOwnership', () => {
     // so the requirement formula's [20, 21] bracket actually applies.
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01056', quantity: 41 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.totalCount).toBe(45)
     expect(deck.agendaPoints).toEqual({ inDeck: 6, required: { min: 20, max: 21 } })
@@ -450,7 +454,7 @@ describe('getDecksWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01002', quantity: 1 } })
 
-    const [deck] = await getDecksWithOwnership(prisma, collectionId)
+    const [deck] = await getDecksWithOwnership(prisma, user.id, collectionId)
 
     expect(deck.agendaPoints).toBeNull()
   })
@@ -464,7 +468,7 @@ describe('getDeckWithOwnership', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 2 } })
 
-    const deck = await getDeckWithOwnership(prisma, collectionId, 1)
+    const deck = await getDeckWithOwnership(prisma, user.id, collectionId, 1)
 
     expect(deck?.name).toBe('Test Deck')
     expect(deck?.totalCount).toBe(2)
@@ -473,7 +477,19 @@ describe('getDeckWithOwnership', () => {
   it('returns null for a deck id that does not exist', async () => {
     const user = await seedUser(prisma)
     const { id: collectionId } = await seedCollection(prisma, user.id)
-    expect(await getDeckWithOwnership(prisma, collectionId, 999)).toBeNull()
+    expect(await getDeckWithOwnership(prisma, user.id, collectionId, 999)).toBeNull()
+  })
+
+  it('returns null for a deck belonging to another user', async () => {
+    const owner = await seedUser(prisma, { email: 'owner@example.com' })
+    const stranger = await seedUser(prisma, { email: 'stranger@example.com' })
+    const ownerCollection = await seedCollection(prisma, owner.id)
+    const strangerCollection = await seedCollection(prisma, stranger.id)
+    const deckId = await saveDeck(prisma, owner.id, 1001, 'uuid-1', 'Test Deck', null, {})
+
+    const result = await getDeckWithOwnership(prisma, stranger.id, strangerCollection.id, deckId)
+
+    expect(result).toBeNull()
   })
 })
 
@@ -488,11 +504,11 @@ describe('exportDeckCsv', () => {
       typeCode: 'program',
       factionCode: 'anarch',
     })
-    await incrementOwned(prisma, collectionId, '01001', 2)
+    await incrementOwned(prisma, user.id, collectionId, '01001', 2)
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: '01001', quantity: 3 } })
 
-    const csv = await exportDeckCsv(prisma, collectionId, 1)
+    const csv = await exportDeckCsv(prisma, user.id, collectionId, 1)
 
     expect(csv).toBe(
       'cardCode,title,faction,type,quantityNeeded,quantityOwned\n01001,Card A,anarch,program,3,2\n'
@@ -505,7 +521,7 @@ describe('exportDeckCsv', () => {
     await prisma.deck.create({ data: { id: 1, netrunnerdbId: 1, userId: user.id, uuid: 'uuid-1', name: 'Test Deck' } })
     await prisma.deckCard.create({ data: { deckId: 1, cardCode: 'unknown-code', quantity: 3 } })
 
-    const csv = await exportDeckCsv(prisma, collectionId, 1)
+    const csv = await exportDeckCsv(prisma, user.id, collectionId, 1)
 
     expect(csv).toBe('cardCode,title,faction,type,quantityNeeded,quantityOwned\nunknown-code,,,,3,0\n')
   })
@@ -513,7 +529,7 @@ describe('exportDeckCsv', () => {
   it('returns null for a deck id that does not exist', async () => {
     const user = await seedUser(prisma)
     const { id: collectionId } = await seedCollection(prisma, user.id)
-    expect(await exportDeckCsv(prisma, collectionId, 999)).toBeNull()
+    expect(await exportDeckCsv(prisma, user.id, collectionId, 999)).toBeNull()
   })
 })
 

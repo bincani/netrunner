@@ -201,8 +201,9 @@ async function computeDeckSummary(
   }
 }
 
-export async function getDecksWithOwnership(prisma: PrismaClient, collectionId: number): Promise<DeckSummary[]> {
+export async function getDecksWithOwnership(prisma: PrismaClient, userId: number, collectionId: number): Promise<DeckSummary[]> {
   const decks = await prisma.deck.findMany({
+    where: { userId },
     include: { cards: { orderBy: { cardCode: 'asc' } } },
     orderBy: [{ sortOrder: 'asc' }, { importedAt: 'desc' }],
   })
@@ -211,11 +212,12 @@ export async function getDecksWithOwnership(prisma: PrismaClient, collectionId: 
 
 export async function getDeckWithOwnership(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   id: number
 ): Promise<DeckSummary | null> {
-  const deck = await prisma.deck.findUnique({
-    where: { id },
+  const deck = await prisma.deck.findFirst({
+    where: { id, userId },
     include: { cards: { orderBy: { cardCode: 'asc' } } },
   })
   if (!deck) {
@@ -231,8 +233,8 @@ export async function requireOwnedDeck(prisma: PrismaClient, userId: number, dec
   }
 }
 
-export async function exportDeckCsv(prisma: PrismaClient, collectionId: number, id: number): Promise<string | null> {
-  const deck = await getDeckWithOwnership(prisma, collectionId, id)
+export async function exportDeckCsv(prisma: PrismaClient, userId: number, collectionId: number, id: number): Promise<string | null> {
+  const deck = await getDeckWithOwnership(prisma, userId, collectionId, id)
   if (!deck) {
     return null
   }
