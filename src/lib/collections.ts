@@ -36,21 +36,28 @@ function toSummary(collection: {
   }
 }
 
-export async function getDefaultCollection(prisma: PrismaClient): Promise<CollectionSummary> {
-  const collection = await prisma.collection.findFirst({ where: { isDefault: true } })
-  if (!collection) {
-    throw new Error('No default collection exists')
+export async function getDefaultCollection(prisma: PrismaClient, userId: number): Promise<CollectionSummary> {
+  const collection = await prisma.collection.findFirst({ where: { userId, isDefault: true } })
+  if (collection) {
+    return toSummary(collection)
   }
-  return toSummary(collection)
+  const created = await prisma.collection.create({
+    data: { userId, name: 'My Collection', isDefault: true, sortOrder: 0 },
+  })
+  return toSummary(created)
 }
 
-export async function getDefaultCollectionId(prisma: PrismaClient): Promise<number> {
-  const collection = await getDefaultCollection(prisma)
+export async function getDefaultCollectionId(prisma: PrismaClient, userId: number): Promise<number> {
+  const collection = await getDefaultCollection(prisma, userId)
   return collection.id
 }
 
-export async function getCollection(prisma: PrismaClient, collectionId: number): Promise<CollectionSummary | null> {
-  const collection = await prisma.collection.findUnique({ where: { id: collectionId } })
+export async function getCollection(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number
+): Promise<CollectionSummary | null> {
+  const collection = await prisma.collection.findFirst({ where: { id: collectionId, userId } })
   return collection ? toSummary(collection) : null
 }
 
@@ -66,8 +73,9 @@ export async function requireOwnedCollection(
   return toSummary(collection)
 }
 
-export async function listCollections(prisma: PrismaClient): Promise<CollectionSummary[]> {
+export async function listCollections(prisma: PrismaClient, userId: number): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({
+    where: { userId },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   })
   return collections.map(toSummary)
@@ -80,8 +88,8 @@ export interface CollectionListEntry extends CollectionSummary {
   pendingBatch: BatchSummary | null
 }
 
-export async function listCollectionsWithStats(prisma: PrismaClient): Promise<CollectionListEntry[]> {
-  const collections = await listCollections(prisma)
+export async function listCollectionsWithStats(prisma: PrismaClient, userId: number): Promise<CollectionListEntry[]> {
+  const collections = await listCollections(prisma, userId)
   return Promise.all(
     collections.map(async (collection) => {
       const [totals, activeBatch] = await Promise.all([
@@ -102,34 +110,44 @@ function validateName(name: string): string {
   return trimmed
 }
 
-export async function createCollection(prisma: PrismaClient, name: string): Promise<number> {
-  const maxSortOrder = await prisma.collection.aggregate({ _max: { sortOrder: true } })
+export async function createCollection(prisma: PrismaClient, userId: number, name: string): Promise<number> {
+  const maxSortOrder = await prisma.collection.aggregate({ where: { userId }, _max: { sortOrder: true } })
   const collection = await prisma.collection.create({
-    data: { name: validateName(name), isDefault: false, sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1 },
+    data: { userId, name: validateName(name), isDefault: false, sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1 },
   })
   return collection.id
 }
 
-export async function renameCollection(prisma: PrismaClient, collectionId: number, name: string): Promise<void> {
+export async function renameCollection(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number,
+  name: string
+): Promise<void> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   await prisma.collection.update({ where: { id: collectionId }, data: { name: validateName(name) } })
 }
 
-export async function deleteCollection(prisma: PrismaClient, collectionId: number): Promise<void> {
-  const collection = await prisma.collection.findUniqueOrThrow({ where: { id: collectionId } })
+export async function deleteCollection(prisma: PrismaClient, userId: number, collectionId: number): Promise<void> {
+  const collection = await requireOwnedCollection(prisma, userId, collectionId)
   if (collection.isDefault) {
     throw new Error('Cannot delete the default collection')
   }
   await prisma.collection.delete({ where: { id: collectionId } })
 }
 
-export async function setDefaultCollection(prisma: PrismaClient, collectionId: number): Promise<void> {
+export async function setDefaultCollection(prisma: PrismaClient, userId: number, collectionId: number): Promise<void> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   await prisma.$transaction([
-    prisma.collection.updateMany({ where: { isDefault: true }, data: { isDefault: false } }),
+    prisma.collection.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } }),
     prisma.collection.update({ where: { id: collectionId }, data: { isDefault: true } }),
   ])
 }
 
-export async function reorderCollections(prisma: PrismaClient, orderedIds: number[]): Promise<void> {
+export async function reorderCollections(prisma: PrismaClient, userId: number, orderedIds: number[]): Promise<void> {
+  for (const id of orderedIds) {
+    await requireOwnedCollection(prisma, userId, id)
+  }
   await prisma.$transaction(
     orderedIds.map((id, index) => prisma.collection.update({ where: { id }, data: { sortOrder: index } }))
   )
@@ -209,9 +227,12 @@ export interface ImportBatchResult {
  */
 export async function importCsvAsBatch(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   csvText: string
 ): Promise<ImportBatchResult> {
+  await requireOwnedCollection(prisma, userId, collectionId)
+
   const rows = parseCsv(csvText.trim())
   if (rows.length === 0) {
     throw new Error('CSV is empty')
