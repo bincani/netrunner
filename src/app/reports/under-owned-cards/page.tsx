@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { listCardsUnderExpectedQuantity } from '@/lib/reports'
 import { getDefaultCollectionId } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 
 // Reflects live collection state (owned quantities) — not something to
 // freeze into a build-time snapshot. See the dashboard's identical
@@ -9,7 +10,8 @@ import { getDefaultCollectionId } from '@/lib/collections'
 export const dynamic = 'force-dynamic'
 
 export default async function UnderOwnedCardsReportPage() {
-  const collectionId = await getDefaultCollectionId(prisma)
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
   const sets = await listCardsUnderExpectedQuantity(prisma, collectionId)
 
   return (

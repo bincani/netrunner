@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
 import { getNavStyle } from '@/actions/settingsMutations'
+import { getCurrentUser } from '@/lib/currentUser'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NavTopBar } from '@/components/NavTopBar'
@@ -30,7 +31,8 @@ try {
 `
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const navStyle = await getNavStyle(prisma)
+  const user = await getCurrentUser()
+  const navStyle = user ? await getNavStyle(prisma, user.id) : 'topbar'
 
   return (
     <html lang="en" suppressHydrationWarning>

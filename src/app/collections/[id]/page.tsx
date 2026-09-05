@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
 import { getCollection, listCollections } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetProgressList } from '@/app/SetProgressList'
 import { SetDefaultButton } from './SetDefaultButton'
@@ -20,7 +21,8 @@ export default async function CollectionDetailPage({ params }: { params: Promise
     notFound()
   }
 
-  const collection = await getCollection(prisma, parsedId)
+  const { id: userId } = await requireCurrentUser()
+  const collection = await getCollection(prisma, userId, parsedId)
   if (!collection) {
     notFound()
   }
@@ -29,7 +31,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
     computeAllSetsCompletion(prisma, collection.id),
     computeCollectionTotals(prisma, collection.id),
     listUnsizedPacks(prisma),
-    listCollections(prisma),
+    listCollections(prisma, userId),
   ])
 
   return (

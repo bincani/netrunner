@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { listCardsInPack } from '@/lib/cards'
 import { computeSetCompletion, releaseYear } from '@/lib/reports'
 import { getDefaultCollection, getCollection } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { SetCoverImage } from '@/components/SetCoverImage'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetCardGrid } from './SetCardGrid'
@@ -17,6 +18,7 @@ export default async function SetPage({
 }) {
   const { packCode } = await params
   const { collectionId: requestedCollectionId } = await searchParams
+  const { id: userId } = await requireCurrentUser()
 
   const pack = await prisma.pack.findUnique({ where: { code: packCode }, include: { cycle: true } })
   if (!pack) {
@@ -27,10 +29,10 @@ export default async function SetPage({
   if (requestedCollectionId) {
     const parsedId = Number(requestedCollectionId)
     if (!Number.isInteger(parsedId)) notFound()
-    collection = await getCollection(prisma, parsedId)
+    collection = await getCollection(prisma, userId, parsedId)
     if (!collection) notFound()
   } else {
-    collection = await getDefaultCollection(prisma)
+    collection = await getDefaultCollection(prisma, userId)
   }
 
   const [cards, completion] = await Promise.all([

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { getDiscoverDecks, type DiscoverFilters } from '@/lib/discover'
 import { getDefaultCollectionId } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { DiscoverSection } from './DiscoverSection'
 
 // Reflects live DB state (owned quantities, synced deck pool) — not
@@ -11,10 +12,11 @@ export const dynamic = 'force-dynamic'
 const DEFAULT_FILTERS: DiscoverFilters = { sort: 'percentOwned', limit: 25, offset: 0 }
 
 export default async function DiscoverPage() {
-  const collectionId = await getDefaultCollectionId(prisma)
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
   const [{ decks, total }, savedDecks, factions] = await Promise.all([
     getDiscoverDecks(prisma, collectionId, DEFAULT_FILTERS),
-    prisma.deck.findMany({ select: { id: true } }),
+    prisma.deck.findMany({ where: { userId }, select: { netrunnerdbId: true } }),
     prisma.faction.findMany({ orderBy: { name: 'asc' } }),
   ])
 
@@ -24,7 +26,7 @@ export default async function DiscoverPage() {
       <DiscoverSection
         initialDecks={decks}
         initialTotal={total}
-        savedDeckIds={savedDecks.map((deck) => deck.id)}
+        savedDeckIds={savedDecks.map((deck) => deck.netrunnerdbId)}
         factionOptions={factions.map((faction) => ({ code: faction.code, name: faction.name, sideCode: faction.sideCode }))}
       />
     </main>

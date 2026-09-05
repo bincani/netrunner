@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { getDecksWithOwnership } from '@/lib/decks'
 import { getDefaultCollectionId } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { DeckSection } from './DeckSection'
 
 // Reflects live DB state (owned quantities, imported decks) — not
@@ -9,9 +10,10 @@ import { DeckSection } from './DeckSection'
 export const dynamic = 'force-dynamic'
 
 export default async function DecksPage() {
-  const collectionId = await getDefaultCollectionId(prisma)
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
   const [decks, factions] = await Promise.all([
-    getDecksWithOwnership(prisma, collectionId),
+    getDecksWithOwnership(prisma, userId, collectionId),
     prisma.faction.findMany({ orderBy: { name: 'asc' } }),
   ])
 

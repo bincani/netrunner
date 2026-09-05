@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { computeAllSetsCompletion, computeCollectionTotals, listUnsizedPacks } from '@/lib/reports'
 import { getDefaultCollection, listCollections } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { SetTypeBadge } from '@/components/SetTypeBadge'
 import { SetProgressList } from './SetProgressList'
 import { CollectionSwitcher } from './CollectionSwitcher'
@@ -13,12 +14,13 @@ import { CollectionSwitcher } from './CollectionSwitcher'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const collection = await getDefaultCollection(prisma)
+  const { id: userId } = await requireCurrentUser()
+  const collection = await getDefaultCollection(prisma, userId)
   const [sets, totals, unsizedPacks, collections] = await Promise.all([
     computeAllSetsCompletion(prisma, collection.id),
     computeCollectionTotals(prisma, collection.id),
     listUnsizedPacks(prisma),
-    listCollections(prisma),
+    listCollections(prisma, userId),
   ])
 
   return (

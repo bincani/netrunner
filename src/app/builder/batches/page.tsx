@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { listArchivedBatches } from '@/lib/batches'
 import { getCollection, listCollections } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { BatchHistoryList } from './BatchHistoryList'
 import { BatchHistoryFilter } from './BatchHistoryFilter'
 
@@ -13,19 +14,20 @@ export default async function BatchHistoryPage({
   searchParams: Promise<{ collectionId?: string }>
 }) {
   const { collectionId: requestedCollectionId } = await searchParams
+  const { id: userId } = await requireCurrentUser()
 
   let selectedCollectionId: number | null = null
   if (requestedCollectionId) {
     const parsedId = Number(requestedCollectionId)
     if (!Number.isInteger(parsedId)) notFound()
-    const collection = await getCollection(prisma, parsedId)
+    const collection = await getCollection(prisma, userId, parsedId)
     if (!collection) notFound()
     selectedCollectionId = collection.id
   }
 
   const [batches, collections] = await Promise.all([
-    listArchivedBatches(prisma, selectedCollectionId ?? undefined),
-    listCollections(prisma),
+    listArchivedBatches(prisma, userId, selectedCollectionId ?? undefined),
+    listCollections(prisma, userId),
   ])
 
   return (

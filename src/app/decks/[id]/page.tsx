@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getDeckWithOwnership, getDecksWithOwnership } from '@/lib/decks'
 import { getDefaultCollectionId } from '@/lib/collections'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { DeckCompletionBar } from '@/components/DeckCompletionBar'
 import { DeckCardListByType } from '@/components/DeckCardListByType'
 import { DeckPacksUsed } from '@/components/DeckPacksUsed'
@@ -21,10 +22,11 @@ export default async function DeckDetailPage({ params }: { params: Promise<{ id:
     notFound()
   }
 
-  const collectionId = await getDefaultCollectionId(prisma)
+  const { id: userId } = await requireCurrentUser()
+  const collectionId = await getDefaultCollectionId(prisma, userId)
   const [deck, decks] = await Promise.all([
-    getDeckWithOwnership(prisma, collectionId, parsedId),
-    getDecksWithOwnership(prisma, collectionId),
+    getDeckWithOwnership(prisma, userId, collectionId, parsedId),
+    getDecksWithOwnership(prisma, userId, collectionId),
   ])
   if (!deck) {
     notFound()
@@ -49,7 +51,7 @@ export default async function DeckDetailPage({ params }: { params: Promise<{ id:
           </div>
           <div className="flex shrink-0 items-center gap-4">
             <a
-              href={`https://netrunnerdb.com/en/decklist/${deck.id}`}
+              href={`https://netrunnerdb.com/en/decklist/${deck.netrunnerdbId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="cursor-pointer text-sm text-accent hover:underline"

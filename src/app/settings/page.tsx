@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { getHiddenBuilderPackCodes, getBuilderMode, getNavStyle } from '@/actions/settingsMutations'
+import { requireCurrentUser } from '@/lib/currentUser'
 import { SettingsForm } from './SettingsForm'
 
 // Reflects live DB state (every pack, which ones are hidden, and the
@@ -8,11 +9,12 @@ import { SettingsForm } from './SettingsForm'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
+  const { id: userId } = await requireCurrentUser()
   const [packs, hiddenPackCodes, builderMode, navStyle] = await Promise.all([
     prisma.pack.findMany({ orderBy: [{ cycle: { position: 'asc' } }, { position: 'asc' }] }),
-    getHiddenBuilderPackCodes(prisma),
-    getBuilderMode(prisma),
-    getNavStyle(prisma),
+    getHiddenBuilderPackCodes(prisma, userId),
+    getBuilderMode(prisma, userId),
+    getNavStyle(prisma, userId),
   ])
 
   return (
