@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
+import { requireOwnedCollection } from './collections'
 
 export type BatchStatus = 'running' | 'paused' | 'stopped' | 'approved' | 'discarded'
 
@@ -110,7 +111,12 @@ const BATCH_CARDS_INCLUDE = {
   collection: { select: { name: true } },
 }
 
-export async function getActiveBatch(prisma: PrismaClient, collectionId: number): Promise<BatchSummary | null> {
+export async function getActiveBatch(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number
+): Promise<BatchSummary | null> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const batch = await prisma.batch.findFirst({
     where: { collectionId, status: { in: ['running', 'paused', 'stopped'] } },
     include: BATCH_CARDS_INCLUDE,
@@ -118,10 +124,21 @@ export async function getActiveBatch(prisma: PrismaClient, collectionId: number)
   return batch ? toSummary(batch) : null
 }
 
-/** Omit collectionId to list archived batches across every collection. */
-export async function listArchivedBatches(prisma: PrismaClient, collectionId?: number): Promise<BatchSummary[]> {
+/** Omit collectionId to list archived batches across every collection the given user owns. */
+export async function listArchivedBatches(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId?: number
+): Promise<BatchSummary[]> {
+  if (collectionId !== undefined) {
+    await requireOwnedCollection(prisma, userId, collectionId)
+  }
   const batches = await prisma.batch.findMany({
-    where: { collectionId, status: { in: ['approved', 'discarded'] } },
+    where: {
+      collection: { userId },
+      ...(collectionId !== undefined ? { collectionId } : {}),
+      status: { in: ['approved', 'discarded'] },
+    },
     include: BATCH_CARDS_INCLUDE,
     orderBy: { startedAt: 'desc' },
   })

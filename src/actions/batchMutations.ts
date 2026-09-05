@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
-import { touchCollection } from '@/lib/collections'
+import { touchCollection, requireOwnedCollection } from '@/lib/collections'
 import { formatBatchName, getActiveBatch } from '@/lib/batches'
 
 async function freeze(
@@ -15,12 +15,18 @@ async function freeze(
   })
 }
 
-export async function startBatch(prisma: PrismaClient, collectionId: number, expectedCount: number): Promise<number> {
+export async function startBatch(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number,
+  expectedCount: number
+): Promise<number> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   if (!Number.isInteger(expectedCount) || expectedCount < 1) {
     throw new Error(`expectedCount must be a positive integer, got ${expectedCount}`)
   }
 
-  const existing = await getActiveBatch(prisma, collectionId)
+  const existing = await getActiveBatch(prisma, userId, collectionId)
   if (existing) {
     throw new Error('A batch is already active — review or finish it before starting a new one')
   }
@@ -42,6 +48,7 @@ export async function startBatch(prisma: PrismaClient, collectionId: number, exp
 
 export async function addCardToBatch(
   prisma: PrismaClient,
+  userId: number,
   batchId: number,
   cardCode: string,
   amount: number
@@ -51,6 +58,7 @@ export async function addCardToBatch(
   }
 
   const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+  await requireOwnedCollection(prisma, userId, batch.collectionId)
   if (batch.status !== 'running') {
     throw new Error(`Cannot add a card to a batch with status "${batch.status}"`)
   }
@@ -101,24 +109,27 @@ export async function addCardToBatch(
   return { newSet }
 }
 
-export async function pauseBatch(prisma: PrismaClient, batchId: number): Promise<void> {
+export async function pauseBatch(prisma: PrismaClient, userId: number, batchId: number): Promise<void> {
   const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+  await requireOwnedCollection(prisma, userId, batch.collectionId)
   if (batch.status !== 'running') {
     throw new Error(`Cannot pause a batch with status "${batch.status}"`)
   }
   await freeze(prisma, batchId, batch.lastResumedAt!, 'paused')
 }
 
-export async function continueBatch(prisma: PrismaClient, batchId: number): Promise<void> {
+export async function continueBatch(prisma: PrismaClient, userId: number, batchId: number): Promise<void> {
   const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+  await requireOwnedCollection(prisma, userId, batch.collectionId)
   if (batch.status !== 'paused') {
     throw new Error(`Cannot continue a batch with status "${batch.status}"`)
   }
   await prisma.batch.update({ where: { id: batchId }, data: { status: 'running', lastResumedAt: new Date() } })
 }
 
-export async function discardBatch(prisma: PrismaClient, batchId: number): Promise<void> {
+export async function discardBatch(prisma: PrismaClient, userId: number, batchId: number): Promise<void> {
   const batch = await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })
+  await requireOwnedCollection(prisma, userId, batch.collectionId)
   if (batch.status !== 'paused' && batch.status !== 'stopped') {
     throw new Error(`Cannot discard a batch with status "${batch.status}"`)
   }
@@ -127,7 +138,13 @@ export async function discardBatch(prisma: PrismaClient, batchId: number): Promi
   await prisma.batch.update({ where: { id: batchId }, data: { status: 'discarded', archivedAt: new Date() } })
 }
 
-export async function approveBatch(prisma: PrismaClient, collectionId: number, batchId: number): Promise<void> {
+export async function approveBatch(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number,
+  batchId: number
+): Promise<void> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const batch = await prisma.batch.findFirstOrThrow({
     where: { id: batchId, collectionId },
     include: { cards: true },
@@ -171,7 +188,13 @@ export async function approveBatch(prisma: PrismaClient, collectionId: number, b
  * Symmetric with approveBatch, which now also accepts a 'discarded' batch
  * to re-apply it.
  */
-export async function revertApprovedBatch(prisma: PrismaClient, collectionId: number, batchId: number): Promise<void> {
+export async function revertApprovedBatch(
+  prisma: PrismaClient,
+  userId: number,
+  collectionId: number,
+  batchId: number
+): Promise<void> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   const batch = await prisma.batch.findFirstOrThrow({
     where: { id: batchId, collectionId },
     include: { cards: true },
@@ -201,11 +224,13 @@ export async function revertApprovedBatch(prisma: PrismaClient, collectionId: nu
 
 export async function removeFromBatch(
   prisma: PrismaClient,
+  userId: number,
   collectionId: number,
   batchId: number,
   cardCode: string,
   amount: number
 ): Promise<void> {
+  await requireOwnedCollection(prisma, userId, collectionId)
   if (!Number.isInteger(amount) || amount < 1) {
     throw new Error(`amount must be a positive integer, got ${amount}`)
   }
