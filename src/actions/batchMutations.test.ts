@@ -235,7 +235,7 @@ describe('addCardToBatch', () => {
     expect(result.newSet).toBeNull()
   })
 
-  it('throws when the batch\'s collection belongs to another user', async () => {
+  it('addCardToBatch throws when the batch\'s collection belongs to another user', async () => {
     const owner = await seedUser(prisma, { email: 'owner@example.com' })
     const stranger = await seedUser(prisma, { email: 'stranger@example.com' })
     const collection = await seedCollection(prisma, owner.id)
